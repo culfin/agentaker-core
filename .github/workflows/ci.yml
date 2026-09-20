@@ -1,0 +1,37 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# On a push, github.head_ref is empty and github.ref is refs/heads/x; on a
+# pull_request, github.head_ref is the bare branch name x. Using ref_name as
+# the fallback (not ref) matters: github.ref_name is the bare name on a push
+# too (x, not refs/heads/x), so both events land in the same group and
+# cancel-in-progress actually fires. A push/pull_request pair for the same
+# branch would otherwise run twice, in two different groups, never cancelling
+# each other.
+concurrency:
+  group: ci-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # This repository is not in the organisation that owns the self-hosted
+    # runners; a job requesting them here would queue forever without ever
+    # turning red.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Tests
+        run: bash tests/run.sh
+      - name: Lint
+        run: bin/wtc-lint .
+      - name: Shellcheck
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y shellcheck
+          shellcheck -S warning bin/wtc bin/wtc-lint hooks/load_role.sh

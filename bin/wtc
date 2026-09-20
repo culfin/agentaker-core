@@ -122,7 +122,7 @@ read_reviewer_token() {
   return 1
 }
 
-start_role() {
+cmd_start() {
   local repo=$1 role=$2 suffix=${3:-}
   local repo_dir="$PROJECTS_DIR/$repo"
   local name="$repo-$role${suffix:+-$suffix}"
@@ -210,7 +210,7 @@ status_query() {
   fi
 }
 
-status() {
+cmd_status() {
   local owner=${1:-${WTC_OWNER:-}}
   [ -n "$owner" ] || die "give an owner: wtc status <owner>  (or set WTC_OWNER)"
 
@@ -251,7 +251,7 @@ status() {
   return 0
 }
 
-attach() {
+cmd_attach() {
   local repo=${1:-}
   [ -n "$repo" ] || { usage; exit 2; }
   command -v tmux >/dev/null 2>&1 \
@@ -301,7 +301,7 @@ suggest_tests() {
   esac
 }
 
-init() {
+cmd_init() {
   local repo=${1:-}
   [ -n "$repo" ] || { usage; exit 2; }
   local dir="$PROJECTS_DIR/$repo"
@@ -382,7 +382,7 @@ EOF
   # --- worktrees ------------------------------------------------------------
   if [ "$(ask 'Create worktrees for the three roles? (y/n)' y)" = "y" ]; then
     for role in developer reviewer integrator; do
-      if ( DRY_RUN=1; start_role "$repo" "$role" ) >/dev/null 2>&1; then
+      if ( DRY_RUN=1; cmd_start "$repo" "$role" ) >/dev/null 2>&1; then
         printf '  worktree: %s-%s\n' "$repo" "$role"
       else
         printf '  could not create the %s worktree — run `wtc %s %s` to see why\n' "$role" "$repo" "$role"
@@ -412,8 +412,8 @@ EOF
 case "${1:-}" in
   "")        usage; exit 2 ;;
   -h|--help) usage; exit 0 ;;
-  init)      shift; init "$@" ;;
-  status)    shift; status "$@" ;;
-  attach)    shift; attach "$@" ;;
-  *)         [ $# -ge 2 ] || { usage; exit 2; }; start_role "$@" ;;
+  init)      shift; cmd_init "$@" ;;
+  status)    shift; cmd_status "$@" ;;
+  attach)    shift; cmd_attach "$@" ;;
+  *)         [ $# -ge 2 ] || { usage; exit 2; }; cmd_start "$@" ;;
 esac
