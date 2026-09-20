@@ -95,3 +95,27 @@ it by hand.
     export WTC_TOOL=claude      # default
 
 See [tools.md](tools.md) for what is supported and what is untested.
+
+## 6. Tell your tabs apart
+
+Several sessions across several projects means several terminal tabs, and by
+default they all say the same thing. `wtc` sets the tab title itself, scoped
+to that project's tmux session only — it never touches the global title, so
+your other tmux sessions keep whatever they already show.
+
+The title is short on purpose: project, then who, nothing else — the session
+name already carries "wtc", repeating it would just cost characters:
+
+    dateye · DEV
+    dateye · DEV·eyeoffice        # a suffixed developer session
+
+The tag is `DEV` / `REV` / `INT` for the three roles, `---` for `none`, and
+the first three letters uppercased for anything else.
+
+On iTerm2, the tab itself is coloured by role — developer blue, reviewer
+yellow, integrator green, anything else uncoloured — using iTerm2's own
+proprietary escape codes, wrapped for tmux passthrough. This is iTerm2-only;
+see [limits.md](limits.md) for what happens in every other terminal. Turn it
+off, still keeping the title:
+
+    export WTC_TAB_COLOUR=0

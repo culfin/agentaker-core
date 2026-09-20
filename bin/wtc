@@ -38,6 +38,8 @@ Usage:
   wtc <repo> <role> [suffix]   start a session in its own worktree
   wtc attach <repo>            re-attach to a repo's tmux session
   wtc status [owner]           show where work is waiting, across repos
+  wtc list [repo]               show worktrees, their branch, size and state
+  wtc drop <repo> <name>        remove a worktree (refuses if it isn't safe)
 
 Roles: developer, reviewer, integrator
 
@@ -48,7 +50,72 @@ Environment:
                      see launch_command() in bin/wtc for the supported list
   WTC_OWNER          default GitHub owner for `wtc status`
   WTC_REVIEWER       login of the reviewer account, for `wtc status`
+  WTC_TAB_COLOUR     iTerm2 tab colour by role (default: on, 0 to disable)
 EOF
+}
+
+# --- legible tabs --------------------------------------------------------
+# A terminal tab shows one line and the user reads it at a glance: project,
+# then who. Everything else is noise — the session name already carries
+# "wtc", so repeating it costs characters and says nothing.
+#
+# developer -> DEV, reviewer -> REV, integrator -> INT, none -> ---, anything
+# else -> its first three characters, uppercased. tr, not ${var^^}: bash 3.2
+# (still /bin/bash on macOS) doesn't have the latter.
+role_tag() {
+  case "$1" in
+    developer)  printf 'DEV' ;;
+    reviewer)   printf 'REV' ;;
+    integrator) printf 'INT' ;;
+    # `printf --` and not bare `printf '---'`: bash's own printf builtin reads
+    # a format string starting with `-` as an option and refuses it — found
+    # by the test in tests/test_start.sh that runs this exact case, not by
+    # reading the code.
+    none)       printf -- '---' ;;
+    *)          printf '%s' "$(printf '%.3s' "$1" | tr '[:lower:]' '[:upper:]')" ;;
+  esac
+}
+
+# iTerm2's own tab-colour codes are proprietary, and only iTerm2 understands
+# them — a stray escape sequence in a terminal that doesn't is worse than no
+# colour, it prints garbage. Every wtc-launched pane runs inside tmux, so
+# TERM_PROGRAM inside the pane is always "tmux" (tmux sets it itself); that
+# check has to happen here, in wtc's own process, before tmux exists in the
+# picture. iTerm2's tmux integration sets LC_TERMINAL for exactly this reason
+# — it's the one signal that survives being wrapped in tmux.
+iterm2_detected() {
+  [ "${TERM_PROGRAM:-}" = "iTerm2" ] || [ "${LC_TERMINAL:-}" = "iTerm2" ]
+}
+
+tab_colour_rgb() {
+  case "$1" in
+    developer)  printf '0;122;255' ;;
+    reviewer)   printf '255;204;0' ;;
+    integrator) printf '52;199;89' ;;
+    *)          return 1 ;;
+  esac
+}
+
+# One DCS-wrapped OSC 6 component (iTerm2's per-channel tab colour code).
+# tmux's passthrough convention requires doubling any ESC embedded in the
+# wrapped payload; each component command here carries exactly one (its own
+# leading ESC), so the wrap is a single doubling. Three calls — red, green,
+# blue — build the full colour; see tab_colour_sequence().
+osc6_component() {
+  printf '\033Ptmux;\033]6;1;bg;%s;brightness;%s\a\033\\' "$1" "$2"
+}
+
+# The full escape sequence for $1's tab colour, or nothing (rc 1) if the role
+# has none. Emitting this is the caller's job — see cmd_start(), which runs
+# it from inside the new pane itself, not from here, so there is no race
+# against the allow-passthrough option that has to be on first.
+tab_colour_sequence() {
+  local rgb r g b
+  rgb=$(tab_colour_rgb "$1") || return 1
+  IFS=';' read -r r g b <<EOF
+$rgb
+EOF
+  printf '%s%s%s' "$(osc6_component red "$r")" "$(osc6_component green "$g")" "$(osc6_component blue "$b")"
 }
 
 # --- the one vendor-aware function -------------------------------------------
@@ -161,30 +228,91 @@ cmd_start() {
   local session
   session=$(session_name "$repo")
 
+  # The window name is what a tab actually shows (via #W in the title format
+  # below) — short on purpose: the tag alone, or tag-and-suffix when there is
+  # one. The worktree/branch name ($name, above) stays untouched; nothing
+  # about how worktrees are addressed on disk changes here.
+  local tag window_label title
+  tag=$(role_tag "$role")
+  window_label=$tag
+  # Braced, not "$tag·$suffix": in a UTF-8 locale (de_DE.UTF-8 here), bash's
+  # parser can read the multibyte "·" right after an unbraced $tag as part of
+  # the variable name, and dies with "tag<corrupt-byte> ist nicht gesetzt" —
+  # found by running this line under this machine's actual locale, not by
+  # inspection.
+  [ -n "$suffix" ] && window_label="${tag}·${suffix}"
+  title="$repo · $window_label"
+
   if [ -n "$DRY_RUN" ]; then
-    printf 'would launch in tmux session %s, window %s: %s\n' "$session" "$name" "${LAUNCH_CMD[*]}"
+    printf 'would launch in tmux session %s, window %s (title: %s): %s\n' \
+      "$session" "$window_label" "$title" "${LAUNCH_CMD[*]}"
     return 0
   fi
 
   command -v tmux >/dev/null 2>&1 \
     || die "tmux is not installed — worktree-crew uses it so sessions outlive the device looking at them"
 
+  # The window name survives only if two other actors are stopped from
+  # touching it — measured, not assumed: a coding agent that sets its own
+  # process/window title, on a stock tmux (automatic-rename defaults on),
+  # gets its own name back within moments of starting, silently, with no
+  # error anywhere. `allow-rename` (the program renaming itself via escape
+  # sequence) and `automatic-rename` (tmux's own rename-to-current-command)
+  # are two separate mechanisms; measured against a real coding-agent
+  # session, allow-rename was already off and the rename still happened —
+  # automatic-rename was the one responsible. Both are turned off anyway,
+  # since either could be the culprit on a different tmux config.
+  #
+  # This — like the colour below — has to run from inside the pane itself,
+  # window-scoped via its own $TMUX_PANE, as its first act: a `tmux
+  # set-window-option` issued from wtc's own process, after creation, would
+  # race the pane's first automatic-rename evaluation. Measured with a
+  # stand-in command across 3 seconds of wall time: zero flicker once this
+  # runs before anything else does.
+  #
+  # Colour, right after, if the role has one, WTC_TAB_COLOUR hasn't disabled
+  # it, and this is iTerm2. It has to come from inside the pane to reach the
+  # terminal at all, and turning allow-passthrough on from inside — same
+  # $TMUX_PANE, window-scoped, never global — avoids the same race: a pane
+  # that starts emitting before the option is on.
+  local colour_seq=""
+  if [ "${WTC_TAB_COLOUR:-1}" != "0" ] && iterm2_detected; then
+    colour_seq=$(tab_colour_sequence "$role") || colour_seq=""
+  fi
+
+  LAUNCH_CMD=(sh -c '
+    tmux set-window-option -t "$TMUX_PANE" automatic-rename off 2>/dev/null
+    tmux set-window-option -t "$TMUX_PANE" allow-rename off 2>/dev/null
+    tmux set-option -t "$TMUX_PANE" allow-passthrough on 2>/dev/null
+    printf "%s" "$1"
+    shift
+    exec "$@"
+  ' wtc "$colour_seq" "${LAUNCH_CMD[@]}")
+
   # Two explicit branches rather than expanding a possibly-empty array:
   # "${arr[@]}" on an empty array is an unbound-variable error under `set -u`
   # in bash 3.2.
   if tmux has-session -t "$session" 2>/dev/null; then
     if [ -n "$token" ]; then
-      tmux new-window -t "$session" -c "$wt" -n "$name" -e "GH_TOKEN=$token" "${LAUNCH_CMD[@]}"
+      tmux new-window -t "$session" -c "$wt" -n "$window_label" -e "GH_TOKEN=$token" "${LAUNCH_CMD[@]}"
     else
-      tmux new-window -t "$session" -c "$wt" -n "$name" "${LAUNCH_CMD[@]}"
+      tmux new-window -t "$session" -c "$wt" -n "$window_label" "${LAUNCH_CMD[@]}"
     fi
+    tmux set-option -t "$session" set-titles on
+    tmux set-option -t "$session" set-titles-string '#{s/^wtc-//:#S} · #W'
     tmux attach -t "$session"
   else
+    # Detached first, not the direct attach new-session offers without -d: the
+    # title has to be set session-scoped before anyone looks at the tab, and
+    # that needs the session to already exist as a target.
     if [ -n "$token" ]; then
-      tmux new-session -s "$session" -c "$wt" -n "$name" -e "GH_TOKEN=$token" "${LAUNCH_CMD[@]}"
+      tmux new-session -d -s "$session" -c "$wt" -n "$window_label" -e "GH_TOKEN=$token" "${LAUNCH_CMD[@]}"
     else
-      tmux new-session -s "$session" -c "$wt" -n "$name" "${LAUNCH_CMD[@]}"
+      tmux new-session -d -s "$session" -c "$wt" -n "$window_label" "${LAUNCH_CMD[@]}"
     fi
+    tmux set-option -t "$session" set-titles on
+    tmux set-option -t "$session" set-titles-string '#{s/^wtc-//:#S} · #W'
+    tmux attach -t "$session"
   fi
 }
 
@@ -273,5 +401,17 @@ case "${1:-}" in
     ;;
   status)    shift; cmd_status "$@" ;;
   attach)    shift; cmd_attach "$@" ;;
+  list)
+    shift
+    # shellcheck source=lib/manage.sh
+    . "$WTC_HOME/lib/manage.sh" || die "cannot load $WTC_HOME/lib/manage.sh"
+    cmd_list "$@"
+    ;;
+  drop)
+    shift
+    # shellcheck source=lib/manage.sh
+    . "$WTC_HOME/lib/manage.sh" || die "cannot load $WTC_HOME/lib/manage.sh"
+    cmd_drop "$@"
+    ;;
   *)         [ $# -ge 2 ] || { usage; exit 2; }; cmd_start "$@" ;;
 esac

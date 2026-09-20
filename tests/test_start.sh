@@ -72,6 +72,25 @@ else
   rm -rf "$BADROLES"
 fi
 
+echo "wtc: legible tab titles"
+out=$("$WTC" demo developer 2>&1)
+contains "developer tags DEV" "demo · DEV" "$out"
+out=$("$WTC" demo reviewer 2>&1)
+contains "reviewer tags REV" "demo · REV" "$out"
+out=$("$WTC" demo integrator 2>&1)
+contains "integrator tags INT" "demo · INT" "$out"
+out=$("$WTC" demo none 2>&1)
+contains "none tags ---" "demo · ---" "$out"
+out=$("$WTC" demo developer eyeoffice 2>&1)
+contains "a suffix follows the tag with a middle dot, not the role name" "demo · DEV·eyeoffice" "$out"
+
+TAGROLES=$(mktemp -d)
+cp "$PWD/roles/_base.md" "$TAGROLES/"
+printf '# Role: architect\n' > "$TAGROLES/architect.md"
+out=$(WTC_ROLES_DIR="$TAGROLES" "$WTC" demo architect 2>&1)
+contains "an unrecognised role abbreviates to its first three letters, uppercased" "demo · ARC" "$out"
+rm -rf "$TAGROLES"
+
 echo "wtc: .agents is never committed"
 contains "exclude covers .agents" ".agents/" \
   "$(cat "$(git -C "$SANDBOX/demo/.worktrees/demo-developer" rev-parse --git-path info/exclude)")"

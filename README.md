@@ -40,6 +40,8 @@ ln -s ~/.worktree-crew/bin/wtc ~/bin/wtc
 
 wtc init myproject          # walks setup step by step, see docs/adding-a-project.md
 wtc myproject developer     # opens a session that knows it's a developer
+wtc list                    # see every worktree, across every project
+wtc drop myproject DEV      # remove one — refuses unless it's safe to
 ```
 
 `wtc init` proposes an `AGENTS.md`, creates the `ready` / `needs-decision`
@@ -83,11 +85,13 @@ checked.
 ## Limits, in three lines
 
 One `integrator` per repository — git won't check out the same trunk branch
-twice. Disk is cheap (a Rust/Tauri worktree runs about 9 GB, mostly build
-output); memory is the real ceiling, and two concurrent `cargo` builds already
-strain a 32 GB machine. Role boundaries are self-imposed — the token can do
-more than the role allows; what stops it is the role file, not the forge. Full
-numbers and what they were measured on: [docs/limits.md](docs/limits.md).
+twice. Disk is cheap per byte but adds up (a Rust/Tauri worktree runs about
+9 GB, mostly build output) — `wtc list` shows what exists, `wtc drop` removes
+one and refuses if that isn't safe. Memory is the real ceiling, and two
+concurrent `cargo` builds already strain a 32 GB machine. Role boundaries are
+self-imposed — the token can do more than the role allows; what stops it is
+the role file, not the forge. Full numbers and what they were measured on:
+[docs/limits.md](docs/limits.md).
 
 ## Documentation
 

@@ -92,3 +92,27 @@ something moved, you ask; the tool never wakes anyone up by itself. This is a
 deliberate omission (see `docs/concept.md`), not a missing feature — it keeps
 the tool to git, `gh` and `tmux`, with nothing idling and no token spent while
 no one is working.
+
+## Tab colour is iTerm2-only, and silently absent elsewhere
+
+The title (`dateye · DEV`) works anywhere tmux does — it's tmux's own
+`set-titles-string`, which every terminal that shows a tmux title already
+understands. The colour is different: it's iTerm2's own proprietary escape
+code, wrapped for tmux's passthrough. Outside iTerm2, `wtc` detects that and
+emits nothing — deliberately. A stray escape sequence in a terminal that
+doesn't understand it prints garbage in the pane, which is worse than no
+colour; silence was the safer failure here, not an error message. If your tab
+never turns colour and you're not on iTerm2, that's expected, not broken.
+`WTC_TAB_COLOUR=0` turns it off regardless of terminal, if you'd rather it
+never tried.
+
+## `drop` refuses rather than asks
+
+`wtc drop` removes a worktree that can run to several gigabytes and may hold
+the only copy of something. A yes/no prompt gets answered on reflex, the same
+way every other prompt that session has seen was — so instead of asking,
+`drop` checks three things (uncommitted changes, commits not on any remote, an
+open tmux window) and refuses by default, naming exactly what it found. Only
+`--force` proceeds anyway. This costs an extra step when you did mean it, on
+purpose: the cost of a false refusal is a few seconds re-running the command
+with `--force`; the cost of a false confirmation is the worktree.

@@ -34,4 +34,4 @@ jobs:
       - name: Shellcheck
         run: |
           sudo apt-get update -qq && sudo apt-get install -y shellcheck
-          shellcheck -S warning bin/wtc bin/wtc-lint hooks/load_role.sh
+          shellcheck -S warning bin/wtc lib/init.sh lib/manage.sh bin/wtc-lint hooks/load_role.sh

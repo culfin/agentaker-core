@@ -54,7 +54,7 @@ fi
 # bin/wtc is deliberately few files. The ceiling guards readability, not a
 # budget — if a file approaches it, the question is which block has become its
 # own concern, the way `init` did.
-for script in bin/wtc lib/init.sh; do
+for script in bin/wtc lib/init.sh lib/manage.sh; do
   if [ -f "$ROOT/$script" ]; then
     lines=$(wc -l < "$ROOT/$script")
     [ "$lines" -le 450 ] || problem "$script is $lines lines — split it or raise the ceiling deliberately"
