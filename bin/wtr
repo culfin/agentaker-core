@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+# wtr — give each AI coding session a fixed role and its own git worktree.
+#
+# Vendor knowledge lives in exactly one place in this file: launch_command().
+# Everything else is git, gh and tmux.
+set -uo pipefail
+
+WTR_HOME=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+ROLES_DIR="$WTR_HOME/roles"
+PROJECTS_DIR="${WTR_PROJECTS_DIR:-$HOME/Projekte}"
+TOOL="${WTR_TOOL:-}"
+DRY_RUN="${WTR_DRY_RUN:-}"
+LAUNCH_CMD=()
+
+die() { printf 'wtr: %s\n' "$1" >&2; exit "${2:-1}"; }
+
+usage() {
+  cat <<'EOF'
+Usage:
+  wtr init [repo]              set a project up, step by step
+  wtr <repo> <role> [suffix]   start a session in its own worktree
+  wtr attach <repo>            re-attach to a repo's tmux session
+  wtr status [owner]           show where work is waiting, across repos
+
+Roles: developer, reviewer, integrator
+
+Environment:
+  WTR_PROJECTS_DIR   where your repositories live (default: ~/Projekte)
+  WTR_TOOL           which coding agent to launch (default: see launch_command() in bin/wtr)
+EOF
+}
+
+# --- the one vendor-aware function -------------------------------------------
+# Sets the global array LAUNCH_CMD to the argv that starts $TOOL with $1 (the
+# assembled role file) as its system prompt. Returns 1 when the tool is unknown.
+#
+# A global rather than a printed list, for two reasons: `mapfile` does not exist
+# in bash 3.2, which is still /bin/bash on macOS, and a multi-line prompt would
+# shred any line-based protocol anyway.
+#
+# Adding a tool means adding one branch here and one row in docs/tools.md —
+# nothing else in this repository changes.
+launch_command() {
+  local ctx=$1 tool=${TOOL:-claude}
+  case "$tool" in
+    claude)
+      # Verified 2026-09-20 against Claude Code.
+      LAUNCH_CMD=(claude --append-system-prompt-file "$ctx")
+      ;;
+    codex)
+      # UNVERIFIED — codex was not installed when this was written.
+      # If this is wrong, fix it here and say so in docs/tools.md.
+      LAUNCH_CMD=(codex --prompt-file "$ctx")
+      ;;
+    *)
+      LAUNCH_CMD=()
+      return 1
+      ;;
+  esac
+}
+
+# --- assembling the role ------------------------------------------------------
+# Layer 1 (roles/) + layer 3 (.agents/ROLE). Layer 2 is the project's AGENTS.md,
+# which the coding agent reads by itself — that is the whole point of the
+# standard, and inlining it here would duplicate it into every session.
+build_context() {
+  local wt=$1 role=$2
+  {
+    cat "$ROLES_DIR/_base.md"
+    printf '\n\n'
+    cat "$ROLES_DIR/$role.md"
+  } > "$wt/.agents/context.md"
+}
+
+valid_role_name() {
+  case "$1" in
+    ""|*[!a-z0-9_-]*|-*) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+exclude_agents_dir() {
+  local wt=$1 exclude
+  exclude=$(git -C "$wt" rev-parse --git-path info/exclude 2>/dev/null) || return 0
+  case "$exclude" in /*) : ;; *) exclude="$wt/$exclude" ;; esac
+  mkdir -p "$(dirname "$exclude")"
+  grep -qxF '.agents/' "$exclude" 2>/dev/null || printf '.agents/\n' >> "$exclude"
+}
+
+session_name() { printf 'wtr-%s' "$1"; }
+
+read_reviewer_token() {
+  if command -v security >/dev/null 2>&1; then
+    security find-generic-password -s worktree-roles-reviewer -w 2>/dev/null && return 0
+  fi
+  if command -v secret-tool >/dev/null 2>&1; then
+    secret-tool lookup service worktree-roles-reviewer 2>/dev/null && return 0
+  fi
+  return 1
+}
+
+start_role() {
+  local repo=$1 role=$2 suffix=${3:-}
+  local repo_dir="$PROJECTS_DIR/$repo"
+  local name="$repo-$role${suffix:+-$suffix}"
+  local wt="$repo_dir/.worktrees/$name"
+
+  [ -e "$repo_dir/.git" ] || die "$repo_dir is not a git repository"
+  valid_role_name "$role" || die "'$role' is not a role name (lowercase letters, digits, - and _)"
+  [ -f "$ROLES_DIR/$role.md" ] || die "no role file for '$role' — see $ROLES_DIR"
+
+  if [ ! -d "$wt" ]; then
+    git -C "$repo_dir" worktree add "$wt" -b "$name" >/dev/null 2>&1 \
+      || git -C "$repo_dir" worktree add "$wt" >/dev/null 2>&1 \
+      || die "could not create a worktree at $wt"
+  fi
+
+  mkdir -p "$wt/.agents"
+  printf '%s\n' "$role" > "$wt/.agents/ROLE"
+  exclude_agents_dir "$wt"
+  build_context "$wt" "$role"
+
+  LAUNCH_CMD=()
+  if ! launch_command "$wt/.agents/context.md"; then
+    die "no launch command known for tool '$TOOL' — paste $wt/.agents/context.md as your first message, and consider adding a branch to launch_command() in bin/wtr"
+  fi
+
+  # The reviewer runs under its own hosting account. Its token lives in the OS
+  # keychain, never in a settings file, and is set for this session only.
+  local token=""
+  if [ "$role" = "reviewer" ]; then
+    if ! token=$(read_reviewer_token); then
+      token=""
+      printf 'wtr: no reviewer token found — approvals will fail. See docs/setup.md\n' >&2
+    fi
+  fi
+
+  local session
+  session=$(session_name "$repo")
+
+  if [ -n "$DRY_RUN" ]; then
+    printf 'would launch in tmux session %s, window %s: %s\n' "$session" "$name" "${LAUNCH_CMD[*]}"
+    return 0
+  fi
+
+  # Two explicit branches rather than expanding a possibly-empty array:
+  # "${arr[@]}" on an empty array is an unbound-variable error under `set -u`
+  # in bash 3.2.
+  if tmux has-session -t "$session" 2>/dev/null; then
+    if [ -n "$token" ]; then
+      tmux new-window -t "$session" -c "$wt" -n "$name" -e "GH_TOKEN=$token" "${LAUNCH_CMD[@]}"
+    else
+      tmux new-window -t "$session" -c "$wt" -n "$name" "${LAUNCH_CMD[@]}"
+    fi
+    tmux attach -t "$session"
+  else
+    if [ -n "$token" ]; then
+      tmux new-session -s "$session" -c "$wt" -n "$name" -e "GH_TOKEN=$token" "${LAUNCH_CMD[@]}"
+    else
+      tmux new-session -s "$session" -c "$wt" -n "$name" "${LAUNCH_CMD[@]}"
+    fi
+  fi
+}
+
+case "${1:-}" in
+  "")        usage; exit 2 ;;
+  -h|--help) usage; exit 0 ;;
+  *)         [ $# -ge 2 ] || { usage; exit 2; }; start_role "$@" ;;
+esac
