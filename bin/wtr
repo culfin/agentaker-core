@@ -6,7 +6,7 @@
 set -uo pipefail
 
 WTR_HOME=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-ROLES_DIR="$WTR_HOME/roles"
+ROLES_DIR="${WTR_ROLES_DIR:-$WTR_HOME/roles}"
 PROJECTS_DIR="${WTR_PROJECTS_DIR:-$HOME/Projekte}"
 TOOL="${WTR_TOOL:-}"
 DRY_RUN="${WTR_DRY_RUN:-}"
@@ -26,7 +26,9 @@ Roles: developer, reviewer, integrator
 
 Environment:
   WTR_PROJECTS_DIR   where your repositories live (default: ~/Projekte)
-  WTR_TOOL           which coding agent to launch (default: see launch_command() in bin/wtr)
+  WTR_ROLES_DIR      where the role files live (default: <install>/roles)
+  WTR_TOOL           which coding agent to launch (default: claude)
+                     see launch_command() in bin/wtr for the supported list
 EOF
 }
 
@@ -65,11 +67,13 @@ launch_command() {
 # standard, and inlining it here would duplicate it into every session.
 build_context() {
   local wt=$1 role=$2
+  local out="$wt/.agents/context.md"
   {
-    cat "$ROLES_DIR/_base.md"
-    printf '\n\n'
+    cat "$ROLES_DIR/_base.md" &&
+    printf '\n\n' &&
     cat "$ROLES_DIR/$role.md"
-  } > "$wt/.agents/context.md"
+  } > "$out" || return 1
+  [ -s "$out" ] || return 1
 }
 
 valid_role_name() {
@@ -107,7 +111,7 @@ start_role() {
 
   [ -e "$repo_dir/.git" ] || die "$repo_dir is not a git repository"
   valid_role_name "$role" || die "'$role' is not a role name (lowercase letters, digits, - and _)"
-  [ -f "$ROLES_DIR/$role.md" ] || die "no role file for '$role' — see $ROLES_DIR"
+  [ -s "$ROLES_DIR/$role.md" ] || die "no role file for '$role' — see $ROLES_DIR"
 
   if [ ! -d "$wt" ]; then
     git -C "$repo_dir" worktree add "$wt" -b "$name" >/dev/null 2>&1 \
@@ -115,10 +119,10 @@ start_role() {
       || die "could not create a worktree at $wt"
   fi
 
-  mkdir -p "$wt/.agents"
-  printf '%s\n' "$role" > "$wt/.agents/ROLE"
+  mkdir -p "$wt/.agents" || die "cannot write to $wt/.agents"
+  printf '%s\n' "$role" > "$wt/.agents/ROLE" || die "cannot write $wt/.agents/ROLE"
   exclude_agents_dir "$wt"
-  build_context "$wt" "$role"
+  build_context "$wt" "$role" || die "could not assemble the role context from $ROLES_DIR"
 
   LAUNCH_CMD=()
   if ! launch_command "$wt/.agents/context.md"; then

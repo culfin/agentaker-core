@@ -51,6 +51,26 @@ contains "unknown repo is explained" "not a git repository" "$out"
 out=$("$WTR" demo nosuchrole 2>&1); check "unknown role exits 1" "1" "$?"
 contains "unknown role is explained" "no role file" "$out"
 out=$("$WTR" demo ../../etc/passwd 2>&1); check "path in role name exits 1" "1" "$?"
+contains "rejected as a name, not as a missing file" "is not a role name" "$out"
+
+echo "wtr: a failed write is not reported as success"
+if [ "$(id -u)" -eq 0 ]; then
+  echo "  skip (running as root — permissions do not apply)"
+else
+  mkdir -p "$SANDBOX/demo/.worktrees/demo-integrator"
+  chmod 555 "$SANDBOX/demo/.worktrees/demo-integrator"
+  out=$("$WTR" demo integrator 2>&1); check "unwritable worktree exits 1" "1" "$?"
+  lacks "does not claim to launch" "would launch" "$out"
+  chmod 755 "$SANDBOX/demo/.worktrees/demo-integrator"
+
+  BADROLES=$(mktemp -d)
+  cp "$PWD/roles/_base.md" "$BADROLES/"
+  : > "$BADROLES/developer.md"
+  out=$(WTR_ROLES_DIR="$BADROLES" "$WTR" demo developer 2>&1)
+  check "empty role file exits 1" "1" "$?"
+  lacks "does not claim to launch with an empty role" "would launch" "$out"
+  rm -rf "$BADROLES"
+fi
 
 echo "wtr: .agents is never committed"
 contains "exclude covers .agents" ".agents/" \
