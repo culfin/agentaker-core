@@ -68,10 +68,20 @@ echo "mdt attach: arguments"
 out=$("$MDT" attach 2>&1); check "attach without repo exits 2" "2" "$?"
 
 echo "mdt attach: missing tmux is diagnosed as missing tmux"
-NOTMUX=$(mktemp -d)
-out=$(PATH="$NOTMUX:$(dirname "$(command -v git)"):/usr/bin:/bin" "$MDT" attach demo 2>&1)
+# Strip only the PATH entries that actually resolve tmux, rather than
+# guessing a fixed replacement PATH: tmux ships in /usr/bin on GitHub's
+# ubuntu-latest runner, so a hardcoded "/usr/bin:/bin" stopped isolating it
+# there while still isolating it on a Homebrew mac (tmux in /opt/homebrew/bin) —
+# the test passed locally and failed in CI for a reason that had nothing to
+# do with the code under test.
+NOTMUX_PATH=""
+IFS=':' read -ra path_dirs <<< "$PATH"
+for dir in "${path_dirs[@]}"; do
+    [ -x "$dir/tmux" ] && continue
+    NOTMUX_PATH="$NOTMUX_PATH:$dir"
+done
+out=$(PATH="${NOTMUX_PATH#:}" "$MDT" attach demo 2>&1)
 check "exits 1" "1" "$?"
 contains "names tmux" "tmux is not installed" "$out"
-rm -rf "$NOTMUX"
 
 summary
