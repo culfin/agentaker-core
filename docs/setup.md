@@ -3,17 +3,14 @@
 ## 1. Get the tool
 
     git clone https://github.com/culfin/worktree-crew ~/.worktree-crew
-    export PATH="$HOME/.worktree-crew/bin:$PATH"   # add this line to your shell profile
+    ln -s ~/.worktree-crew/bin/wtc ~/bin/wtc
 
 Requires `git`, `gh` and `tmux`. No runtime, no package manager.
 
-Put the `bin/` directory on `PATH` rather than symlinking `wtc` itself into an
-existing `~/bin`: `bin/wtc` finds its own install directory (and with it
-`roles/`) from `${BASH_SOURCE[0]}`, which under a symlink resolves to the
-*link's* location, not the real one — so a lone `ln -s
-~/.worktree-crew/bin/wtc ~/bin/wtc` produces a `wtc` that runs but cannot find
-any role file. Confirmed by running it: `wtc: no role file for 'developer' —
-see ~/roles` instead of `~/.worktree-crew/roles`.
+`wtc` resolves its own symlink to find `roles/` next to the real install, so
+it works wherever you link it from — move `~/.worktree-crew` later and the
+link still finds it, as long as the link itself isn't moved somewhere that no
+longer points at it.
 
 ## 2. Give the reviewer its own account
 

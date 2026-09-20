@@ -76,4 +76,13 @@ echo "wtc: .agents is never committed"
 contains "exclude covers .agents" ".agents/" \
   "$(cat "$(git -C "$SANDBOX/demo/.worktrees/demo-developer" rev-parse --git-path info/exclude)")"
 
+echo "wtc: works when installed as a symlink"
+LINKDIR=$(mktemp -d)
+ln -s "$PWD/bin/wtc" "$LINKDIR/wtc"
+out=$("$LINKDIR/wtc" demo developer 2>&1)
+check "exits 0 through a symlink" "0" "$?"
+contains "found its roles" "would launch" "$out"
+lacks "no missing-role error" "no role file" "$out"
+rm -rf "$LINKDIR"
+
 summary

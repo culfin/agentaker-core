@@ -36,11 +36,11 @@ and `## Production boundary` at minimum (`bin/wtc-lint` checks this), and any
 role or subagent it names under `## Roles` / `## Subagents` must exist in this
 repository.
 
-## `bin/wtc` stays one file, under 400 lines
+## `bin/wtc` stays one file, under 450 lines
 
 It's four subcommands over `git`, `gh` and `tmux`, deliberately kept together
 so there's one file to read, not a chain of includes. `bin/wtc-lint` enforces
-a 450-line ceiling as a guard against creep, not a budget to fill — if you
+the 450-line ceiling as a guard against creep, not a budget to fill — if you
 find yourself pushing toward it, that's the moment to ask whether a
 subcommand (most likely `init`) should move to its own file, not to shave
 lines to fit.

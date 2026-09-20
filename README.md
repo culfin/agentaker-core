@@ -36,7 +36,7 @@ Three worktrees, three branches, three roles, one repository. See
 
 ```bash
 git clone https://github.com/culfin/worktree-crew ~/.worktree-crew
-export PATH="$HOME/.worktree-crew/bin:$PATH"   # add this line to your shell profile
+ln -s ~/.worktree-crew/bin/wtc ~/bin/wtc
 
 wtc init myproject          # walks setup step by step, see docs/adding-a-project.md
 wtc myproject developer     # opens a session that knows it's a developer

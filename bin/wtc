@@ -5,7 +5,22 @@
 # Everything else is git, gh and tmux.
 set -uo pipefail
 
-WTC_HOME=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+# Resolve this script's own location, following symlinks. `ln -s ~/tool/bin/wtc
+# ~/bin/wtc` is the usual way to install a shell tool, and ${BASH_SOURCE[0]} does
+# not follow the link — without this, ROLES_DIR lands beside the symlink instead
+# of inside the installation and every session fails with "no role file".
+# GNU `readlink -f` would be one line, and is missing on the older macOS this
+# tool promises to survive.
+wtc_self=${BASH_SOURCE[0]}
+while [ -L "$wtc_self" ]; do
+  wtc_link_dir=$(cd -P "$(dirname "$wtc_self")" && pwd)
+  wtc_self=$(readlink "$wtc_self")
+  case $wtc_self in
+    /*) ;;
+    *) wtc_self="$wtc_link_dir/$wtc_self" ;;
+  esac
+done
+WTC_HOME=$(cd -P "$(dirname "$wtc_self")/.." && pwd)
 ROLES_DIR="${WTC_ROLES_DIR:-$WTC_HOME/roles}"
 PROJECTS_DIR="${WTC_PROJECTS_DIR:-$HOME/Projekte}"
 TOOL="${WTC_TOOL:-}"
