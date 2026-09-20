@@ -68,20 +68,33 @@ echo "mdt attach: arguments"
 out=$("$MDT" attach 2>&1); check "attach without repo exits 2" "2" "$?"
 
 echo "mdt attach: missing tmux is diagnosed as missing tmux"
-# Strip only the PATH entries that actually resolve tmux, rather than
-# guessing a fixed replacement PATH: tmux ships in /usr/bin on GitHub's
-# ubuntu-latest runner, so a hardcoded "/usr/bin:/bin" stopped isolating it
-# there while still isolating it on a Homebrew mac (tmux in /opt/homebrew/bin) —
-# the test passed locally and failed in CI for a reason that had nothing to
-# do with the code under test.
+# Hide only the tmux binary, not whatever directory it lives in: on GitHub's
+# ubuntu-latest runner both tmux AND bash live in /usr/bin, so dropping that
+# directory from PATH broke the script's own "#!/usr/bin/env bash" shebang
+# (exit 127) instead of exercising the tmux check — passed locally (Homebrew
+# keeps tmux in /opt/homebrew/bin, away from bash) and failed in CI for a
+# reason that had nothing to do with the code under test. Shadow each PATH
+# directory that contains tmux with a symlink copy of everything else in it,
+# so every other tool the script needs stays reachable.
+NOTMUX_TMP=$(mktemp -d)
 NOTMUX_PATH=""
 IFS=':' read -ra path_dirs <<< "$PATH"
 for dir in "${path_dirs[@]}"; do
-    [ -x "$dir/tmux" ] && continue
-    NOTMUX_PATH="$NOTMUX_PATH:$dir"
+    if [ -x "$dir/tmux" ]; then
+        shadow="$NOTMUX_TMP${dir//\//_}"
+        mkdir -p "$shadow"
+        for entry in "$dir"/*; do
+            [ "$(basename "$entry")" = "tmux" ] && continue
+            ln -s "$entry" "$shadow/$(basename "$entry")" 2>/dev/null
+        done
+        NOTMUX_PATH="$NOTMUX_PATH:$shadow"
+    else
+        NOTMUX_PATH="$NOTMUX_PATH:$dir"
+    fi
 done
 out=$(PATH="${NOTMUX_PATH#:}" "$MDT" attach demo 2>&1)
 check "exits 1" "1" "$?"
 contains "names tmux" "tmux is not installed" "$out"
+rm -rf "$NOTMUX_TMP"
 
 summary
