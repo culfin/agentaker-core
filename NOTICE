@@ -1,0 +1,17 @@
+# NOTICE
+
+This project includes material from **agency-agents**
+(https://github.com/msitarzewski/agency-agents), licensed under the MIT License.
+
+    MIT License
+    Copyright (c) 2025 AgentLand Contributors
+
+Two kinds of material are derived from it:
+
+1. **Subagents.** Five files under `agents/` are verbatim copies. Each carries
+   its upstream path and commit SHA in a header comment.
+
+2. **Rules.** Items 1–8 of `roles/_base.md` are adapted from the "Critical
+   Rules" sections of `engineering-rust-refactoring-specialist` and
+   `engineering-minimal-change-engineer`, rephrased for this project's
+   vocabulary (issue, PR, trunk) rather than copied verbatim.
