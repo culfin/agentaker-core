@@ -1,11 +1,11 @@
 {
-  "name": "worktree-crew",
+  "name": "mandate",
   "owner": { "name": "culfin" },
   "plugins": [
     {
-      "name": "worktree-crew",
+      "name": "mandate",
       "source": ".",
-      "description": "Loads a worktree's role at session start. Optional — the wtc command does this for any coding agent."
+      "description": "Loads a worktree's role at session start. Optional — the mdt command does this for any coding agent."
     }
   ]
 }

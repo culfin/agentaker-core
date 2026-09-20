@@ -30,8 +30,8 @@ jobs:
       - name: Tests
         run: bash tests/run.sh
       - name: Lint
-        run: bin/wtc-lint .
+        run: bin/mdt-lint .
       - name: Shellcheck
         run: |
           sudo apt-get update -qq && sudo apt-get install -y shellcheck
-          shellcheck -S warning bin/wtc lib/init.sh lib/manage.sh bin/wtc-lint hooks/load_role.sh
+          shellcheck -S warning bin/mdt lib/init.sh lib/manage.sh bin/mdt-lint hooks/load_role.sh

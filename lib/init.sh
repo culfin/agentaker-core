@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
-# The `wtc init` subcommand and its helpers.
+# The `mdt init` subcommand and its helpers.
 #
-# Sourced by bin/wtc on demand rather than always: init runs once per project
+# Sourced by bin/mdt on demand rather than always: init runs once per project
 # and never during normal work, so the three everyday subcommands do not pay to
 # parse it.
 #
-# Needs from bin/wtc:  die(), usage(), cmd_start(), PROJECTS_DIR
+# Needs from bin/mdt:  die(), usage(), cmd_start(), PROJECTS_DIR
 # Provides to it:      DRY_RUN, set for the subshell that creates the worktrees
 #                      so cmd_start() prepares them without launching anything
 #
 # ROLES_DIR is deliberately absent: cmd_start() reads it, and cmd_start() stays
-# in bin/wtc where it is already in scope.
+# in bin/mdt where it is already in scope.
 
-# `wtc init` shows every step instead of hiding it: each action is proposed and
+# `mdt init` shows every step instead of hiding it: each action is proposed and
 # confirmed separately, so someone who watched it run can redo it by hand.
 
 ask() {
-  # Prompt unless WTC_YES is set; echo the (possibly default) answer.
+  # Prompt unless MDT_YES is set; echo the (possibly default) answer.
   local prompt=$1 default=${2:-y} reply
-  if [ -n "${WTC_YES:-}" ]; then printf '%s' "$default"; return 0; fi
+  if [ -n "${MDT_YES:-}" ]; then printf '%s' "$default"; return 0; fi
   printf '  %s [%s] ' "$prompt" "$default" >&2
   read -r reply || reply=""
   printf '%s' "${reply:-$default}"
@@ -112,7 +112,7 @@ EOF
   fi
 
   # --- labels ---------------------------------------------------------------
-  if [ -z "${WTC_NO_NETWORK:-}" ] && [ "$(ask 'Create the two labels on the remote? (y/n)' y)" = "y" ]; then
+  if [ -z "${MDT_NO_NETWORK:-}" ] && [ "$(ask 'Create the two labels on the remote? (y/n)' y)" = "y" ]; then
     (
       cd "$dir" || exit 1
       if gh label create ready --description "Ready for an agent to pick up" --color 0E8A16 2>/dev/null; then
@@ -131,7 +131,7 @@ EOF
   # --- production boundary -------------------------------------------------
   # Every other boundary here is a sentence in a Markdown file; this one is a
   # lock, since a release reaches real users and cannot be undone like a merge.
-  if [ -z "${WTC_NO_NETWORK:-}" ]; then
+  if [ -z "${MDT_NO_NETWORK:-}" ]; then
     printf '\nThe production boundary needs a lock: a protected environment makes the\n'
     printf 'job wait for you in the browser, whoever triggered it.\n'
     if [ "$(ask 'Create a protected "production" environment? (y/n)' y)" = "y" ]; then
@@ -158,7 +158,7 @@ EOF
       if ( export DRY_RUN=1; cmd_start "$repo" "$role" ) >/dev/null 2>&1; then
         printf '  worktree: %s-%s\n' "$repo" "$role"
       else
-        printf '  could not create the %s worktree — run `wtc %s %s` to see why\n' "$role" "$repo" "$role"
+        printf '  could not create the %s worktree — run `mdt %s %s` to see why\n' "$role" "$repo" "$role"
       fi
     done
   fi
@@ -178,6 +178,6 @@ Done. Next:
      cannot be asked for a review. See docs/setup.md.
   3. Give the reviewer its own account: docs/setup.md
   4. Put 'ready' on an issue:   gh issue edit <N> --add-label ready
-  5. Start working:             wtc $repo developer
+  5. Start working:             mdt $repo developer
 EOF
 }

@@ -1,60 +1,60 @@
 #!/usr/bin/env bash
-# wtc — give each AI coding session a fixed role and its own git worktree.
+# mdt — give each AI coding session a fixed role and its own git worktree.
 #
 # Vendor knowledge lives in exactly one place in this file: launch_command().
 # Everything else is git, gh and tmux.
 set -uo pipefail
 
-# Resolve this script's own location, following symlinks. `ln -s ~/tool/bin/wtc
-# ~/bin/wtc` is the usual way to install a shell tool, and ${BASH_SOURCE[0]} does
+# Resolve this script's own location, following symlinks. `ln -s ~/tool/bin/mdt
+# ~/bin/mdt` is the usual way to install a shell tool, and ${BASH_SOURCE[0]} does
 # not follow the link — without this, ROLES_DIR lands beside the symlink instead
 # of inside the installation and every session fails with "no role file".
 # GNU `readlink -f` would be one line, and is missing on the older macOS this
 # tool promises to survive.
-wtc_self=${BASH_SOURCE[0]}
-while [ -L "$wtc_self" ]; do
-  wtc_link_dir=$(cd -P "$(dirname "$wtc_self")" && pwd)
-  wtc_self=$(readlink "$wtc_self")
-  case $wtc_self in
+mdt_self=${BASH_SOURCE[0]}
+while [ -L "$mdt_self" ]; do
+  mdt_link_dir=$(cd -P "$(dirname "$mdt_self")" && pwd)
+  mdt_self=$(readlink "$mdt_self")
+  case $mdt_self in
     /*) ;;
-    *) wtc_self="$wtc_link_dir/$wtc_self" ;;
+    *) mdt_self="$mdt_link_dir/$mdt_self" ;;
   esac
 done
-WTC_HOME=$(cd -P "$(dirname "$wtc_self")/.." && pwd)
-ROLES_DIR="${WTC_ROLES_DIR:-$WTC_HOME/roles}"
-PROJECTS_DIR="${WTC_PROJECTS_DIR:-$HOME/Projekte}"
-TOOL="${WTC_TOOL:-}"
-DRY_RUN="${WTC_DRY_RUN:-}"
-REVIEWER="${WTC_REVIEWER:-}"
+MDT_HOME=$(cd -P "$(dirname "$mdt_self")/.." && pwd)
+ROLES_DIR="${MDT_ROLES_DIR:-$MDT_HOME/roles}"
+PROJECTS_DIR="${MDT_PROJECTS_DIR:-$HOME/Projekte}"
+TOOL="${MDT_TOOL:-}"
+DRY_RUN="${MDT_DRY_RUN:-}"
+REVIEWER="${MDT_REVIEWER:-}"
 LAUNCH_CMD=()
 STATUS_FAILED=0
 
-die() { printf 'wtc: %s\n' "$1" >&2; exit "${2:-1}"; }
+die() { printf 'mdt: %s\n' "$1" >&2; exit "${2:-1}"; }
 
 usage() {
   cat <<'EOF'
 Usage:
-  wtc init [repo]              set a project up, step by step
-  wtc <repo> <role> [suffix]   start a session in its own worktree
-  wtc attach <repo>            re-attach to a repo's tmux session
-  wtc status [owner]           show where work is waiting, across repos
-  wtc list [repo]               show worktrees, their branch, size and state
-  wtc drop <repo> <name>        remove a worktree (refuses if it isn't safe)
-  wtc restart <repo> <name>     hand over, replace the process, resume
-  wtc restart <repo> <name> --fresh   replace without asking for a handover
-  wtc restart --all             restart every running session
+  mdt init [repo]              set a project up, step by step
+  mdt <repo> <role> [suffix]   start a session in its own worktree
+  mdt attach <repo>            re-attach to a repo's tmux session
+  mdt status [owner]           show where work is waiting, across repos
+  mdt list [repo]               show worktrees, their branch, size and state
+  mdt drop <repo> <name>        remove a worktree (refuses if it isn't safe)
+  mdt restart <repo> <name>     hand over, replace the process, resume
+  mdt restart <repo> <name> --fresh   replace without asking for a handover
+  mdt restart --all             restart every running session
 
 Roles: developer, reviewer, maintainer
 
 Environment:
-  WTC_PROJECTS_DIR   where your repositories live (default: ~/Projekte)
-  WTC_ROLES_DIR      where the role files live (default: <install>/roles)
-  WTC_TOOL           which coding agent to launch (default: claude)
-                     see launch_command() in bin/wtc for the supported list
-  WTC_OWNER          default GitHub owner for `wtc status`
-  WTC_REVIEWER       login of the reviewer account, for `wtc status`
-  WTC_TAB_COLOUR     iTerm2 tab colour by role (default: on, 0 to disable)
-  WTC_HANDOFF_TIMEOUT   seconds to wait for a handover before `restart`
+  MDT_PROJECTS_DIR   where your repositories live (default: ~/Projekte)
+  MDT_ROLES_DIR      where the role files live (default: <install>/roles)
+  MDT_TOOL           which coding agent to launch (default: claude)
+                     see launch_command() in bin/mdt for the supported list
+  MDT_OWNER          default GitHub owner for `mdt status`
+  MDT_REVIEWER       login of the reviewer account, for `mdt status`
+  MDT_TAB_COLOUR     iTerm2 tab colour by role (default: on, 0 to disable)
+  MDT_HANDOFF_TIMEOUT   seconds to wait for a handover before `restart`
                      aborts (default: 60)
 EOF
 }
@@ -62,7 +62,7 @@ EOF
 # --- legible tabs --------------------------------------------------------
 # A terminal tab shows one line and the user reads it at a glance: project,
 # then who. Everything else is noise — the session name already carries
-# "wtc", so repeating it costs characters and says nothing.
+# "mdt", so repeating it costs characters and says nothing.
 #
 # developer -> DEV, reviewer -> REV, maintainer -> MNT, none -> ---, anything
 # else -> its first three characters, uppercased. tr, not ${var^^}: bash 3.2
@@ -83,9 +83,9 @@ role_tag() {
 
 # iTerm2's own tab-colour codes are proprietary, and only iTerm2 understands
 # them — a stray escape sequence in a terminal that doesn't is worse than no
-# colour, it prints garbage. Every wtc-launched pane runs inside tmux, so
+# colour, it prints garbage. Every mdt-launched pane runs inside tmux, so
 # TERM_PROGRAM inside the pane is always "tmux" (tmux sets it itself); that
-# check has to happen here, in wtc's own process, before tmux exists in the
+# check has to happen here, in mdt's own process, before tmux exists in the
 # picture. iTerm2's tmux integration sets LC_TERMINAL for exactly this reason
 # — it's the one signal that survives being wrapped in tmux.
 iterm2_detected() {
@@ -139,12 +139,12 @@ EOF
 # either could be the culprit on a different tmux config.
 #
 # This has to run from inside the pane itself, window-scoped via its own
-# $TMUX_PANE, as its first act: a `tmux set-window-option` issued from wtc's
+# $TMUX_PANE, as its first act: a `tmux set-window-option` issued from mdt's
 # own process, after creation, would race the pane's first automatic-rename
 # evaluation. Measured with a stand-in command across 3 seconds of wall time:
 # zero flicker once this runs before anything else does.
 #
-# Colour, right after, if the role has one, WTC_TAB_COLOUR hasn't disabled
+# Colour, right after, if the role has one, MDT_TAB_COLOUR hasn't disabled
 # it, and this is iTerm2. It has to come from inside the pane to reach the
 # terminal at all, and turning allow-passthrough on from inside — same
 # $TMUX_PANE, window-scoped, never global — avoids the same race: a pane
@@ -157,7 +157,7 @@ wrap_launch_command() {
   local role=$1
   shift
   local colour_seq=""
-  if [ "${WTC_TAB_COLOUR:-1}" != "0" ] && iterm2_detected; then
+  if [ "${MDT_TAB_COLOUR:-1}" != "0" ] && iterm2_detected; then
     colour_seq=$(tab_colour_sequence "$role") || colour_seq=""
   fi
   LAUNCH_CMD=(sh -c '
@@ -167,7 +167,7 @@ wrap_launch_command() {
     printf "%s" "$1"
     shift
     exec "$@"
-  ' wtc "$colour_seq" "$@")
+  ' mdt "$colour_seq" "$@")
 }
 
 # --- the one vendor-aware function -------------------------------------------
@@ -229,14 +229,14 @@ exclude_agents_dir() {
   grep -qxF '.agents/' "$exclude" 2>/dev/null || printf '.agents/\n' >> "$exclude"
 }
 
-session_name() { printf 'wtc-%s' "$1"; }
+session_name() { printf 'mdt-%s' "$1"; }
 
 read_reviewer_token() {
   if command -v security >/dev/null 2>&1; then
-    security find-generic-password -s worktree-crew-reviewer -w 2>/dev/null && return 0
+    security find-generic-password -s mandate-reviewer -w 2>/dev/null && return 0
   fi
   if command -v secret-tool >/dev/null 2>&1; then
-    secret-tool lookup service worktree-crew-reviewer 2>/dev/null && return 0
+    secret-tool lookup service mandate-reviewer 2>/dev/null && return 0
   fi
   return 1
 }
@@ -264,7 +264,7 @@ cmd_start() {
 
   LAUNCH_CMD=()
   if ! launch_command "$wt/.agents/context.md"; then
-    die "no launch command known for tool '$TOOL' — paste $wt/.agents/context.md as your first message, and consider adding a branch to launch_command() in bin/wtc"
+    die "no launch command known for tool '$TOOL' — paste $wt/.agents/context.md as your first message, and consider adding a branch to launch_command() in bin/mdt"
   fi
 
   # The reviewer runs under its own hosting account. Its token lives in the OS
@@ -273,7 +273,7 @@ cmd_start() {
   if [ "$role" = "reviewer" ]; then
     if ! token=$(read_reviewer_token); then
       token=""
-      printf 'wtc: no reviewer token found — approvals will fail. See docs/setup.md\n' >&2
+      printf 'mdt: no reviewer token found — approvals will fail. See docs/setup.md\n' >&2
     fi
   fi
 
@@ -302,7 +302,7 @@ cmd_start() {
   fi
 
   command -v tmux >/dev/null 2>&1 \
-    || die "tmux is not installed — worktree-crew uses it so sessions outlive the device looking at them"
+    || die "tmux is not installed — mandate uses it so sessions outlive the device looking at them"
 
   # See wrap_launch_command() for why this has to run from inside the pane
   # itself, and why it exists as a shared function at all.
@@ -318,7 +318,7 @@ cmd_start() {
       tmux new-window -t "$session" -c "$wt" -n "$window_label" "${LAUNCH_CMD[@]}"
     fi
     tmux set-option -t "$session" set-titles on
-    tmux set-option -t "$session" set-titles-string '#{s/^wtc-//:#S} · #W'
+    tmux set-option -t "$session" set-titles-string '#{s/^mdt-//:#S} · #W'
     tmux attach -t "$session"
   else
     # Detached first, not the direct attach new-session offers without -d: the
@@ -330,7 +330,7 @@ cmd_start() {
       tmux new-session -d -s "$session" -c "$wt" -n "$window_label" "${LAUNCH_CMD[@]}"
     fi
     tmux set-option -t "$session" set-titles on
-    tmux set-option -t "$session" set-titles-string '#{s/^wtc-//:#S} · #W'
+    tmux set-option -t "$session" set-titles-string '#{s/^mdt-//:#S} · #W'
     tmux attach -t "$session"
   fi
 }
@@ -358,8 +358,8 @@ status_query() {
 }
 
 cmd_status() {
-  local owner=${1:-${WTC_OWNER:-}}
-  [ -n "$owner" ] || die "give an owner: wtc status <owner>  (or set WTC_OWNER)"
+  local owner=${1:-${MDT_OWNER:-}}
+  [ -n "$owner" ] || die "give an owner: mdt status <owner>  (or set MDT_OWNER)"
 
   STATUS_FAILED=0
 
@@ -378,7 +378,7 @@ cmd_status() {
       search prs --owner "$owner" --state open --draft=false --review none \
       --json repository,number,title,author \
       --jq '.[] | select(.author.login | test("dependabot") | not) | "  \(.repository.name)#\(.number)  \(.title)"'
-    printf '  (approximate — set WTC_REVIEWER to your reviewer login for the exact queue)\n'
+    printf '  (approximate — set MDT_REVIEWER to your reviewer login for the exact queue)\n'
   fi
 
   status_query "approved, waiting for merge" \
@@ -402,10 +402,10 @@ cmd_attach() {
   local repo=${1:-}
   [ -n "$repo" ] || { usage; exit 2; }
   command -v tmux >/dev/null 2>&1 \
-    || die "tmux is not installed — worktree-crew uses it so sessions outlive the device looking at them"
+    || die "tmux is not installed — mandate uses it so sessions outlive the device looking at them"
   local session; session=$(session_name "$repo")
   tmux has-session -t "$session" 2>/dev/null \
-    || die "no session for '$repo' — start one with: wtc $repo developer"
+    || die "no session for '$repo' — start one with: mdt $repo developer"
   tmux attach -t "$session"
 }
 
@@ -415,7 +415,7 @@ case "${1:-}" in
   init)
     shift
     # shellcheck source=lib/init.sh
-    . "$WTC_HOME/lib/init.sh" || die "cannot load $WTC_HOME/lib/init.sh"
+    . "$MDT_HOME/lib/init.sh" || die "cannot load $MDT_HOME/lib/init.sh"
     cmd_init "$@"
     ;;
   status)    shift; cmd_status "$@" ;;
@@ -423,19 +423,19 @@ case "${1:-}" in
   list)
     shift
     # shellcheck source=lib/manage.sh
-    . "$WTC_HOME/lib/manage.sh" || die "cannot load $WTC_HOME/lib/manage.sh"
+    . "$MDT_HOME/lib/manage.sh" || die "cannot load $MDT_HOME/lib/manage.sh"
     cmd_list "$@"
     ;;
   drop)
     shift
     # shellcheck source=lib/manage.sh
-    . "$WTC_HOME/lib/manage.sh" || die "cannot load $WTC_HOME/lib/manage.sh"
+    . "$MDT_HOME/lib/manage.sh" || die "cannot load $MDT_HOME/lib/manage.sh"
     cmd_drop "$@"
     ;;
   restart)
     shift
     # shellcheck source=lib/manage.sh
-    . "$WTC_HOME/lib/manage.sh" || die "cannot load $WTC_HOME/lib/manage.sh"
+    . "$MDT_HOME/lib/manage.sh" || die "cannot load $MDT_HOME/lib/manage.sh"
     cmd_restart "$@"
     ;;
   *)         [ $# -ge 2 ] || { usage; exit 2; }; cmd_start "$@" ;;

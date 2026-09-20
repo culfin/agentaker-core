@@ -59,7 +59,7 @@ Two boundaries are **enforced**, and it is worth knowing which:
 - **A reviewer cannot approve their own pull request.** The forge refuses it.
   That is why the reviewer runs under a second account (`docs/setup.md`).
 - **The production boundary**, if you set up a protected environment
-  (`wtc init` offers this). The job halts and waits for a named human,
+  (`mdt init` offers this). The job halts and waits for a named human,
   whoever triggered it — including you. For an action that reaches real users
   and cannot be recalled, that is the point.
 

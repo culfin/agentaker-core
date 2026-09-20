@@ -51,10 +51,10 @@ fi
 
 [ -f "$ROOT/roles/_base.md" ] || problem "roles/_base.md is missing"
 
-# bin/wtc is deliberately few files. The ceiling guards readability, not a
+# bin/mdt is deliberately few files. The ceiling guards readability, not a
 # budget — if a file approaches it, the question is which block has become its
 # own concern, the way `init` did.
-for script in bin/wtc lib/init.sh lib/manage.sh; do
+for script in bin/mdt lib/init.sh lib/manage.sh; do
   if [ -f "$ROOT/$script" ]; then
     lines=$(wc -l < "$ROOT/$script")
     [ "$lines" -le 450 ] || problem "$script is $lines lines — split it or raise the ceiling deliberately"
@@ -65,4 +65,4 @@ if [ "$PROBLEMS" -gt 0 ]; then
   printf '\n%d problem(s).\n' "$PROBLEMS"
   exit 1
 fi
-printf 'worktree-crew: repository is consistent.\n'
+printf 'mandate: repository is consistent.\n'

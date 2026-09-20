@@ -4,10 +4,10 @@
 
 ```bash
 bash tests/run.sh      # 97 assertions across five test files, no framework
-bin/wtc-lint .          # checks the repository stays internally consistent
+bin/mdt-lint .          # checks the repository stays internally consistent
 ```
 
-Both must be clean before a PR. `bin/wtc-lint` isn't a check of your working
+Both must be clean before a PR. `bin/mdt-lint` isn't a check of your working
 copy — it checks that examples don't name a role or subagent this repository
 doesn't ship, that every `examples/*.AGENTS.md` has the sections the flow
 depends on (`trunk:`, `reviewer:`, `## Test commands`, `## Production
@@ -32,13 +32,13 @@ asserting the mechanism over the outcome — `exit 1` is produced by many things
 ## Vendor neutrality is enforced, not just asked for
 
 `roles/` must never mention a specific coding agent — no `claude`, `codex`,
-`gemini`, `cursor`, `copilot`, `anthropic`, or `openai`. `bin/wtc-lint` greps
+`gemini`, `cursor`, `copilot`, `anthropic`, or `openai`. `bin/mdt-lint` greps
 for this and fails the build if it finds one. `agents/` is exempt: it's
 explicitly documented as Claude Code's file format (`agents/README.md`).
 
 ## Adding a coding agent
 
-One branch in `launch_command()` in `bin/wtc`, one row in `docs/tools.md`.
+One branch in `launch_command()` in `bin/mdt`, one row in `docs/tools.md`.
 Nothing else in the repository changes — that's the design, see
 `docs/concept.md`. In your PR, say which version of the tool you tested
 against and mark the row **verified**; don't leave a claim in `docs/tools.md`
@@ -48,13 +48,13 @@ that you didn't check.
 
 A new `examples/*.AGENTS.md` must come from a project that actually runs —
 not a hypothetical stack. It needs `trunk:`, `reviewer:`, `## Test commands`,
-and `## Production boundary` at minimum (`bin/wtc-lint` checks this), and any
+and `## Production boundary` at minimum (`bin/mdt-lint` checks this), and any
 role or subagent it names under `## Roles` / `## Subagents` must exist in this
 repository.
 
-## `bin/wtc` and `lib/init.sh` stay under 450 lines each
+## `bin/mdt` and `lib/init.sh` stay under 450 lines each
 
-`bin/wtc` holds the three everyday subcommands; `lib/init.sh` holds `init`,
+`bin/mdt` holds the three everyday subcommands; `lib/init.sh` holds `init`,
 which runs once per project. Both stay under 450 lines. The ceiling guards
 readability, not a budget: when a file approaches it, ask which block has
 become its own concern rather than raising the number.

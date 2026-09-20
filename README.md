@@ -1,4 +1,4 @@
-# worktree-crew
+# mandate
 
 Give each AI coding session a fixed role and its own git worktree.
 
@@ -35,17 +35,17 @@ Three worktrees, three branches, three roles, one repository. See
 ## Quickstart
 
 ```bash
-git clone https://github.com/culfin/worktree-crew ~/.worktree-crew
-ln -s ~/.worktree-crew/bin/wtc ~/bin/wtc
+git clone https://github.com/culfin/mandate ~/.mandate
+ln -s ~/.mandate/bin/mdt ~/bin/mdt
 
-wtc init myproject          # walks setup step by step, see docs/adding-a-project.md
-wtc myproject developer     # opens a session that knows it's a developer
-wtc list                    # see every worktree, across every project
-wtc drop myproject DEV      # remove one — refuses unless it's safe to
-wtc restart myproject DEV   # hand over, replace the process, resume
+mdt init myproject          # walks setup step by step, see docs/adding-a-project.md
+mdt myproject developer     # opens a session that knows it's a developer
+mdt list                    # see every worktree, across every project
+mdt drop myproject DEV      # remove one — refuses unless it's safe to
+mdt restart myproject DEV   # hand over, replace the process, resume
 ```
 
-`wtc init` proposes an `AGENTS.md`, creates the `ready` / `needs-decision`
+`mdt init` proposes an `AGENTS.md`, creates the `ready` / `needs-decision`
 labels, and creates the three role worktrees — confirming each step, not
 hiding it. Requires `git`, `gh` and `tmux`; no runtime, no package manager.
 Full walkthrough, including the equivalent by-hand steps and troubleshooting,
@@ -69,7 +69,7 @@ applied to. See [docs/concept.md](docs/concept.md).
 
 ## Works with any coding agent
 
-Only one function in `bin/wtc` — `launch_command()` — knows about a specific
+Only one function in `bin/mdt` — `launch_command()` — knows about a specific
 coding agent. Everything else (worktrees, roles, the GitHub flow, `AGENTS.md`)
 is vendor-neutral. Claude Code is verified; other tools range from unverified
 to "paste this file in yourself." See [docs/tools.md](docs/tools.md) for
@@ -80,14 +80,14 @@ checked.
 
 - No message bus. GitHub carries the state.
 - No board, no queue, no database. An issue and a PR *are* the state.
-- No polling. Nothing happens while you're not looking; `wtc status` answers
+- No polling. Nothing happens while you're not looking; `mdt status` answers
   on demand, it doesn't watch.
 
 ## Limits, in three lines
 
 One `maintainer` per repository — git won't check out the same trunk branch
 twice. Disk is cheap per byte but adds up (a Rust/Tauri worktree runs about
-9 GB, mostly build output) — `wtc list` shows what exists, `wtc drop` removes
+9 GB, mostly build output) — `mdt list` shows what exists, `mdt drop` removes
 one and refuses if that isn't safe. Memory is the real ceiling, and two
 concurrent `cargo` builds already strain a 32 GB machine. Role boundaries are
 self-imposed — the token can do more than the role allows; what stops it is
@@ -98,7 +98,7 @@ the role file, not the forge. Full numbers and what they were measured on:
 
 - [docs/concept.md](docs/concept.md) — the problem, the one idea, the three layers
 - [docs/setup.md](docs/setup.md) — install, reviewer account, first project
-- [docs/adding-a-project.md](docs/adding-a-project.md) — the same setup twice, with `wtc init` and by hand, plus troubleshooting
+- [docs/adding-a-project.md](docs/adding-a-project.md) — the same setup twice, with `mdt init` and by hand, plus troubleshooting
 - [docs/roles.md](docs/roles.md) — permissions, what each role never does, and why they're not enforced
 - [docs/flow.md](docs/flow.md) — the GitHub states, the two labels, the review round trip
 - [docs/tools.md](docs/tools.md) — which coding agent integration is verified

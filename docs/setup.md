@@ -2,13 +2,13 @@
 
 ## 1. Get the tool
 
-    git clone https://github.com/culfin/worktree-crew ~/.worktree-crew
-    ln -s ~/.worktree-crew/bin/wtc ~/bin/wtc
+    git clone https://github.com/culfin/mandate ~/.mandate
+    ln -s ~/.mandate/bin/mdt ~/bin/mdt
 
 Requires `git`, `gh` and `tmux`. No runtime, no package manager.
 
-`wtc` resolves its own symlink to find `roles/` next to the real install, so
-it works wherever you link it from — move `~/.worktree-crew` later and the
+`mdt` resolves its own symlink to find `roles/` next to the real install, so
+it works wherever you link it from — move `~/.mandate` later and the
 link still finds it, as long as the link itself isn't moved somewhere that no
 longer points at it.
 
@@ -30,13 +30,13 @@ is enough — `developer` and `maintainer` do nothing that gets blocked.
 4. Store it in the OS keychain — never in a settings file:
 
        # macOS
-       security add-generic-password -s worktree-crew-reviewer -a "$USER" -w '<token>'
+       security add-generic-password -s mandate-reviewer -a "$USER" -w '<token>'
        # Linux (libsecret)
-       secret-tool store --label="worktree-crew reviewer" service worktree-crew-reviewer
+       secret-tool store --label="mandate reviewer" service mandate-reviewer
 
-   `wtc` reads it back with `security find-generic-password -s
-   worktree-crew-reviewer -w` (or the `secret-tool lookup` equivalent) — the
-   exact commands are in `read_reviewer_token()` in `bin/wtc`, if you want to
+   `mdt` reads it back with `security find-generic-password -s
+   mandate-reviewer -w` (or the `secret-tool lookup` equivalent) — the
+   exact commands are in `read_reviewer_token()` in `bin/mdt`, if you want to
    check by hand.
 
 5. Put that account's login in each project's `AGENTS.md`:
@@ -45,15 +45,15 @@ is enough — `developer` and `maintainer` do nothing that gets blocked.
 
    Without it the developer has no one to ask for a review.
 
-`wtc <repo> reviewer` reads the token and sets `GH_TOKEN` for that session
-only. If it is missing, `wtc` says so and starts anyway — you find out at the
+`mdt <repo> reviewer` reads the token and sets `GH_TOKEN` for that session
+only. If it is missing, `mdt` says so and starts anyway — you find out at the
 first approval, not at session start:
 
-    wtc: no reviewer token found — approvals will fail. See docs/setup.md
+    mdt: no reviewer token found — approvals will fail. See docs/setup.md
 
 ## 3. Lock the production boundary
 
-`wtc init` offers to do this; here it is by hand.
+`mdt init` offers to do this; here it is by hand.
 
 One API call creates an environment that requires your approval:
 
@@ -79,32 +79,32 @@ Required reviewers need a public repository, or GitHub Pro/Team/Enterprise for
 a private one — on a private repo without that plan, the API call above fails
 with `422` (`"Please ensure the billing plan supports the required reviewers
 protection rule"`) and leaves a bare environment behind with no rule attached.
-`wtc init` treats that failure as "create it by hand" and points back here;
+`mdt init` treats that failure as "create it by hand" and points back here;
 doing it by hand hits the same `422` for the same reason, so if you see it,
 the fix is the plan or the repo's visibility, not the recipe.
 
 ## 4. Set up a project
 
-    wtc init <repo>
+    mdt init <repo>
 
 See [adding-a-project.md](adding-a-project.md) for what it does and how to do
 it by hand.
 
 ## 5. Choose your coding agent
 
-    export WTC_TOOL=claude      # default
+    export MDT_TOOL=claude      # default
 
 See [tools.md](tools.md) for what is supported and what is untested.
 
 ## 6. Tell your tabs apart
 
 Several sessions across several projects means several terminal tabs, and by
-default they all say the same thing. `wtc` sets the tab title itself, scoped
+default they all say the same thing. `mdt` sets the tab title itself, scoped
 to that project's tmux session only — it never touches the global title, so
 your other tmux sessions keep whatever they already show.
 
 The title is short on purpose: project, then who, nothing else — the session
-name already carries "wtc", repeating it would just cost characters:
+name already carries "mdt", repeating it would just cost characters:
 
     dateye · DEV
     dateye · DEV·eyeoffice        # a suffixed developer session
@@ -118,7 +118,7 @@ proprietary escape codes, wrapped for tmux passthrough. This is iTerm2-only;
 see [limits.md](limits.md) for what happens in every other terminal. Turn it
 off, still keeping the title:
 
-    export WTC_TAB_COLOUR=0
+    export MDT_TAB_COLOUR=0
 
 ## 7. Replacing a session without losing its place
 
@@ -127,14 +127,14 @@ that's wedged. Killing it loses where it had got to; reloading the whole
 conversation is expensive, tool-specific, and after an update carries
 artefacts of the version you just replaced.
 
-    wtc restart myproject DEV
+    mdt restart myproject DEV
 
 asks the session to write `.agents/handoff.md` (see "Handing over" in
 `roles/_base.md` for what belongs in it), waits for the file, replaces the
 process, and hands the file to its successor as part of its context. If the
-session doesn't answer within `WTC_HANDOFF_TIMEOUT` seconds (default 60),
-`wtc` aborts rather than restarting — see [limits.md](limits.md) for why, and
+session doesn't answer within `MDT_HANDOFF_TIMEOUT` seconds (default 60),
+`mdt` aborts rather than restarting — see [limits.md](limits.md) for why, and
 for what `--fresh` costs you when you use it instead:
 
-    wtc restart myproject DEV --fresh   # replace without asking — loses state
-    wtc restart --all                   # every running session, across every project
+    mdt restart myproject DEV --fresh   # replace without asking — loses state
+    mdt restart --all                   # every running session, across every project

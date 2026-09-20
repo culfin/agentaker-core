@@ -7,7 +7,7 @@ a number is given, it's measured, and the paragraph says on what.
 
 `maintainer` sits on the trunk branch. Git will not check out the same branch
 in two worktrees at once, so a second `maintainer` worktree for the same repo
-simply cannot be created — `wtc` would hit `git worktree add`'s refusal
+simply cannot be created — `mdt` would hit `git worktree add`'s refusal
 (`'main' is already used by worktree at …`) before it got anywhere near a
 role. There is no configuration that changes this; it is what one maintainer
 per repository is grounded in. The same reasoning is why there is no separate
@@ -18,8 +18,8 @@ per repository is grounded in. The same reasoning is why there is no separate
 `developer` and `reviewer` don't sit on a shared branch, so nothing stops more
 than one of either running at once. The name suffix is what tells them apart:
 
-    wtc dateye developer
-    wtc dateye developer a11y
+    mdt dateye developer
+    mdt dateye developer a11y
 
 gives two worktrees, `dateye-developer` and `dateye-developer-a11y`, each with
 its own branch, each addressable independently. Use this for parallel,
@@ -84,7 +84,7 @@ irreversible action an agent can take. That is why it is the only one with a loc
 
 ## No polling
 
-Nothing runs while you're not looking. `wtc status` answers "where is work
+Nothing runs while you're not looking. `mdt status` answers "where is work
 waiting" on demand — it costs one `gh search` call per owner, not a
 background loop — but it doesn't notify you on its own, and no session
 advances work it wasn't asked to advance. If you want to know whether
@@ -98,17 +98,17 @@ no one is working.
 The title (`dateye · DEV`) works anywhere tmux does — it's tmux's own
 `set-titles-string`, which every terminal that shows a tmux title already
 understands. The colour is different: it's iTerm2's own proprietary escape
-code, wrapped for tmux's passthrough. Outside iTerm2, `wtc` detects that and
+code, wrapped for tmux's passthrough. Outside iTerm2, `mdt` detects that and
 emits nothing — deliberately. A stray escape sequence in a terminal that
 doesn't understand it prints garbage in the pane, which is worse than no
 colour; silence was the safer failure here, not an error message. If your tab
 never turns colour and you're not on iTerm2, that's expected, not broken.
-`WTC_TAB_COLOUR=0` turns it off regardless of terminal, if you'd rather it
+`MDT_TAB_COLOUR=0` turns it off regardless of terminal, if you'd rather it
 never tried.
 
 ## `drop` refuses rather than asks
 
-`wtc drop` removes a worktree that can run to several gigabytes and may hold
+`mdt drop` removes a worktree that can run to several gigabytes and may hold
 the only copy of something. A yes/no prompt gets answered on reflex, the same
 way every other prompt that session has seen was — so instead of asking,
 `drop` checks three things (uncommitted changes, commits not on any remote, an
@@ -119,16 +119,16 @@ with `--force`; the cost of a false confirmation is the worktree.
 
 ## A handover is only as good as the session that writes it
 
-`wtc restart` never reads the handoff file it waits for — it sends keystrokes
+`mdt restart` never reads the handoff file it waits for — it sends keystrokes
 and waits for a file to appear, and hands that file to the successor
 unexamined. What ends up in it is entirely up to the session: a role that
 follows `roles/_base.md`'s "Handing over" section closely leaves its
 successor a usable state; one that summarises the conversation instead, or
 skips `Not checked`, leaves a successor that inherits confidence nobody
-actually earned. `wtc` has no way to tell the difference, and doesn't try to.
+actually earned. `mdt` has no way to tell the difference, and doesn't try to.
 
 A wedged session cannot be handed over at all — by definition, it isn't
-answering. `wtc restart` waits `WTC_HANDOFF_TIMEOUT` seconds (default 60),
+answering. `mdt restart` waits `MDT_HANDOFF_TIMEOUT` seconds (default 60),
 then aborts rather than guessing: no restart happens, and the session is told
 so, because a lost handover is exactly what this command exists to prevent.
 `--fresh` is the honest way past that: it replaces the process without

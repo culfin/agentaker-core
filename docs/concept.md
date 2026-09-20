@@ -25,7 +25,7 @@ project, not the role. If roles were tied to a technology, every new language
 would need a new role, and the actual process — how a developer behaves —
 would be duplicated once per stack.
 
-Splitting the two also fixes the collision problem for free: `wtc` gives each
+Splitting the two also fixes the collision problem for free: `mdt` gives each
 role its own git worktree, so a developer, a reviewer and a maintainer have
 three separate working directories on three separate branches, at the same
 time, without touching each other's files.
@@ -33,9 +33,9 @@ time, without touching each other's files.
 ## The three layers
 
 ```
-① TOOL       worktree-crew itself             universal, knows no project
+① TOOL       mandate itself             universal, knows no project
              roles/   _base · developer · reviewer · maintainer · none
-             bin/wtc  init · start · attach · status
+             bin/mdt  init · start · attach · status
              agents/  five subagents (Claude Code only, see docs/tools.md)
 
 ② PROJECT    <repo>/AGENTS.md                  committed, ~20 lines, standard format
@@ -45,7 +45,7 @@ time, without touching each other's files.
              developer
 ```
 
-`wtc` reads layer ③, adds layer ① (`roles/_base.md` plus the role file named in
+`mdt` reads layer ③, adds layer ① (`roles/_base.md` plus the role file named in
 `ROLE`), and starts the coding agent with the result as its system prompt. It
 never reads layer ②: the agent reads `AGENTS.md` itself, because that file
 being readable without help is the entire point of the standard. Duplicating
@@ -53,7 +53,7 @@ its contents into the session's system prompt would just be a second copy that
 can drift from the first.
 
 The assembled text lands in `<worktree>/.agents/context.md`. It is never
-committed — `wtc` adds `.agents/` to that worktree's `git info/exclude` the
+committed — `mdt` adds `.agents/` to that worktree's `git info/exclude` the
 first time it runs there, so it produces no `git status` noise and nothing
 gets committed by accident.
 
@@ -77,8 +77,8 @@ The role files are Markdown. `.agents/ROLE` is one word in a text file. The
 flow runs entirely over `git` and `gh`. None of that names a coding agent.
 
 The one place a coding agent's name appears in the whole tool is
-`launch_command()` in `bin/wtc` — a single `case` statement that knows how to
-hand the assembled role text to whichever tool `WTC_TOOL` names:
+`launch_command()` in `bin/mdt` — a single `case` statement that knows how to
+hand the assembled role text to whichever tool `MDT_TOOL` names:
 
 ```bash
 case "$tool" in

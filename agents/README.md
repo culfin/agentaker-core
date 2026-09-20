@@ -14,7 +14,7 @@ The file format is Claude Code's. Other agents use other formats, and
 `agency-agents` maintains converters for sixteen of them. Porting those is a
 separate piece of work.
 
-**So: the core of worktree-crew is vendor-neutral, these five files are not.**
+**So: the core of mandate is vendor-neutral, these five files are not.**
 If your tool is not Claude Code, everything works except this layer — your
 `AGENTS.md` simply lists no subagents.
 

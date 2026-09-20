@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# `wtc list`, `wtc drop` and `wtc restart` — seeing what worktrees exist,
+# `mdt list`, `mdt drop` and `mdt restart` — seeing what worktrees exist,
 # cleaning up after them, and replacing the process behind one without
 # losing where it had got to.
 #
-# Sourced by bin/wtc on demand, for the same reason as lib/init.sh: the
-# everyday `wtc <repo> <role>` path doesn't pay to parse any of this.
+# Sourced by bin/mdt on demand, for the same reason as lib/init.sh: the
+# everyday `mdt <repo> <role>` path doesn't pay to parse any of this.
 #
-# Needs from bin/wtc: die(), usage(), role_tag(), session_name(),
+# Needs from bin/mdt: die(), usage(), role_tag(), session_name(),
 #   build_context(), launch_command(), wrap_launch_command(),
 #   read_reviewer_token(), PROJECTS_DIR, ROLES_DIR, TOOL
 # Provides to it:     nothing — cmd_list()/cmd_drop()/cmd_restart() are the
 #   whole surface.
 
 # Sets WT_ROLE, WT_LABEL, WT_BRANCH for the worktree named $2 (its directory
-# basename under .worktrees/) belonging to repo $1. A worktree wtc didn't
+# basename under .worktrees/) belonging to repo $1. A worktree mdt didn't
 # create — no .agents/ROLE, or a name that doesn't fit the repo-role[-suffix]
 # pattern cmd_start() uses — still gets a label; role_tag() falls back to
 # uppercasing whatever it's given, so it never comes back empty.
@@ -28,7 +28,7 @@ describe_worktree() {
   fi
   WT_LABEL=$tag
   # Braced ("${tag}·${suffix}"), not "$tag·$suffix" — see the matching
-  # comment in bin/wtc's cmd_start(): under a UTF-8 locale, bash can fold the
+  # comment in bin/mdt's cmd_start(): under a UTF-8 locale, bash can fold the
   # multibyte "·" right after an unbraced $tag into the variable name itself.
   [ -n "$suffix" ] && WT_LABEL="${tag}·${suffix}"
   WT_BRANCH=$(git -C "$wt" symbolic-ref --short HEAD 2>/dev/null \
@@ -76,7 +76,7 @@ cmd_list() {
       # The directory name, always — two worktrees can share a label
       # (role_tag() falls back to the first three letters of an unknown role,
       # so "devops" and "developer" both read DEV); a user reading this list
-      # has to be able to build a `wtc drop` command that means what they
+      # has to be able to build a `mdt drop` command that means what they
       # think, and the label alone can't promise that. See cmd_drop()'s own
       # ambiguity handling for the other half of this.
       printf '  %-16s %-24s %-22s %6s   %s\n' "$WT_LABEL" "$(basename "$wt")" "$WT_BRANCH" "$size" "$running"
@@ -135,7 +135,7 @@ cmd_drop() {
   elif [ "${#candidates[@]}" -eq 1 ]; then
     match=${candidates[0]}
   elif [ "${#candidates[@]}" -eq 0 ]; then
-    die "no worktree named '$label' in $repo — see \`wtc list $repo\`"
+    die "no worktree named '$label' in $repo — see \`mdt list $repo\`"
   else
     # More than one candidate. This refuses unconditionally — before the
     # --force check below, and not reachable through it — because --force
@@ -143,12 +143,12 @@ cmd_drop() {
     # unpushed commits, an open window), never to proceed without knowing
     # WHICH worktree it's about to remove.
     {
-      printf 'wtc: "%s" matches more than one worktree in %s:\n\n' "$label" "$repo"
+      printf 'mdt: "%s" matches more than one worktree in %s:\n\n' "$label" "$repo"
       for wt in "${candidates[@]}"; do
         describe_worktree "$repo" "$(basename "$wt")"
         printf '  %-5s %-24s %s\n' "$WT_LABEL" "$(basename "$wt")" "$WT_BRANCH"
       done
-      printf '\nUse the directory name to say which one:\n  wtc drop %s %s\n' \
+      printf '\nUse the directory name to say which one:\n  mdt drop %s %s\n' \
         "$repo" "$(basename "${candidates[0]}")"
     } >&2
     exit 1
@@ -196,7 +196,7 @@ cmd_drop() {
 }
 
 # --- restart --------------------------------------------------------------
-# wtc never learns anything about the coding agent it restarts: it sends
+# mdt never learns anything about the coding agent it restarts: it sends
 # keystrokes and waits for a file. What belongs in that file is stated in
 # roles/_base.md, which every tool reads — see "## Handing over" there.
 HANDOVER_PROMPT='Please hand over now: write .agents/handoff.md as described in your instructions, then exit.'
@@ -236,7 +236,7 @@ restart_window() {
   local target; target="$(session_name "$repo"):$label"
 
   worktree_running "$repo" "$label" || {
-    printf 'wtc: no running session for %s in %s — see `wtc list %s`\n' "$label" "$repo" "$repo" >&2
+    printf 'mdt: no running session for %s in %s — see `mdt list %s`\n' "$label" "$repo" "$repo" >&2
     return 1
   }
 
@@ -255,11 +255,11 @@ restart_window() {
     tmux set-window-option -t "$target" remain-on-exit on 2>/dev/null
     printf 'asking %s in %s to hand over\n' "$label" "$repo"
     request_handover "$target"
-    if ! wait_for_handoff "$handoff" "${WTC_HANDOFF_TIMEOUT:-60}"; then
+    if ! wait_for_handoff "$handoff" "${MDT_HANDOFF_TIMEOUT:-60}"; then
       tmux set-window-option -t "$target" remain-on-exit off 2>/dev/null
-      printf 'wtc: %s in %s did not hand over within %ss — its state would be lost, so nothing was restarted.\n' \
-        "$label" "$repo" "${WTC_HANDOFF_TIMEOUT:-60}" >&2
-      printf 'wtc: to replace it anyway, losing its state: wtc restart %s %s --fresh\n' "$repo" "$label" >&2
+      printf 'mdt: %s in %s did not hand over within %ss — its state would be lost, so nothing was restarted.\n' \
+        "$label" "$repo" "${MDT_HANDOFF_TIMEOUT:-60}" >&2
+      printf 'mdt: to replace it anyway, losing its state: mdt restart %s %s --fresh\n' "$repo" "$label" >&2
       return 1
     fi
     printf 'received a handover from %s in %s\n' "$label" "$repo"
@@ -267,7 +267,7 @@ restart_window() {
 
   build_context "$wt" "$role" || {
     tmux set-window-option -t "$target" remain-on-exit off 2>/dev/null
-    printf 'wtc: could not assemble the role context from %s\n' "$ROLES_DIR" >&2
+    printf 'mdt: could not assemble the role context from %s\n' "$ROLES_DIR" >&2
     return 1
   }
   if [ "$fresh" -ne 1 ] && [ -s "$handoff" ]; then
@@ -280,7 +280,7 @@ restart_window() {
   LAUNCH_CMD=()
   if ! launch_command "$wt/.agents/context.md"; then
     tmux set-window-option -t "$target" remain-on-exit off 2>/dev/null
-    printf 'wtc: no launch command known for tool %s\n' "${TOOL:-claude}" >&2
+    printf 'mdt: no launch command known for tool %s\n' "${TOOL:-claude}" >&2
     return 1
   fi
 
@@ -299,14 +299,14 @@ restart_window() {
   tmux set-window-option -t "$target" remain-on-exit off 2>/dev/null
 
   if [ "$respawn_rc" -ne 0 ]; then
-    printf 'wtc: tmux would not respawn %s in %s — see \`tmux respawn-pane -t %s\` for why\n' \
+    printf 'mdt: tmux would not respawn %s in %s — see \`tmux respawn-pane -t %s\` for why\n' \
       "$label" "$repo" "$target" >&2
     return 1
   fi
   printf 'restarted %s in %s\n' "$label" "$repo"
 }
 
-# `wtc restart --all`: every currently running window, across every project
+# `mdt restart --all`: every currently running window, across every project
 # under PROJECTS_DIR. A dirty worktree is skipped, never forced through —
 # same discipline as cmd_drop(): uncommitted changes are a signal this isn't
 # a good moment, and --all has no human in the loop to ask.
@@ -381,15 +381,15 @@ cmd_restart() {
   elif [ "${#candidates[@]}" -eq 1 ]; then
     match=${candidates[0]}
   elif [ "${#candidates[@]}" -eq 0 ]; then
-    die "no worktree named '$label' in $repo — see \`wtc list $repo\`"
+    die "no worktree named '$label' in $repo — see \`mdt list $repo\`"
   else
     {
-      printf 'wtc: "%s" matches more than one worktree in %s:\n\n' "$label" "$repo"
+      printf 'mdt: "%s" matches more than one worktree in %s:\n\n' "$label" "$repo"
       for wt in "${candidates[@]}"; do
         describe_worktree "$repo" "$(basename "$wt")"
         printf '  %-5s %-24s %s\n' "$WT_LABEL" "$(basename "$wt")" "$WT_BRANCH"
       done
-      printf '\nUse the directory name to say which one:\n  wtc restart %s %s\n' \
+      printf '\nUse the directory name to say which one:\n  mdt restart %s %s\n' \
         "$repo" "$(basename "${candidates[0]}")"
     } >&2
     exit 1

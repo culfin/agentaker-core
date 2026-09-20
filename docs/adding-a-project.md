@@ -3,17 +3,17 @@
 This is the page the tool lives or dies by. If setup is a black box, the
 person who needs to debug it — you, at 11pm, wondering why a session doesn't
 know it's a reviewer — can't. So this walks one project from nothing to a
-running session **twice**: once with `wtc init`, once entirely by hand. Both
-routes end at the same three files. If you ever need to fix something `wtc
+running session **twice**: once with `mdt init`, once entirely by hand. Both
+routes end at the same three files. If you ever need to fix something `mdt
 init` did, the by-hand section is what it did, spelled out.
 
 Throughout, `myproject` stands for whatever your repository is called, cloned
-under `WTC_PROJECTS_DIR` (default `~/Projekte/myproject`).
+under `MDT_PROJECTS_DIR` (default `~/Projekte/myproject`).
 
-## Route A: `wtc init`
+## Route A: `mdt init`
 
 ```
-$ wtc init myproject
+$ mdt init myproject
 Checking what we need:
   ok   git (git version 2.54.0 (Apple Git-157))
   ok   gh (gh version 2.100.0 (2026-09-03))
@@ -59,7 +59,7 @@ developer reviewer maintainer
 create labels on. Against a repository with no configured remote — as in the
 throwaway repository this walkthrough was actually run against — the same two
 lines instead read `label ready: already there, or no access` and likewise for
-`needs-decision`; `wtc init` treats "the label already exists" and "I
+`needs-decision`; `mdt init` treats "the label already exists" and "I
 couldn't create it" the same way on purpose, since either way there's nothing
 more for it to do, and tells you to check by hand if that surprises you.)
 
@@ -74,11 +74,11 @@ Done. Next:
      cannot be asked for a review. See docs/setup.md.
   3. Give the reviewer its own account: docs/setup.md
   4. Put 'ready' on an issue:   gh issue edit <N> --add-label ready
-  5. Start working:             wtc myproject developer
+  5. Start working:             mdt myproject developer
 ```
 
 (This transcript is real, run against a throwaway repository — the wording
-matches `init()` in `bin/wtc`. `stack: unknown` because the throwaway
+matches `init()` in `bin/mdt`. `stack: unknown` because the throwaway
 repository had no `Cargo.toml`/`package.json`/etc. to detect; a real project
 would show something like `Rust Tauri Svelte`, which also changes the
 suggested test commands.)
@@ -99,7 +99,7 @@ until you replace it, deliberately.
 
 ## Route B: entirely by hand
 
-Everything Route A did, as individual commands. Useful when `wtc init` isn't
+Everything Route A did, as individual commands. Useful when `mdt init` isn't
 available, when you want to see exactly what changed, or when you're
 troubleshooting a project `init` already touched.
 
@@ -132,7 +132,7 @@ git commit -m "add AGENTS.md"
 ```
 
 It belongs to the project, not to any one session, and every coding agent —
-not only the ones started through `wtc` — reads it from the checkout.
+not only the ones started through `mdt` — reads it from the checkout.
 
 **3. Create the two labels.**
 
@@ -141,7 +141,7 @@ gh label create ready --description "Ready for an agent to pick up" --color 0E8A
 gh label create needs-decision --description "Waiting on a human decision" --color D93F0B
 ```
 
-**4. Create the three worktrees, one per role.** `wtc <repo> <role>` does
+**4. Create the three worktrees, one per role.** `mdt <repo> <role>` does
 this the moment it's asked to start a role that doesn't have a worktree yet —
 so this step and "start a session" are the same command; there's no separate
 worktree-creation step to run by hand. What it does, if you want to replicate
@@ -156,19 +156,19 @@ cat roles/_base.md roles/developer.md > .worktrees/myproject-developer/.agents/c
 echo '.agents/' >> .git/info/exclude
 ```
 
-Repeat for `reviewer` and `maintainer`. (`wtc` does the `_base.md` + role
+Repeat for `reviewer` and `maintainer`. (`mdt` does the `_base.md` + role
 concatenation with a blank line between the two files, not a bare `cat`; the
 difference doesn't matter for reading it, only for exact byte output.)
 
 **5. Start a session and confirm it knows its role.**
 
 ```bash
-wtc myproject developer
+mdt myproject developer
 ```
 
 This resolves to the worktree from step 4 (creating it first if step 4 was
 skipped), writes `.agents/ROLE` and `.agents/context.md` if they're missing or
-stale, and launches your coding agent (`$WTC_TOOL`, default `claude`) with
+stale, and launches your coding agent (`$MDT_TOOL`, default `claude`) with
 that file as its system prompt — `claude --append-system-prompt-file
 <worktree>/.agents/context.md` for Claude Code; see `docs/tools.md` for other
 tools. Once it opens, ask it directly:
@@ -195,12 +195,12 @@ finds.
 **Session does not know its role.**
 Check, in order: does `.agents/ROLE` exist in that worktree, and does it
 contain a role name? Does `cat .agents/context.md` actually show the base
-rules plus the role text — not an old or empty file? Is `WTC_TOOL` set to
-the tool you're actually running (`echo $WTC_TOOL`)? If all three check out
+rules plus the role text — not an old or empty file? Is `MDT_TOOL` set to
+the tool you're actually running (`echo $MDT_TOOL`)? If all three check out
 but the session still doesn't know, the coding agent may not support the flag
 `launch_command()` used for it — see `docs/tools.md`.
 
-**`wtc: no role file for '<name>'`**
+**`mdt: no role file for '<name>'`**
 The word written to `.agents/ROLE` (or passed as the role argument) has no
 matching file in `roles/`. Role names are exactly the filenames in `roles/`
 without `.md`: `developer`, `reviewer`, `maintainer`, `none`. A typo here is
@@ -209,8 +209,8 @@ the most common cause.
 **Reviewer cannot approve.**
 Either it's using the wrong account (the review author's own account can
 never approve its own PR — this is enforced by GitHub itself), or the
-keychain entry is missing, in which case `wtc` already warned you at session
-start: `wtc: no reviewer token found — approvals will fail`. See
+keychain entry is missing, in which case `mdt` already warned you at session
+start: `mdt: no reviewer token found — approvals will fail`. See
 `docs/setup.md` step 2.
 
 **`git worktree add` refuses.**
@@ -225,6 +225,6 @@ nothing else can.
 **The agent ignores `AGENTS.md`.**
 Some coding agents only read `AGENTS.md` when no tool-specific file
 (`CLAUDE.md`, `GEMINI.md`, …) already exists in the repository — that's a
-property of the reading tool, not of `worktree-crew`. If your project has one
+property of the reading tool, not of `mandate`. If your project has one
 of those files, add a line to it pointing at `AGENTS.md` so the project
 knowledge isn't silently shadowed.
