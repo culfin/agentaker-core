@@ -33,6 +33,9 @@ developer reviewer integrator
 Everything before it — merging, tagging, building, the canary feed — is the
 integrator's to do alone. The stable channel reaches every installed copy.
 
+Enforced by a protected environment — see docs/setup.md. Without that, this
+section is a promise rather than a boundary.
+
 ## Local notes
 
 CI runs on a shared self-hosted runner. Before a merge that triggers a

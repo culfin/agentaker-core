@@ -51,14 +51,46 @@ first approval, not at session start:
 
     wtc: no reviewer token found — approvals will fail. See docs/setup.md
 
-## 3. Set up a project
+## 3. Lock the production boundary
+
+`wtc init` offers to do this; here it is by hand.
+
+One API call creates an environment that requires your approval:
+
+    MYID=$(gh api user --jq .id)
+    printf '{"reviewers":[{"type":"User","id":%s}]}' "$MYID" \
+      | gh api -X PUT repos/OWNER/REPO/environments/production --input -
+
+Then one line in the workflow that crosses the boundary, on the job that does it:
+
+    jobs:
+      release:
+        environment: production
+
+Now that job stops and waits for you in the browser, no matter which session
+started it. Verify it took:
+
+    gh api repos/OWNER/REPO/environments \
+      --jq '.environments[] | {name, rules: [.protection_rules[].type]}'
+
+You want to see `required_reviewers`. An environment without it is a label, not a lock.
+
+Required reviewers need a public repository, or GitHub Pro/Team/Enterprise for
+a private one — on a private repo without that plan, the API call above fails
+with `422` (`"Please ensure the billing plan supports the required reviewers
+protection rule"`) and leaves a bare environment behind with no rule attached.
+`wtc init` treats that failure as "create it by hand" and points back here;
+doing it by hand hits the same `422` for the same reason, so if you see it,
+the fix is the plan or the repo's visibility, not the recipe.
+
+## 4. Set up a project
 
     wtc init <repo>
 
 See [adding-a-project.md](adding-a-project.md) for what it does and how to do
 it by hand.
 
-## 4. Choose your coding agent
+## 5. Choose your coding agent
 
     export WTC_TOOL=claude      # default
 

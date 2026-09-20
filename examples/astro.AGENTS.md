@@ -27,6 +27,9 @@ developer reviewer integrator
 The integrator builds and pushes the image. Restarting the production stack
 needs an explicit instruction.
 
+Enforced by a protected environment — see docs/setup.md. Without that, this
+section is a promise rather than a boundary.
+
 ## Local notes
 
 Server endpoints must read `process.env`, not `import.meta.env` — the latter is

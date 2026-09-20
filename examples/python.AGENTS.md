@@ -25,6 +25,9 @@ developer reviewer integrator
 Tagging a release is the integrator's. Publishing to the package index needs an
 explicit instruction and cannot be undone.
 
+Enforced by a protected environment — see docs/setup.md. Without that, this
+section is a promise rather than a boundary.
+
 ## Local notes
 
 Delete this section rather than leaving it empty.

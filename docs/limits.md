@@ -60,10 +60,27 @@ the project, not on this tool.
 Worth repeating here because it's a limit, not just a design note: the
 permissions in `docs/roles.md` are self-imposed. A role's GitHub token is
 capable of more than its role file allows; nothing outside the session stops
-it from doing so except the coding agent choosing to follow the role file. The
-one exception is the reviewer's own account, which makes GitHub itself refuse
-self-approval — see `docs/flow.md` for the measurement. Don't rely on a role
-boundary anywhere a real access-control guarantee is needed.
+it from doing so except the coding agent choosing to follow the role file. One
+exception is the reviewer's own account, which makes GitHub itself refuse
+self-approval — see `docs/flow.md` for the measurement. The other is the
+production boundary, if you've locked it as `docs/setup.md` describes — see
+below for why it's the only other one. Don't rely on a role boundary anywhere
+a real access-control guarantee is needed.
+
+## Why only one thing is locked
+
+Branch protection was considered and rejected. Agents run under your own
+account, which is an admin: with `enforce_admins: false` they bypass the rule
+exactly as you do, so it guards nobody; with `true` it is real, but it also
+blocks every quick manual fix — a poor trade for a mistake that `git revert`
+undoes.
+
+A `pre-push` hook was considered and rejected. It protects the wrong party: an
+agent that follows its role file does not need it, and one that ignores it types
+`--no-verify`.
+
+The production boundary is different in kind, not degree: it is the only
+irreversible action an agent can take. That is why it is the only one with a lock.
 
 ## No polling
 

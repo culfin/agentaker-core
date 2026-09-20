@@ -190,7 +190,7 @@ cmd_start() {
 
 # Ask gh one question and render the answer. Distinguishes three outcomes that
 # must never look alike: rows, no rows, and "I could not ask".
-# Sets STATUS_FAILED=1 on the third, so status() can exit non-zero.
+# Sets STATUS_FAILED=1 on the third, so cmd_status() can exit non-zero.
 status_query() {
   local heading=$1
   shift
@@ -377,6 +377,30 @@ EOF
         printf '  label needs-decision: already there, or no access\n'
       fi
     )
+  fi
+
+  # --- production boundary -------------------------------------------------
+  # Every other boundary here is a sentence in a Markdown file; this one is a
+  # lock, since a release reaches real users and cannot be undone like a merge.
+  if [ -z "${WTC_NO_NETWORK:-}" ]; then
+    printf '\nThe production boundary needs a lock: a protected environment makes the\n'
+    printf 'job wait for you in the browser, whoever triggered it.\n'
+    if [ "$(ask 'Create a protected "production" environment? (y/n)' y)" = "y" ]; then
+      (
+        cd "$dir" || exit 1
+        uid=$(gh api user --jq .id 2>/dev/null) || exit 1
+        slug=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) || exit 1
+        if printf '{"reviewers":[{"type":"User","id":%s}]}' "$uid" \
+             | gh api -X PUT "repos/$slug/environments/production" --input - >/dev/null 2>&1; then
+          printf '  environment created: production (you are the required reviewer)\n'
+        else
+          printf '  could not create the environment — create it by hand, see docs/setup.md\n'
+        fi
+      )
+      printf '\n  One line is still yours to add, on the job that crosses the boundary:\n'
+      printf '      jobs:\n        release:\n          environment: production\n'
+      printf '  Without it the environment exists and protects nothing.\n'
+    fi
   fi
 
   # --- worktrees ------------------------------------------------------------

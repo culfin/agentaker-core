@@ -45,4 +45,32 @@ echo "wtc init: tells you what to do next"
 contains "names the next command" "wtc demo developer" "$out"
 contains "mentions the ready label" "ready" "$out"
 
+echo "wtc init: offers to protect the production boundary"
+STUB=$(mktemp -d)
+cat > "$STUB/gh" <<'STUBEOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$GH_CALLS"
+case "$*" in
+  "api user --jq .id") echo "4242" ;;
+  *) echo "{}" ;;
+esac
+STUBEOF
+chmod +x "$STUB/gh"
+export GH_CALLS="$STUB/calls"; : > "$GH_CALLS"
+
+# The file-level `export WTC_NO_NETWORK=1` above must be overridden inline here
+# (to empty) or this call would silently skip the network step being tested.
+out=$(PATH="$STUB:$PATH" WTC_YES=1 WTC_NO_NETWORK= "$WTC" init demo 2>&1)
+calls=$(cat "$GH_CALLS")
+contains "asks for the user id" "api user" "$calls"
+contains "creates the environment" "environments/production" "$calls"
+contains "explains what it protects" "production boundary" "$out"
+contains "names the workflow line the user must add" "environment: production" "$out"
+
+# With WTC_NO_NETWORK the environment step must be skipped entirely.
+: > "$GH_CALLS"
+out=$(PATH="$STUB:$PATH" WTC_YES=1 WTC_NO_NETWORK=1 "$WTC" init demo 2>&1)
+lacks "no network means no environment call" "environments/production" "$(cat "$GH_CALLS")"
+rm -rf "$STUB"
+
 summary

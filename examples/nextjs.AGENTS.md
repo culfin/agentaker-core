@@ -30,6 +30,9 @@ developer reviewer integrator
 Merging to `main` deploys to staging and is the integrator's alone. The
 production branch is never pushed without an explicit instruction.
 
+Enforced by a protected environment — see docs/setup.md. Without that, this
+section is a promise rather than a boundary.
+
 ## Local notes
 
 Database migrations run automatically on deploy and are not reversible. A PR
