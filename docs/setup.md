@@ -3,9 +3,19 @@
 ## 1. Get the tool
 
     git clone https://github.com/culfin/mandate ~/.mandate
-    ln -s ~/.mandate/bin/mdt ~/bin/mdt
+    ln -s ~/.mandate/bin/mdt ~/bin/mdt   # or wherever is actually on your PATH — see below
 
 Requires `git`, `gh` and `tmux`. No runtime, no package manager.
+
+`~/bin` is a guess, and on some machines it's the wrong one: it can exist
+without being on `PATH` (`~/.local/bin` is the more common default on a fresh
+install), in which case the symlink is created, `mdt` still says "command not
+found", and that looks like a broken install rather than a wrong target
+directory. Check first:
+
+    echo $PATH | tr ':' '\n' | grep -E '/bin$|/\.local/bin$'
+
+and link into one of those instead if `~/bin` isn't among them.
 
 `mdt` resolves its own symlink to find `roles/` next to the real install, so
 it works wherever you link it from — move `~/.mandate` later and the

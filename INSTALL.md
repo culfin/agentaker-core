@@ -35,10 +35,31 @@ Run these and report what you find:
 git --version
 gh --version && gh auth status
 tmux -V
+mdt --help
 ```
 
-If any is missing, say which and how to install it on their platform, then stop
-until it is there. Do not install anything yourself.
+If any of the first three is missing, say which and how to install it on their
+platform, then stop until it is there. Do not install those yourself.
+
+If `mdt` itself is not found, that's expected — the rest of this file assumes
+it exists, but nothing installs it first. Propose the README's quickstart:
+
+```bash
+git clone https://github.com/culfin/mandate ~/.mandate
+ln -s ~/.mandate/bin/mdt ~/bin/mdt
+```
+
+Check first whether `~/bin` is actually on their `PATH` before proposing that
+exact target — it commonly isn't (`~/.local/bin` is the more usual default on
+a fresh install), and a symlink created outside `PATH` still leaves `mdt`
+reported as "command not found", which reads as a broken install rather than
+a wrong directory:
+
+```bash
+echo $PATH | tr ':' '\n' | grep -E '/bin$|/\.local/bin$'
+```
+
+Link into whichever of those exists; ask before running either command.
 
 ### Phase 2 — Find the project
 

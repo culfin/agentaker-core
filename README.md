@@ -51,7 +51,7 @@ Three worktrees, three branches, three roles, one repository. See
 
 ```bash
 git clone https://github.com/culfin/mandate ~/.mandate
-ln -s ~/.mandate/bin/mdt ~/bin/mdt
+ln -s ~/.mandate/bin/mdt ~/bin/mdt   # not on your PATH? see docs/setup.md
 
 mdt init myproject          # walks setup step by step, see docs/adding-a-project.md
 mdt myproject developer     # opens a session that knows it's a developer
