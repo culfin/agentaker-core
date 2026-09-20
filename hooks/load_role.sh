@@ -9,7 +9,7 @@
 set -uo pipefail
 
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
-ROLES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/roles"
+ROLES_DIR="${WTR_ROLES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/roles}"
 ROLE_FILE="$PROJECT_DIR/.agents/ROLE"
 
 [ -f "$ROLE_FILE" ] || exit 0
@@ -28,5 +28,5 @@ fi
 
 cat "$ROLES_DIR/_base.md" 2>/dev/null
 printf '\n\n'
-cat "$ROLES_DIR/$role.md"
+cat "$ROLES_DIR/$role.md" 2>/dev/null
 exit 0
