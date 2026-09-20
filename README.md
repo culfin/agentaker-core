@@ -31,7 +31,7 @@ myproject/
 ├── .worktrees/
 │   ├── myproject-developer/    branch: myproject-developer   role: developer
 │   ├── myproject-reviewer/     branch: review/<N>            role: reviewer
-│   └── myproject-maintainer/   branch: main (the trunk)      role: maintainer
+│   └── myproject-maintainer/   branch: myproject-maintainer  role: maintainer
 └── AGENTS.md                   committed — trunk, tests, reviewer, production boundary
 
 developer  --draft PR, ready, request review-->  reviewer
@@ -100,13 +100,14 @@ checked.
 
 ## Limits, in three lines
 
-One `maintainer` per repository — git won't check out the same trunk branch
-twice. Disk is cheap per byte but adds up (a Rust/Tauri worktree runs about
-9 GB, mostly build output) — `mdt list` shows what exists, `mdt drop` removes
-one and refuses if that isn't safe. Memory is the real ceiling, and two
-concurrent `cargo` builds already strain a 32 GB machine. Role boundaries are
-self-imposed — the token can do more than the role allows; what stops it is
-the role file, not the forge. Full numbers and what they were measured on:
+One `maintainer` per repository by convention, not by git — nothing stops a
+second one, but two would fight over merge order, so don't. Disk is cheap per
+byte but adds up (a Rust/Tauri worktree runs about 9 GB, mostly build output)
+— `mdt list` shows what exists, `mdt drop` removes one and refuses if that
+isn't safe. Memory is the real ceiling, and two concurrent `cargo` builds
+already strain a 32 GB machine. Role boundaries are self-imposed — the token
+can do more than the role allows; what stops it is the role file, not the
+forge. Full numbers and what they were measured on:
 [docs/limits.md](docs/limits.md).
 
 ## Documentation

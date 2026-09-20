@@ -3,15 +3,25 @@
 These are the limits that actually bind, not a hypothetical worst case. Where
 a number is given, it's measured, and the paragraph says on what.
 
-## One maintainer per repository — this is git, not a design choice
+## One maintainer per repository — a convention, not a git-enforced fact
 
-`maintainer` sits on the trunk branch. Git will not check out the same branch
-in two worktrees at once, so a second `maintainer` worktree for the same repo
-simply cannot be created — `mdt` would hit `git worktree add`'s refusal
-(`'main' is already used by worktree at …`) before it got anywhere near a
-role. There is no configuration that changes this; it is what one maintainer
-per repository is grounded in. The same reasoning is why there is no separate
-`deployer` role — see `docs/roles.md`.
+`maintainer`, like every other role, gets its own branch (`$repo-maintainer`)
+when `mdt` creates its worktree — the same `git worktree add ... -b` any other
+role gets. It does **not** sit on the trunk branch: the top-level clone
+already has trunk checked out, so no worktree ever could, and a maintainer
+merges through the forge (`gh pr merge`), never with a local `git merge` on a
+checked-out trunk — it never needed the branch. Nothing stops a second
+`maintainer` worktree from being created; `mdt mandate maintainer second`
+succeeds exactly like any other suffixed role would.
+
+Stick to one anyway. Two maintainers would contend over merge order and
+release rhythm — which PR lands first, whether a release goes out while
+another merge is mid-flight — and that's a coordination problem, not a
+mechanical one. Nothing enforces this; two maintainers would simply fight
+over merge order. The same reasoning is why there is no separate `deployer`
+role — see `docs/concept.md` — but that decision doesn't rest on this one:
+merging and releasing share a production boundary and happen one after the
+other regardless of how many worktrees exist.
 
 ## Several developers, no such ceiling
 

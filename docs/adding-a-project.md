@@ -52,8 +52,27 @@ developer reviewer maintainer
   Create the two labels on the remote? (y/n) [y]
   label created: ready
   label created: needs-decision
+
+The production boundary needs a lock: a protected environment makes the
+job wait for you in the browser, whoever triggered it.
+  Create a protected "production" environment? (y/n) [y]
+  environment created: production (you are the required reviewer)
+
+  One line is still yours to add, on the job that crosses the boundary:
+      jobs:
+        release:
+          environment: production
+  Without it the environment exists and protects nothing.
   Create worktrees for the three roles? (y/n) [y]
 ```
+
+(The production-environment step above needs a plan that supports required
+reviewers — a public repository, or GitHub Pro/Team/Enterprise for a private
+one. Without that, the API call fails with `422` and `init` prints `could not
+create the environment — create it by hand, see docs/setup.md` instead of
+`environment created: ...`, then carries on to the worktree step regardless —
+see `docs/setup.md` step 3 for the exact error and what it means. Measured
+directly: a private repository on a free plan hits this every time.)
 
 (This is the outcome with a GitHub remote that the current `gh` login can
 create labels on. Against a repository with no configured remote — as in the
@@ -70,12 +89,26 @@ more for it to do, and tells you to check by hand if that surprises you.)
 
 Done. Next:
   1. Edit /Users/you/Projekte/myproject/AGENTS.md — above all the production boundary.
-  2. Put the reviewer account's login in AGENTS.md — without it the reviewer
+  2. Commit AGENTS.md, then update the worktrees just created — they were
+     made from the commit before this one, so none of them can see it yet:
+       git -C /Users/you/Projekte/myproject add AGENTS.md && git -C /Users/you/Projekte/myproject commit -m "add AGENTS.md"
+       git -C /Users/you/Projekte/myproject/.worktrees/myproject-developer  pull /Users/you/Projekte/myproject main
+       git -C /Users/you/Projekte/myproject/.worktrees/myproject-reviewer   pull /Users/you/Projekte/myproject main
+       git -C /Users/you/Projekte/myproject/.worktrees/myproject-maintainer pull /Users/you/Projekte/myproject main
+  3. Put the reviewer account's login in AGENTS.md — without it the reviewer
      cannot be asked for a review. See docs/setup.md.
-  3. Give the reviewer its own account: docs/setup.md
-  4. Put 'ready' on an issue:   gh issue edit <N> --add-label ready
-  5. Start working:             mdt myproject developer
+  4. Give the reviewer its own account: docs/setup.md
+  5. Put 'ready' on an issue:   gh issue edit <N> --add-label ready
+  6. Start working:             mdt myproject developer
 ```
+
+(Step 2 is easy to skip because nothing before it fails loudly if you do: `mdt
+init` writes `AGENTS.md` to the top-level checkout but never commits it, and
+the three worktrees are created from the commit *before* that write — so a
+session started right after `init`, without this step, sits in a worktree
+where `AGENTS.md` simply doesn't exist yet. Route B avoids this by ordering
+commit before worktree creation; Route A's confirm-each-step design doesn't,
+so the step has to be named explicitly instead.)
 
 (This transcript is real, run against a throwaway repository — the wording
 matches `init()` in `bin/mdt`. `stack: unknown` because the throwaway
@@ -218,9 +251,11 @@ start: `mdt: no reviewer token found — approvals will fail`. See
 fatal: '<branch>' is already used by worktree at '<path>'
 ```
 That branch is checked out somewhere else already — git will not check out
-the same branch in two worktrees. This is also, exactly, why there is one
-`maintainer` per repository: the maintainer worktree sits on the trunk, and
-nothing else can.
+the same branch in two worktrees. This is not why there is one `maintainer`
+per repository, though — `maintainer` gets its own branch (`$repo-maintainer`)
+like every other role, not the trunk, so a second one would not hit this
+refusal. "One maintainer" is a convention worth keeping (two would contend
+over merge order), not something git enforces — see `docs/limits.md`.
 
 **The agent ignores `AGENTS.md`.**
 Some coding agents only read `AGENTS.md` when no tool-specific file

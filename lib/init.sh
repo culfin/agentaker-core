@@ -174,10 +174,16 @@ EOF
 
 Done. Next:
   1. $first_step
-  2. Put the reviewer account's login in AGENTS.md — without it the reviewer
+  2. Commit AGENTS.md, then update the worktrees just created — they were
+     made from the commit before this one, so none of them can see it yet:
+       git -C $dir add AGENTS.md && git -C $dir commit -m "add AGENTS.md"
+       git -C $dir/.worktrees/$repo-developer  pull $dir main
+       git -C $dir/.worktrees/$repo-reviewer   pull $dir main
+       git -C $dir/.worktrees/$repo-maintainer pull $dir main
+  3. Put the reviewer account's login in AGENTS.md — without it the reviewer
      cannot be asked for a review. See docs/setup.md.
-  3. Give the reviewer its own account: docs/setup.md
-  4. Put 'ready' on an issue:   gh issue edit <N> --add-label ready
-  5. Start working:             mdt $repo developer
+  4. Give the reviewer its own account: docs/setup.md
+  5. Put 'ready' on an issue:   gh issue edit <N> --add-label ready
+  6. Start working:             mdt $repo developer
 EOF
 }

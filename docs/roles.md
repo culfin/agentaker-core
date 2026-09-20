@@ -6,7 +6,7 @@ Three roles, plus `none` for a worktree that should not be worked in.
 |---|---|---|
 | `developer` | a feature branch | takes an issue, implements it, opens the PR |
 | `reviewer` | `review/<N>` | checks the PR, approves or sends it back |
-| `maintainer` | the trunk | merges, tags, ships up to the production boundary |
+| `maintainer` | its own branch (`$repo-maintainer`) | merges, tags, ships up to the production boundary |
 
 ## Permissions
 
@@ -42,11 +42,14 @@ From `roles/maintainer.md`:
 
 ## Why no separate `deployer`
 
-A `maintainer` and a `deployer` would both need the trunk branch checked out,
-and git will not check out the same branch in two worktrees at once. They
-would also share the same production boundary and run one immediately after
-the other — splitting them buys nothing. See `docs/limits.md` for the same
-constraint stated as a number: one maintainer per repository.
+A `maintainer` and a `deployer` would share the same production boundary and
+run one immediately after the other — merging and releasing are the same
+gate, just at different moments — so splitting them into two roles buys
+nothing but a worktree and a handover. This doesn't depend on the trunk
+branch: a maintainer merges through the forge (`gh pr merge`), not with a
+local `git merge`, so it was never the branch that made a second role
+pointless. See `docs/limits.md` for why "one maintainer" is still worth
+sticking to, even though nothing enforces it.
 
 ## What is agreed, and what is enforced
 
