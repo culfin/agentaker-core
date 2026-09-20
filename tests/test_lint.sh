@@ -40,4 +40,15 @@ printf 'trunk: main\n\n## Test commands\nx\n\n## Production boundary\nnone\n' > 
 out=$("$LINT" "$TMP" 2>&1); check "missing reviewer fails" "1" "$?"
 contains "says reviewer" "reviewer:" "$out"
 
+echo "lint: a heading without a space is caught, not silently skipped"
+printf 'trunk: main\nreviewer: example-reviewer\n\n## Test commands\nx\n\n##Roles\narchitect\n\n## Production boundary\nnone\n' > "$TMP/examples/a.AGENTS.md"
+out=$("$LINT" "$TMP" 2>&1); check "malformed heading fails" "1" "$?"
+contains "names the malformed heading" "space after ##" "$out"
+
+# Same content with the heading repaired: now the unknown role itself must be the
+# complaint — proving the section really was being skipped before.
+printf 'trunk: main\nreviewer: example-reviewer\n\n## Test commands\nx\n\n## Roles\narchitect\n\n## Production boundary\nnone\n' > "$TMP/examples/a.AGENTS.md"
+out=$("$LINT" "$TMP" 2>&1); check "repaired heading exposes the bad role" "1" "$?"
+contains "names the unknown role" "architect" "$out"
+
 summary

@@ -20,6 +20,15 @@ for ex in "$ROOT"/examples/*.AGENTS.md; do
   [ -e "$ex" ] || continue
   name=$(basename "$ex")
 
+  # A heading that lost the space after ## is invisible to section(), which would
+  # make every check below it pass vacuously — a lint that finds nothing looks
+  # exactly like a lint that passes. Catch the malformed heading rather than
+  # trusting that nobody ever writes one.
+  bad_heading=$(grep -m1 -E '^##[^[:space:]]' "$ex" || true)
+  if [ -n "$bad_heading" ]; then
+    problem "$name: heading needs a space after ## — \"$bad_heading\""
+  fi
+
   grep -qE '^trunk:[[:space:]]*[^[:space:]]' "$ex" || problem "$name: no 'trunk:' line"
   grep -qE '^reviewer:[[:space:]]*[^[:space:]]' "$ex" || problem "$name: no 'reviewer:' line — the review round trip needs an account login"
   grep -qiE '^##[[:space:]]+Production boundary' "$ex" || problem "$name: no '## Production boundary' section"
