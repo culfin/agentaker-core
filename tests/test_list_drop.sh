@@ -11,10 +11,11 @@ trap 'tmux kill-session -t mdt-demo >/dev/null 2>&1; rm -rf "$SANDBOX"' EXIT
 git init -q -b main "$SANDBOX/other"
 git -C "$SANDBOX/other" -c user.email=t@e -c user.name=t commit -q --allow-empty -m init
 
-# A bare remote for demo, with main already on it — log --branches --not
-# --remotes (exactly what cmd_drop runs) looks across every local branch, not
-# just the one worktree's, so leaving main unpushed would count its commit
-# too and throw off "exactly one" below.
+# A bare remote for demo, with main already on it, so the push assertions
+# below (and the "unrelated branch" fixture further down) have somewhere to
+# push to. cmd_drop's unpushed-commits check is scoped to the worktree's own
+# branch (HEAD --not --remotes) — it no longer matters whether main itself
+# is pushed.
 git init -q --bare "$SANDBOX/demo-remote.git"
 git -C "$SANDBOX/demo" remote add origin "$SANDBOX/demo-remote.git"
 git -C "$SANDBOX/demo" push -q origin main
@@ -168,6 +169,38 @@ echo "mdt drop: with the collision gone, the label alone works again"
 out=$(MDT_PROJECTS_DIR="$SANDBOX" "$MDT" drop demo DEV --force 2>&1)
 check "exits 0" "0" "$?"
 contains "removes it" "removed" "$out"
+
+echo "mdt drop: unpushed commits are scoped to the worktree's own branch, not every local branch"
+# A second local branch in the same repo, carrying a commit that was never
+# pushed anywhere. `git log --branches --not --remotes` (what cmd_drop ran
+# before this fix) sees every local branch through the shared ref store, so
+# it would refuse to drop a CLEAN, fully-pushed worktree just because this
+# unrelated branch exists somewhere else in the same repo.
+git -C "$SANDBOX/demo" branch unrelated-branch
+git -C "$SANDBOX/demo" worktree add "$SANDBOX/demo/.worktrees/tmp-unrelated" unrelated-branch >/dev/null 2>&1
+git -C "$SANDBOX/demo/.worktrees/tmp-unrelated" -c user.email=t@e -c user.name=t \
+  commit -q --allow-empty -m "never pushed, unrelated to the worktree under test"
+git -C "$SANDBOX/demo" worktree remove --force "$SANDBOX/demo/.worktrees/tmp-unrelated" >/dev/null 2>&1
+
+git -C "$SANDBOX/demo" worktree add "$SANDBOX/demo/.worktrees/demo-clean" -b demo-clean >/dev/null 2>&1
+mkdir -p "$SANDBOX/demo/.worktrees/demo-clean/.agents"
+printf 'developer\n' > "$SANDBOX/demo/.worktrees/demo-clean/.agents/ROLE"
+git -C "$SANDBOX/demo" push -q origin demo-clean:demo-clean
+
+out=$(MDT_PROJECTS_DIR="$SANDBOX" "$MDT" drop demo demo-clean 2>&1)
+check "exits 0 — the unrelated branch's unpushed commit is not this worktree's problem" "0" "$?"
+contains "confirms the removal" "removed" "$out"
+
+echo "mdt drop: the unpushed-commits message doesn't overstate what --force costs"
+git -C "$SANDBOX/demo" worktree add "$SANDBOX/demo/.worktrees/demo-unpushed" -b demo-unpushed >/dev/null 2>&1
+mkdir -p "$SANDBOX/demo/.worktrees/demo-unpushed/.agents"
+printf 'developer\n' > "$SANDBOX/demo/.worktrees/demo-unpushed/.agents/ROLE"
+git -C "$SANDBOX/demo/.worktrees/demo-unpushed" -c user.email=t@e -c user.name=t \
+  commit -q --allow-empty -m "not pushed"
+out=$(MDT_PROJECTS_DIR="$SANDBOX" "$MDT" drop demo demo-unpushed 2>&1)
+check "exits 1" "1" "$?"
+contains "says the branch and its commits survive --force" "survive" "$out"
+git -C "$SANDBOX/demo" worktree remove --force "$SANDBOX/demo/.worktrees/demo-unpushed" >/dev/null 2>&1
 
 echo "mdt drop: an unknown label is explained, not confused with a missing repo"
 out=$(MDT_PROJECTS_DIR="$SANDBOX" "$MDT" drop other NOSUCH 2>&1)

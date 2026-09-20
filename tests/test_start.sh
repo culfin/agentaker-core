@@ -9,6 +9,9 @@ trap 'rm -rf "$SANDBOX"' EXIT
 echo "mdt: usage"
 out=$("$MDT" 2>&1); check "no arguments exits 2" "2" "$?"
 contains "no arguments prints usage" "Usage:" "$out"
+contains "documents MDT_DRY_RUN — the only way a user discovers it otherwise" "MDT_DRY_RUN" "$out"
+contains "documents MDT_YES — the only non-interactive route through init" "MDT_YES" "$out"
+contains "documents MDT_NO_NETWORK" "MDT_NO_NETWORK" "$out"
 
 echo "mdt: starting a role"
 out=$("$MDT" demo developer 2>&1)

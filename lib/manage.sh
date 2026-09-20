@@ -162,10 +162,20 @@ cmd_drop() {
       die "$label has $n uncommitted file(s) — commit or discard them, or pass --force"
     fi
 
-    local unpushed; unpushed=$(git -C "$match" log --branches --not --remotes --oneline 2>/dev/null)
+    # HEAD, not --branches: --branches walks every local branch through the
+    # shared ref store, so it would refuse over a commit that lives on some
+    # other branch entirely, in a repo this worktree's branch never touched.
+    # HEAD --not --remotes is exactly "commits reachable from this worktree
+    # that no remote has" — scoped to the one branch actually being dropped.
+    local unpushed; unpushed=$(git -C "$match" log HEAD --not --remotes --oneline 2>/dev/null)
     if [ -n "$unpushed" ]; then
       local n; n=$(printf '%s\n' "$unpushed" | grep -c .)
-      die "$label has $n commit(s) on $WT_BRANCH not on any remote — push them, or pass --force"
+      # "push them, or pass --force" used to read as if --force discarded the
+      # commits too. Measured: it doesn't — `git worktree remove --force`
+      # only drops the worktree directory and any uncommitted files; the
+      # branch and its commits survive in the repository until something
+      # explicitly deletes the branch.
+      die "$label has $n commit(s) on $WT_BRANCH not on any remote — push them, or pass --force (the branch and its commits survive removal; only uncommitted files would be lost)"
     fi
 
     # WT_LABEL, not $label: a tmux window is named after the label
@@ -312,6 +322,29 @@ restart_window() {
 # a good moment, and --all has no human in the loop to ask.
 restart_all() {
   local restarted=0 skipped=0 repo_dir repo wt dirty
+
+  # A first pass just to count what's running, before touching any of it:
+  # restart_window() waits up to MDT_HANDOFF_TIMEOUT per session, one at a
+  # time (see the loop below), so several running sessions add up with no
+  # warning otherwise — six sessions is six minutes of silence at the
+  # default 60s, worst case, if every one of them is wedged.
+  local total=0
+  for repo_dir in "$PROJECTS_DIR"/*/; do
+    [ -e "$repo_dir" ] || continue
+    repo_dir=${repo_dir%/}
+    repo=$(basename "$repo_dir")
+    [ -d "$repo_dir/.worktrees" ] || continue
+    for wt in "$repo_dir"/.worktrees/*/; do
+      [ -e "$wt" ] || continue
+      wt=${wt%/}
+      describe_worktree "$repo" "$(basename "$wt")"
+      worktree_running "$repo" "$WT_LABEL" && total=$((total + 1))
+    done
+  done
+  if [ "$total" -gt 0 ]; then
+    printf 'restarting up to %d running session(s), one at a time — worst case %ds if every one times out waiting for a handover (%ds each, MDT_HANDOFF_TIMEOUT)\n' \
+      "$total" "$((total * ${MDT_HANDOFF_TIMEOUT:-60}))" "${MDT_HANDOFF_TIMEOUT:-60}"
+  fi
 
   for repo_dir in "$PROJECTS_DIR"/*/; do
     [ -e "$repo_dir" ] || continue

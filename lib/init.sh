@@ -90,6 +90,20 @@ reviewer:            # GitHub login of the account that reviews here — see doc
 
 $(suggest_tests "$stack")
 
+## Review tools
+
+    # optional — file globs mapped to review skills or linters, one per line, e.g.:
+    # .rs   rust-best-practices
+
+## Subagents
+
+    # optional — specialists under agents/ that apply here, one per line, e.g.:
+    # engineering-privacy-engineer
+
+## Roles
+
+developer reviewer maintainer
+
 ## Production boundary
 
 The one line an agent must never cross on its own. Examples:
@@ -97,11 +111,9 @@ The one line an agent must never cross on its own. Examples:
     git push origin main:production
     npm publish
 
-Replace this with yours. Until you do, agents will refuse to release.
-
-## Roles
-
-developer reviewer maintainer
+Replace this with yours. This line is a boundary agents are asked to respect,
+not one they are forced to observe — only a protected environment (offered
+next, or see docs/setup.md) actually makes a release wait for you.
 EOF
 )
     printf '%s\n\n' "$draft"
@@ -134,16 +146,25 @@ EOF
   if [ -z "${MDT_NO_NETWORK:-}" ]; then
     printf '\nThe production boundary needs a lock: a protected environment makes the\n'
     printf 'job wait for you in the browser, whoever triggered it.\n'
-    if [ "$(ask 'Create a protected "production" environment? (y/n)' y)" = "y" ]; then
+    if [ "$(ask 'Create or update a protected "production" environment? (y/n)' y)" = "y" ]; then
       (
         cd "$dir" || exit 1
         uid=$(gh api user --jq .id 2>/dev/null) || exit 1
         slug=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) || exit 1
+        # gh api -X PUT on this endpoint creates OR updates — there is no
+        # separate create call. Check first so the report below says which
+        # one actually happened, instead of always claiming "created".
+        existed=0
+        gh api "repos/$slug/environments/production" >/dev/null 2>&1 && existed=1
         if printf '{"reviewers":[{"type":"User","id":%s}]}' "$uid" \
              | gh api -X PUT "repos/$slug/environments/production" --input - >/dev/null 2>&1; then
-          printf '  environment created: production (you are the required reviewer)\n'
+          if [ "$existed" -eq 1 ]; then
+            printf '  environment updated: production already existed — you are now the required reviewer. GitHub does not document whether this preserves any other rules already on it; if it had any, verify with the command in docs/setup.md.\n'
+          else
+            printf '  environment created: production (you are the required reviewer)\n'
+          fi
         else
-          printf '  could not create the environment — create it by hand, see docs/setup.md\n'
+          printf '  could not create or update the environment — create it by hand, see docs/setup.md\n'
         fi
       )
       printf '\n  One line is still yours to add, on the job that crosses the boundary:\n'
@@ -177,9 +198,9 @@ Done. Next:
   2. Commit AGENTS.md, then update the worktrees just created — they were
      made from the commit before this one, so none of them can see it yet:
        git -C $dir add AGENTS.md && git -C $dir commit -m "add AGENTS.md"
-       git -C $dir/.worktrees/$repo-developer  pull $dir main
-       git -C $dir/.worktrees/$repo-reviewer   pull $dir main
-       git -C $dir/.worktrees/$repo-maintainer pull $dir main
+       git -C $dir/.worktrees/$repo-developer  pull $dir $trunk
+       git -C $dir/.worktrees/$repo-reviewer   pull $dir $trunk
+       git -C $dir/.worktrees/$repo-maintainer pull $dir $trunk
   3. Put the reviewer account's login in AGENTS.md — without it the reviewer
      cannot be asked for a review. See docs/setup.md.
   4. Give the reviewer its own account: docs/setup.md

@@ -250,6 +250,16 @@ contains "names the dirty one it skipped" "skipping DEV·alldirty in demo" "$out
 contains "says what to do about it" "commit or discard" "$out"
 contains "restarted the clean one" "restarted DEV·allclean in demo" "$out"
 contains "prints a summary line" "restarted 1, skipped 1" "$out"
+# --all restarts serially, one session at a time, each waiting up to
+# MDT_HANDOFF_TIMEOUT (default 60s) for a handover — with several running
+# sessions that adds up with no warning before it starts. Both windows still
+# open at this point (allclean, alldirty) count, dirty or not: the dirty
+# check only decides whether each one is restarted, not whether it's swept
+# into this initial count.
+contains "warns how many sessions before starting, not just after" \
+  "restarting up to 2 running session(s)" "$out"
+contains "gives the worst-case total, not just the per-session timeout" \
+  "worst case 120s" "$out"
 rm -f "$SANDBOX/demo/.worktrees/demo-developer-alldirty/dirty.txt"
 
 summary
