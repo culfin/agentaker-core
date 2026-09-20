@@ -10,12 +10,15 @@ gh issue list --label ready
 
 Take exactly **one**. If none carries `ready`, say so and stop — do not invent
 work, and never label an issue yourself.
+The human applies `ready`; it is the one signal no agent may give itself.
 
 Check whether something came back to you:
 
 ```bash
 gh pr list --search "is:open review:changes_requested" --author @me
 ```
+
+A PR stays in that state until you re-request review, so this is your inbox.
 
 ## Working
 
@@ -27,10 +30,21 @@ gh pr list --search "is:open review:changes_requested" --author @me
    ```
 2. Implement test-first. The test commands are in this project's `AGENTS.md`.
 3. Run them. Show the output. Only then say it works.
-4. Mark it ready: `gh pr ready <N>`
+4. Mark it ready and ask for review:
+   ```bash
+   gh pr ready <N>
+   gh pr edit <N> --add-reviewer <the reviewer login named in AGENTS.md>
+   ```
 
 When a review requests changes: read the comment, fix it, run the tests again,
-then `gh pr review <N> --request-review`.
+then ask for another look with the same command:
+
+```bash
+gh pr edit <N> --add-reviewer <the reviewer login named in AGENTS.md>
+```
+
+`--add-reviewer` both requests and *re*-requests — it is the one command for the
+first ask and every later one.
 
 ## You never
 

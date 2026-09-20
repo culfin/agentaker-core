@@ -9,8 +9,12 @@ request.
 ## Finding work
 
 ```bash
-gh pr list --search "is:open draft:false review:none"
+gh pr list --search "is:open draft:false review-requested:@me"
 ```
+
+GitHub clears the request when you submit a review, so a PR leaves your queue
+whether you approve it or request changes — and returns only when the developer
+asks again.
 
 ## Checking out
 
