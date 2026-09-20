@@ -1,38 +1,38 @@
 #!/usr/bin/env bash
-# wtr — give each AI coding session a fixed role and its own git worktree.
+# wtc — give each AI coding session a fixed role and its own git worktree.
 #
 # Vendor knowledge lives in exactly one place in this file: launch_command().
 # Everything else is git, gh and tmux.
 set -uo pipefail
 
-WTR_HOME=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-ROLES_DIR="${WTR_ROLES_DIR:-$WTR_HOME/roles}"
-PROJECTS_DIR="${WTR_PROJECTS_DIR:-$HOME/Projekte}"
-TOOL="${WTR_TOOL:-}"
-DRY_RUN="${WTR_DRY_RUN:-}"
-REVIEWER="${WTR_REVIEWER:-}"
+WTC_HOME=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+ROLES_DIR="${WTC_ROLES_DIR:-$WTC_HOME/roles}"
+PROJECTS_DIR="${WTC_PROJECTS_DIR:-$HOME/Projekte}"
+TOOL="${WTC_TOOL:-}"
+DRY_RUN="${WTC_DRY_RUN:-}"
+REVIEWER="${WTC_REVIEWER:-}"
 LAUNCH_CMD=()
 STATUS_FAILED=0
 
-die() { printf 'wtr: %s\n' "$1" >&2; exit "${2:-1}"; }
+die() { printf 'wtc: %s\n' "$1" >&2; exit "${2:-1}"; }
 
 usage() {
   cat <<'EOF'
 Usage:
-  wtr init [repo]              set a project up, step by step
-  wtr <repo> <role> [suffix]   start a session in its own worktree
-  wtr attach <repo>            re-attach to a repo's tmux session
-  wtr status [owner]           show where work is waiting, across repos
+  wtc init [repo]              set a project up, step by step
+  wtc <repo> <role> [suffix]   start a session in its own worktree
+  wtc attach <repo>            re-attach to a repo's tmux session
+  wtc status [owner]           show where work is waiting, across repos
 
 Roles: developer, reviewer, integrator
 
 Environment:
-  WTR_PROJECTS_DIR   where your repositories live (default: ~/Projekte)
-  WTR_ROLES_DIR      where the role files live (default: <install>/roles)
-  WTR_TOOL           which coding agent to launch (default: claude)
-                     see launch_command() in bin/wtr for the supported list
-  WTR_OWNER          default GitHub owner for `wtr status`
-  WTR_REVIEWER       login of the reviewer account, for `wtr status`
+  WTC_PROJECTS_DIR   where your repositories live (default: ~/Projekte)
+  WTC_ROLES_DIR      where the role files live (default: <install>/roles)
+  WTC_TOOL           which coding agent to launch (default: claude)
+                     see launch_command() in bin/wtc for the supported list
+  WTC_OWNER          default GitHub owner for `wtc status`
+  WTC_REVIEWER       login of the reviewer account, for `wtc status`
 EOF
 }
 
@@ -95,14 +95,14 @@ exclude_agents_dir() {
   grep -qxF '.agents/' "$exclude" 2>/dev/null || printf '.agents/\n' >> "$exclude"
 }
 
-session_name() { printf 'wtr-%s' "$1"; }
+session_name() { printf 'wtc-%s' "$1"; }
 
 read_reviewer_token() {
   if command -v security >/dev/null 2>&1; then
-    security find-generic-password -s worktree-roles-reviewer -w 2>/dev/null && return 0
+    security find-generic-password -s worktree-crew-reviewer -w 2>/dev/null && return 0
   fi
   if command -v secret-tool >/dev/null 2>&1; then
-    secret-tool lookup service worktree-roles-reviewer 2>/dev/null && return 0
+    secret-tool lookup service worktree-crew-reviewer 2>/dev/null && return 0
   fi
   return 1
 }
@@ -130,7 +130,7 @@ start_role() {
 
   LAUNCH_CMD=()
   if ! launch_command "$wt/.agents/context.md"; then
-    die "no launch command known for tool '$TOOL' — paste $wt/.agents/context.md as your first message, and consider adding a branch to launch_command() in bin/wtr"
+    die "no launch command known for tool '$TOOL' — paste $wt/.agents/context.md as your first message, and consider adding a branch to launch_command() in bin/wtc"
   fi
 
   # The reviewer runs under its own hosting account. Its token lives in the OS
@@ -139,7 +139,7 @@ start_role() {
   if [ "$role" = "reviewer" ]; then
     if ! token=$(read_reviewer_token); then
       token=""
-      printf 'wtr: no reviewer token found — approvals will fail. See docs/setup.md\n' >&2
+      printf 'wtc: no reviewer token found — approvals will fail. See docs/setup.md\n' >&2
     fi
   fi
 
@@ -152,7 +152,7 @@ start_role() {
   fi
 
   command -v tmux >/dev/null 2>&1 \
-    || die "tmux is not installed — worktree-roles uses it so sessions outlive the device looking at them"
+    || die "tmux is not installed — worktree-crew uses it so sessions outlive the device looking at them"
 
   # Two explicit branches rather than expanding a possibly-empty array:
   # "${arr[@]}" on an empty array is an unbound-variable error under `set -u`
@@ -196,8 +196,8 @@ status_query() {
 }
 
 status() {
-  local owner=${1:-${WTR_OWNER:-}}
-  [ -n "$owner" ] || die "give an owner: wtr status <owner>  (or set WTR_OWNER)"
+  local owner=${1:-${WTC_OWNER:-}}
+  [ -n "$owner" ] || die "give an owner: wtc status <owner>  (or set WTC_OWNER)"
 
   STATUS_FAILED=0
 
@@ -216,7 +216,7 @@ status() {
       search prs --owner "$owner" --state open --draft=false --review none \
       --json repository,number,title,author \
       --jq '.[] | select(.author.login | test("dependabot") | not) | "  \(.repository.name)#\(.number)  \(.title)"'
-    printf '  (approximate — set WTR_REVIEWER to your reviewer login for the exact queue)\n'
+    printf '  (approximate — set WTC_REVIEWER to your reviewer login for the exact queue)\n'
   fi
 
   status_query "approved, waiting for merge" \
@@ -240,21 +240,21 @@ attach() {
   local repo=${1:-}
   [ -n "$repo" ] || { usage; exit 2; }
   command -v tmux >/dev/null 2>&1 \
-    || die "tmux is not installed — worktree-roles uses it so sessions outlive the device looking at them"
+    || die "tmux is not installed — worktree-crew uses it so sessions outlive the device looking at them"
   local session; session=$(session_name "$repo")
   tmux has-session -t "$session" 2>/dev/null \
-    || die "no session for '$repo' — start one with: wtr $repo developer"
+    || die "no session for '$repo' — start one with: wtc $repo developer"
   tmux attach -t "$session"
 }
 
 # --- guided setup -------------------------------------------------------------
-# `wtr init` shows every step instead of hiding it: each action is proposed and
+# `wtc init` shows every step instead of hiding it: each action is proposed and
 # confirmed separately, so someone who watched it run can redo it by hand.
 
 ask() {
-  # Prompt unless WTR_YES is set; echo the (possibly default) answer.
+  # Prompt unless WTC_YES is set; echo the (possibly default) answer.
   local prompt=$1 default=${2:-y} reply
-  if [ -n "${WTR_YES:-}" ]; then printf '%s' "$default"; return 0; fi
+  if [ -n "${WTC_YES:-}" ]; then printf '%s' "$default"; return 0; fi
   printf '  %s [%s] ' "$prompt" "$default" >&2
   read -r reply || reply=""
   printf '%s' "${reply:-$default}"
@@ -348,7 +348,7 @@ EOF
   fi
 
   # --- labels ---------------------------------------------------------------
-  if [ -z "${WTR_NO_NETWORK:-}" ] && [ "$(ask 'Create the two labels on the remote? (y/n)' y)" = "y" ]; then
+  if [ -z "${WTC_NO_NETWORK:-}" ] && [ "$(ask 'Create the two labels on the remote? (y/n)' y)" = "y" ]; then
     (
       cd "$dir" || exit 1
       if gh label create ready --description "Ready for an agent to pick up" --color 0E8A16 2>/dev/null; then
@@ -370,7 +370,7 @@ EOF
       if ( DRY_RUN=1; start_role "$repo" "$role" ) >/dev/null 2>&1; then
         printf '  worktree: %s-%s\n' "$repo" "$role"
       else
-        printf '  could not create the %s worktree — run `wtr %s %s` to see why\n' "$role" "$repo" "$role"
+        printf '  could not create the %s worktree — run `wtc %s %s` to see why\n' "$role" "$repo" "$role"
       fi
     done
   fi
@@ -390,7 +390,7 @@ Done. Next:
      cannot be asked for a review. See docs/setup.md.
   3. Give the reviewer its own account: docs/setup.md
   4. Put 'ready' on an issue:   gh issue edit <N> --add-label ready
-  5. Start working:             wtr $repo developer
+  5. Start working:             wtc $repo developer
 EOF
 }
 

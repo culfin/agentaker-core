@@ -1,8 +1,8 @@
 {
-  "name": "worktree-roles",
+  "name": "worktree-crew",
   "version": "0.1.0",
-  "description": "Optional companion to the worktree-roles tool: loads a worktree's role at session start.",
+  "description": "Optional companion to the worktree-crew tool: loads a worktree's role at session start.",
   "author": { "name": "culfin" },
-  "homepage": "https://github.com/culfin/worktree-roles",
+  "homepage": "https://github.com/culfin/worktree-crew",
   "license": "MIT"
 }

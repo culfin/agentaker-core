@@ -1,4 +1,4 @@
-# worktree-roles
+# worktree-crew
 
 Give each AI coding session a fixed role and its own git worktree.
 GitHub is the handoff. No polling, no message bus, no database.

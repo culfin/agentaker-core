@@ -2,7 +2,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 . tests/lib.sh
-LINT="$PWD/bin/wtr-lint"
+LINT="$PWD/bin/wtc-lint"
 
 echo "lint: this repository"
 out=$("$LINT" . 2>&1); check "repository is consistent" "0" "$?"

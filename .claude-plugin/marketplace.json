@@ -1,11 +1,11 @@
 {
-  "name": "worktree-roles",
+  "name": "worktree-crew",
   "owner": { "name": "culfin" },
   "plugins": [
     {
-      "name": "worktree-roles",
+      "name": "worktree-crew",
       "source": ".",
-      "description": "Loads a worktree's role at session start. Optional — the wtr command does this for any coding agent."
+      "description": "Loads a worktree's role at session start. Optional — the wtc command does this for any coding agent."
     }
   ]
 }

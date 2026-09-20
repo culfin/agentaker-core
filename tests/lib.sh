@@ -35,8 +35,8 @@ summary() {
 # A throwaway projects directory holding one throwaway git repo.
 make_sandbox() {
   SANDBOX=$(mktemp -d)
-  export WTR_PROJECTS_DIR="$SANDBOX"
-  export WTR_DRY_RUN=1
+  export WTC_PROJECTS_DIR="$SANDBOX"
+  export WTC_DRY_RUN=1
   git init -q -b main "$SANDBOX/demo"
   git -C "$SANDBOX/demo" -c user.email=t@e -c user.name=t commit -q --allow-empty -m init
 }
