@@ -10,6 +10,7 @@ ROLES_DIR="${WTR_ROLES_DIR:-$WTR_HOME/roles}"
 PROJECTS_DIR="${WTR_PROJECTS_DIR:-$HOME/Projekte}"
 TOOL="${WTR_TOOL:-}"
 DRY_RUN="${WTR_DRY_RUN:-}"
+REVIEWER="${WTR_REVIEWER:-}"
 LAUNCH_CMD=()
 
 die() { printf 'wtr: %s\n' "$1" >&2; exit "${2:-1}"; }
@@ -29,6 +30,8 @@ Environment:
   WTR_ROLES_DIR      where the role files live (default: <install>/roles)
   WTR_TOOL           which coding agent to launch (default: claude)
                      see launch_command() in bin/wtr for the supported list
+  WTR_OWNER          default GitHub owner for `wtr status`
+  WTR_REVIEWER       login of the reviewer account, for `wtr status`
 EOF
 }
 
@@ -166,8 +169,51 @@ start_role() {
   fi
 }
 
+status() {
+  local owner=${1:-${WTR_OWNER:-}}
+  [ -n "$owner" ] || die "give an owner: wtr status <owner>  (or set WTR_OWNER)"
+
+  printf 'ready to pick up:\n'
+  gh search issues --owner "$owner" --state open --label ready \
+    --json repository,number,title \
+    --jq '.[] | "  \(.repository.name)#\(.number)  \(.title)"' 2>/dev/null || printf '  (none)\n'
+
+  printf 'waiting for review:\n'
+  if [ -n "$REVIEWER" ]; then
+    gh search prs --owner "$owner" --state open --draft=false --review-requested "$REVIEWER" \
+      --json repository,number,title,author \
+      --jq '.[] | select(.author.login | test("dependabot") | not) | "  \(.repository.name)#\(.number)  \(.title)"' 2>/dev/null || printf '  (none)\n'
+  else
+    gh search prs --owner "$owner" --state open --draft=false --review none \
+      --json repository,number,title,author \
+      --jq '.[] | select(.author.login | test("dependabot") | not) | "  \(.repository.name)#\(.number)  \(.title)"' 2>/dev/null || printf '  (none)\n'
+    printf '  (approximate — set WTR_REVIEWER to your reviewer login for the exact queue)\n'
+  fi
+
+  printf 'approved, waiting for merge:\n'
+  gh search prs --owner "$owner" --state open --review approved \
+    --json repository,number,title \
+    --jq '.[] | "  \(.repository.name)#\(.number)  \(.title)"' 2>/dev/null || printf '  (none)\n'
+
+  printf 'waiting on you:\n'
+  gh search issues --owner "$owner" --state open --label needs-decision \
+    --json repository,number,title \
+    --jq '.[] | "  \(.repository.name)#\(.number)  \(.title)"' 2>/dev/null || printf '  (none)\n'
+}
+
+attach() {
+  local repo=${1:-}
+  [ -n "$repo" ] || { usage; exit 2; }
+  local session; session=$(session_name "$repo")
+  tmux has-session -t "$session" 2>/dev/null \
+    || die "no session for '$repo' — start one with: wtr $repo developer"
+  tmux attach -t "$session"
+}
+
 case "${1:-}" in
   "")        usage; exit 2 ;;
   -h|--help) usage; exit 0 ;;
+  status)    shift; status "$@" ;;
+  attach)    shift; attach "$@" ;;
   *)         [ $# -ge 2 ] || { usage; exit 2; }; start_role "$@" ;;
 esac
