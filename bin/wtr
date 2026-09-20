@@ -292,10 +292,15 @@ init() {
   local dir="$PROJECTS_DIR/$repo"
   [ -e "$dir/.git" ] || die "$dir is not a git repository"
 
+  local ver
   printf 'Checking what we need:\n'
   for bin in git gh tmux; do
     if command -v "$bin" >/dev/null 2>&1; then
-      printf '  ok   %s (%s)\n' "$bin" "$("$bin" --version 2>&1 | head -1)"
+      case "$bin" in
+        tmux) ver=$(tmux -V 2>&1) ;;
+        *)    ver=$("$bin" --version 2>&1 | head -1) ;;
+      esac
+      printf '  ok   %s (%s)\n' "$bin" "$ver"
     else
       printf '  MISSING %s — install it first\n' "$bin"
     fi
@@ -323,10 +328,12 @@ $(suggest_tests "$stack")
 
 ## Production boundary
 
-# The one line an agent must never cross on its own. Examples:
-#   git push origin main:production
-#   npm publish
-# Replace this with yours. Until you do, agents will refuse to release.
+The one line an agent must never cross on its own. Examples:
+
+    git push origin main:production
+    npm publish
+
+Replace this with yours. Until you do, agents will refuse to release.
 
 ## Roles
 
@@ -368,10 +375,17 @@ EOF
     done
   fi
 
+  local first_step
+  if [ -f "$dir/AGENTS.md" ]; then
+    first_step="Edit $dir/AGENTS.md — above all the production boundary."
+  else
+    first_step="Create $dir/AGENTS.md — run this again, or copy one from examples/."
+  fi
+
   cat <<EOF
 
 Done. Next:
-  1. Edit $dir/AGENTS.md — above all the production boundary.
+  1. $first_step
   2. Put the reviewer account's login in AGENTS.md — without it the reviewer
      cannot be asked for a review. See docs/setup.md.
   3. Give the reviewer its own account: docs/setup.md

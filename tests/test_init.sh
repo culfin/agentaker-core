@@ -11,6 +11,7 @@ echo "wtr init: prerequisites"
 out=$("$WTR" init demo 2>&1)
 contains "checks git" "git" "$out"
 contains "checks tmux" "tmux" "$out"
+lacks "no error text dressed up as ok" "unknown option" "$out"
 
 echo "wtr init: stack detection"
 touch "$SANDBOX/demo/Cargo.toml"
