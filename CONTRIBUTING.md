@@ -3,9 +3,13 @@
 ## Running the checks
 
 ```bash
-bash tests/run.sh      # 97 assertions across five test files, no framework
+bash tests/run.sh      # every tests/test_*.sh file, no framework — prints "passed: N failed: N" per file
 bin/mdt-lint .          # checks the repository stays internally consistent
 ```
+
+(The assertion count isn't stated here on purpose — it only ever goes stale by
+being hand-maintained. Run the command; the total is the sum of each file's
+`passed:` line.)
 
 Both must be clean before a PR. `bin/mdt-lint` isn't a check of your working
 copy — it checks that examples don't name a role or subagent this repository

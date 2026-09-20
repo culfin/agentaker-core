@@ -36,6 +36,17 @@ close to this; `node_modules/` is real but nowhere near a Cargo target
 directory. A worktree that's just standing there, unused, still costs this —
 disk is the cheap limit here, not the binding one.
 
+## `list --size` costs real time, which is why it isn't the default
+
+`du -sh` on one real Rust/Tauri worktree (DATEYE, 9.1 GB): **~0.99s cold,
+~0.54s warm.** Measured with `time du -sh`, on the same machine and worktree
+the 9.1 GB figure above comes from — not estimated. `mdt list` runs this once
+per worktree, so a board of a dozen such worktrees costs several seconds with
+a cold cache, on a command whose whole point is to answer quickly. That is
+the number `--size` sits behind a flag for: `list` without it shows worktree,
+branch and state instantly; `list --size` trades that for a real `du` size,
+and says so rather than showing a stale or fabricated one.
+
 ## Memory is the real ceiling
 
 The measured problem isn't disk, it's RAM: on a 32 GB machine, two concurrent
