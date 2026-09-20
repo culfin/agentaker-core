@@ -45,7 +45,7 @@ Replace this with yours. Until you do, agents will refuse to release.
 
 ## Roles
 
-developer reviewer integrator
+developer reviewer maintainer
 
   Write this file? (y/n) [y]
   written: /Users/you/Projekte/myproject/AGENTS.md — edit the production boundary before you rely on it.
@@ -66,7 +66,7 @@ more for it to do, and tells you to check by hand if that surprises you.)
 ```
   worktree: myproject-developer
   worktree: myproject-reviewer
-  worktree: myproject-integrator
+  worktree: myproject-maintainer
 
 Done. Next:
   1. Edit /Users/you/Projekte/myproject/AGENTS.md — above all the production boundary.
@@ -92,7 +92,7 @@ has an `AGENTS.md`, `init` won't touch it, and just reminds you what it must
 name: trunk, reviewer, test commands, production boundary.
 
 At this point you have `AGENTS.md`, two labels, and three worktrees
-(`.worktrees/myproject-developer`, `-reviewer`, `-integrator`) each carrying
+(`.worktrees/myproject-developer`, `-reviewer`, `-maintainer`) each carrying
 its own `.agents/ROLE`. **You still have to open `AGENTS.md` and fill in the
 production boundary** — `init` writes a placeholder that refuses to release
 until you replace it, deliberately.
@@ -156,7 +156,7 @@ cat roles/_base.md roles/developer.md > .worktrees/myproject-developer/.agents/c
 echo '.agents/' >> .git/info/exclude
 ```
 
-Repeat for `reviewer` and `integrator`. (`wtc` does the `_base.md` + role
+Repeat for `reviewer` and `maintainer`. (`wtc` does the `_base.md` + role
 concatenation with a blank line between the two files, not a bare `cat`; the
 difference doesn't matter for reading it, only for exact byte output.)
 
@@ -203,7 +203,7 @@ but the session still doesn't know, the coding agent may not support the flag
 **`wtc: no role file for '<name>'`**
 The word written to `.agents/ROLE` (or passed as the role argument) has no
 matching file in `roles/`. Role names are exactly the filenames in `roles/`
-without `.md`: `developer`, `reviewer`, `integrator`, `none`. A typo here is
+without `.md`: `developer`, `reviewer`, `maintainer`, `none`. A typo here is
 the most common cause.
 
 **Reviewer cannot approve.**
@@ -219,7 +219,7 @@ fatal: '<branch>' is already used by worktree at '<path>'
 ```
 That branch is checked out somewhere else already — git will not check out
 the same branch in two worktrees. This is also, exactly, why there is one
-`integrator` per repository: the integrator worktree sits on the trunk, and
+`maintainer` per repository: the maintainer worktree sits on the trunk, and
 nothing else can.
 
 **The agent ignores `AGENTS.md`.**

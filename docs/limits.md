@@ -3,13 +3,13 @@
 These are the limits that actually bind, not a hypothetical worst case. Where
 a number is given, it's measured, and the paragraph says on what.
 
-## One integrator per repository — this is git, not a design choice
+## One maintainer per repository — this is git, not a design choice
 
-`integrator` sits on the trunk branch. Git will not check out the same branch
-in two worktrees at once, so a second `integrator` worktree for the same repo
+`maintainer` sits on the trunk branch. Git will not check out the same branch
+in two worktrees at once, so a second `maintainer` worktree for the same repo
 simply cannot be created — `wtc` would hit `git worktree add`'s refusal
 (`'main' is already used by worktree at …`) before it got anywhere near a
-role. There is no configuration that changes this; it is what one integrator
+role. There is no configuration that changes this; it is what one maintainer
 per repository is grounded in. The same reasoning is why there is no separate
 `deployer` role — see `docs/roles.md`.
 

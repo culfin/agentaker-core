@@ -36,7 +36,7 @@ check "existing file untouched" "MY OWN FILE" "$(cat "$SANDBOX/demo/AGENTS.md")"
 contains "says so" "already has" "$out"
 
 echo "wtc init: creates the worktrees"
-for role in developer reviewer integrator; do
+for role in developer reviewer maintainer; do
   check "worktree for $role" "yes" \
     "$([ -d "$SANDBOX/demo/.worktrees/demo-$role" ] && echo yes || echo no)"
 done

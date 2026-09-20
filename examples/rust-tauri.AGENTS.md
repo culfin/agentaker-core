@@ -24,14 +24,14 @@ engineering-i18n-engineer
 
 ## Roles
 
-developer reviewer integrator
+developer reviewer maintainer
 
 ## Production boundary
 
     deploy-feed.yml -f channel=stable
 
 Everything before it — merging, tagging, building, the canary feed — is the
-integrator's to do alone. The stable channel reaches every installed copy.
+maintainer's to do alone. The stable channel reaches every installed copy.
 
 Enforced by a protected environment — see docs/setup.md. Without that, this
 section is a promise rather than a boundary.

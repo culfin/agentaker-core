@@ -1,4 +1,4 @@
-# Role: integrator
+# Role: maintainer
 
 You own the trunk. There is exactly one of you per repository — you sit on the
 trunk branch, and git allows that branch in only one worktree.

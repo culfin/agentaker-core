@@ -21,7 +21,7 @@ own pull request:
     failed to create review: Can not approve your own pull request
 
 Since your sessions share your token, the reviewer needs a second account. One
-is enough — `developer` and `integrator` do nothing that gets blocked.
+is enough — `developer` and `maintainer` do nothing that gets blocked.
 
 1. Create an account for it. A `+` alias works: `you+reviewer@example.com`.
 2. Give it write access to the repositories it reviews.
@@ -109,11 +109,11 @@ name already carries "wtc", repeating it would just cost characters:
     dateye · DEV
     dateye · DEV·eyeoffice        # a suffixed developer session
 
-The tag is `DEV` / `REV` / `INT` for the three roles, `---` for `none`, and
+The tag is `DEV` / `REV` / `MNT` for the three roles, `---` for `none`, and
 the first three letters uppercased for anything else.
 
 On iTerm2, the tab itself is coloured by role — developer blue, reviewer
-yellow, integrator green, anything else uncoloured — using iTerm2's own
+yellow, maintainer green, anything else uncoloured — using iTerm2's own
 proprietary escape codes, wrapped for tmux passthrough. This is iTerm2-only;
 see [limits.md](limits.md) for what happens in every other terminal. Turn it
 off, still keeping the title:

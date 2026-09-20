@@ -21,13 +21,13 @@ engineering-minimal-change-engineer
 
 ## Roles
 
-developer reviewer integrator
+developer reviewer maintainer
 
 ## Production boundary
 
     git push origin main:production
 
-Merging to `main` deploys to staging and is the integrator's alone. The
+Merging to `main` deploys to staging and is the maintainer's alone. The
 production branch is never pushed without an explicit instruction.
 
 Enforced by a protected environment — see docs/setup.md. Without that, this

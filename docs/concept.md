@@ -26,7 +26,7 @@ would need a new role, and the actual process — how a developer behaves —
 would be duplicated once per stack.
 
 Splitting the two also fixes the collision problem for free: `wtc` gives each
-role its own git worktree, so a developer, a reviewer and an integrator have
+role its own git worktree, so a developer, a reviewer and a maintainer have
 three separate working directories on three separate branches, at the same
 time, without touching each other's files.
 
@@ -34,7 +34,7 @@ time, without touching each other's files.
 
 ```
 ① TOOL       worktree-crew itself             universal, knows no project
-             roles/   _base · developer · reviewer · integrator · none
+             roles/   _base · developer · reviewer · maintainer · none
              bin/wtc  init · start · attach · status
              agents/  five subagents (Claude Code only, see docs/tools.md)
 
@@ -96,7 +96,7 @@ the flow. See `docs/tools.md` for which of these branches is actually verified.
 
 A **role** is a session: it has a worktree, a branch, and permissions that last
 for as long as that session runs. There are three of them (`developer`,
-`reviewer`, `integrator`), plus `none` for a worktree that should not be worked
+`reviewer`, `maintainer`), plus `none` for a worktree that should not be worked
 in at all.
 
 A **subagent** is expertise called for the length of one task, inside a

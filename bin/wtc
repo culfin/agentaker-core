@@ -41,7 +41,7 @@ Usage:
   wtc list [repo]               show worktrees, their branch, size and state
   wtc drop <repo> <name>        remove a worktree (refuses if it isn't safe)
 
-Roles: developer, reviewer, integrator
+Roles: developer, reviewer, maintainer
 
 Environment:
   WTC_PROJECTS_DIR   where your repositories live (default: ~/Projekte)
@@ -59,14 +59,14 @@ EOF
 # then who. Everything else is noise — the session name already carries
 # "wtc", so repeating it costs characters and says nothing.
 #
-# developer -> DEV, reviewer -> REV, integrator -> INT, none -> ---, anything
+# developer -> DEV, reviewer -> REV, maintainer -> MNT, none -> ---, anything
 # else -> its first three characters, uppercased. tr, not ${var^^}: bash 3.2
 # (still /bin/bash on macOS) doesn't have the latter.
 role_tag() {
   case "$1" in
     developer)  printf 'DEV' ;;
     reviewer)   printf 'REV' ;;
-    integrator) printf 'INT' ;;
+    maintainer) printf 'MNT' ;;
     # `printf --` and not bare `printf '---'`: bash's own printf builtin reads
     # a format string starting with `-` as an option and refuses it — found
     # by the test in tests/test_start.sh that runs this exact case, not by
@@ -91,7 +91,7 @@ tab_colour_rgb() {
   case "$1" in
     developer)  printf '0;122;255' ;;
     reviewer)   printf '255;204;0' ;;
-    integrator) printf '52;199;89' ;;
+    maintainer) printf '52;199;89' ;;
     *)          return 1 ;;
   esac
 }

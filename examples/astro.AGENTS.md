@@ -18,13 +18,13 @@ engineering-i18n-engineer
 
 ## Roles
 
-developer reviewer integrator
+developer reviewer maintainer
 
 ## Production boundary
 
     docker compose -f docker-compose.prod.yml up -d
 
-The integrator builds and pushes the image. Restarting the production stack
+The maintainer builds and pushes the image. Restarting the production stack
 needs an explicit instruction.
 
 Enforced by a protected environment — see docs/setup.md. Without that, this

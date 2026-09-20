@@ -57,11 +57,11 @@ echo "wtc: a failed write is not reported as success"
 if [ "$(id -u)" -eq 0 ]; then
   echo "  skip (running as root — permissions do not apply)"
 else
-  mkdir -p "$SANDBOX/demo/.worktrees/demo-integrator"
-  chmod 555 "$SANDBOX/demo/.worktrees/demo-integrator"
-  out=$("$WTC" demo integrator 2>&1); check "unwritable worktree exits 1" "1" "$?"
+  mkdir -p "$SANDBOX/demo/.worktrees/demo-maintainer"
+  chmod 555 "$SANDBOX/demo/.worktrees/demo-maintainer"
+  out=$("$WTC" demo maintainer 2>&1); check "unwritable worktree exits 1" "1" "$?"
   lacks "does not claim to launch" "would launch" "$out"
-  chmod 755 "$SANDBOX/demo/.worktrees/demo-integrator"
+  chmod 755 "$SANDBOX/demo/.worktrees/demo-maintainer"
 
   BADROLES=$(mktemp -d)
   cp "$PWD/roles/_base.md" "$BADROLES/"
@@ -77,8 +77,8 @@ out=$("$WTC" demo developer 2>&1)
 contains "developer tags DEV" "demo · DEV" "$out"
 out=$("$WTC" demo reviewer 2>&1)
 contains "reviewer tags REV" "demo · REV" "$out"
-out=$("$WTC" demo integrator 2>&1)
-contains "integrator tags INT" "demo · INT" "$out"
+out=$("$WTC" demo maintainer 2>&1)
+contains "maintainer tags MNT" "demo · MNT" "$out"
 out=$("$WTC" demo none 2>&1)
 contains "none tags ---" "demo · ---" "$out"
 out=$("$WTC" demo developer eyeoffice 2>&1)

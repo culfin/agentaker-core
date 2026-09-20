@@ -16,13 +16,13 @@ engineering-privacy-engineer
 
 ## Roles
 
-developer reviewer integrator
+developer reviewer maintainer
 
 ## Production boundary
 
     uv publish
 
-Tagging a release is the integrator's. Publishing to the package index needs an
+Tagging a release is the maintainer's. Publishing to the package index needs an
 explicit instruction and cannot be undone.
 
 Enforced by a protected environment — see docs/setup.md. Without that, this

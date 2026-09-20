@@ -8,12 +8,12 @@ developer   gh issue list --label ready
             gh pr edit <N> --add-reviewer <login from AGENTS.md>
                  |
 reviewer    gh pr list --search "is:open draft:false review-requested:@me"
-            gh pr review <N> --approve            -> integrator
+            gh pr review <N> --approve            -> maintainer
             gh pr review <N> --request-changes    -> back to developer
                  |
 developer   fixes, then gh pr edit <N> --add-reviewer <login>   (re-request)
                  |
-integrator  gh pr list --search "is:open review:approved"
+maintainer  gh pr list --search "is:open review:approved"
             merge -> tag -> ship up to the production boundary
 ```
 
@@ -29,7 +29,7 @@ integrator  gh pr list --search "is:open review:approved"
    --request-changes`. The PR stays in this state until the developer acts;
    nothing about it changes on its own.
 4. **`approved`** — the result of `gh pr review <N> --approve`. This is what
-   the integrator's queue is built from: `gh pr list --search "is:open
+   the maintainer's queue is built from: `gh pr list --search "is:open
    review:approved"`.
 
 ## The round trip, and why it needed a fix

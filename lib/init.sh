@@ -101,7 +101,7 @@ Replace this with yours. Until you do, agents will refuse to release.
 
 ## Roles
 
-developer reviewer integrator
+developer reviewer maintainer
 EOF
 )
     printf '%s\n\n' "$draft"
@@ -154,7 +154,7 @@ EOF
 
   # --- worktrees ------------------------------------------------------------
   if [ "$(ask 'Create worktrees for the three roles? (y/n)' y)" = "y" ]; then
-    for role in developer reviewer integrator; do
+    for role in developer reviewer maintainer; do
       if ( export DRY_RUN=1; cmd_start "$repo" "$role" ) >/dev/null 2>&1; then
         printf '  worktree: %s-%s\n' "$repo" "$role"
       else

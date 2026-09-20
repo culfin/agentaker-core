@@ -16,7 +16,7 @@ myproject/
 ├── .worktrees/
 │   ├── myproject-developer/    branch: myproject-developer   role: developer
 │   ├── myproject-reviewer/     branch: review/<N>            role: reviewer
-│   └── myproject-integrator/   branch: main (the trunk)      role: integrator
+│   └── myproject-maintainer/   branch: main (the trunk)      role: maintainer
 └── AGENTS.md                   committed — trunk, tests, reviewer, production boundary
 
 developer  --draft PR, ready, request review-->  reviewer
@@ -26,7 +26,7 @@ developer  --draft PR, ready, request review-->  reviewer
                                                        |
                                                   (approved)
                                                        v
-                                                  integrator  --> merge, tag, ship
+                                                  maintainer  --> merge, tag, ship
 ```
 
 Three worktrees, three branches, three roles, one repository. See
@@ -84,7 +84,7 @@ checked.
 
 ## Limits, in three lines
 
-One `integrator` per repository — git won't check out the same trunk branch
+One `maintainer` per repository — git won't check out the same trunk branch
 twice. Disk is cheap per byte but adds up (a Rust/Tauri worktree runs about
 9 GB, mostly build output) — `wtc list` shows what exists, `wtc drop` removes
 one and refuses if that isn't safe. Memory is the real ceiling, and two

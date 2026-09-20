@@ -6,11 +6,11 @@ Three roles, plus `none` for a worktree that should not be worked in.
 |---|---|---|
 | `developer` | a feature branch | takes an issue, implements it, opens the PR |
 | `reviewer` | `review/<N>` | checks the PR, approves or sends it back |
-| `integrator` | the trunk | merges, tags, ships up to the production boundary |
+| `maintainer` | the trunk | merges, tags, ships up to the production boundary |
 
 ## Permissions
 
-| | developer | reviewer | integrator |
+| | developer | reviewer | maintainer |
 |---|:--:|:--:|:--:|
 | Open a PR (`--draft`), `gh pr ready` | yes | — | — |
 | Comment | yes | yes | yes |
@@ -34,7 +34,7 @@ From `roles/reviewer.md`:
 - merge
 - approve something it has not run
 
-From `roles/integrator.md`:
+From `roles/maintainer.md`:
 
 - implement
 - merge anything that is not approved
@@ -42,11 +42,11 @@ From `roles/integrator.md`:
 
 ## Why no separate `deployer`
 
-An `integrator` and a `deployer` would both need the trunk branch checked out,
+A `maintainer` and a `deployer` would both need the trunk branch checked out,
 and git will not check out the same branch in two worktrees at once. They
 would also share the same production boundary and run one immediately after
 the other — splitting them buys nothing. See `docs/limits.md` for the same
-constraint stated as a number: one integrator per repository.
+constraint stated as a number: one maintainer per repository.
 
 ## What is agreed, and what is enforced
 
