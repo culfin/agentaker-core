@@ -1,0 +1,8 @@
+{
+  "name": "worktree-roles",
+  "version": "0.1.0",
+  "description": "Optional companion to the worktree-roles tool: loads a worktree's role at session start.",
+  "author": { "name": "culfin" },
+  "homepage": "https://github.com/culfin/worktree-roles",
+  "license": "MIT"
+}
