@@ -60,4 +60,19 @@ yes '# padding' | head -451 >> "$TMP2/lib/init.sh"
 out=$("$LINT" "$TMP2" 2>&1); check "oversized lib/init.sh fails" "1" "$?"
 contains "names lib/init.sh, not just bin/mdt" "lib/init.sh is" "$out"
 
+echo "lint: INSTALL.md guard rails"
+# roles/developer.md still holds the vendor-naming text left by the "vendor
+# names in roles" case above; restore it so this block tests only INSTALL.md.
+: > "$TMP/roles/developer.md"
+printf '# x\nPropose, never assume\nNever create credentials\nNever commit without asking\nNever invent a value\n' > "$TMP/INSTALL.md"
+printf 'trunk: main\n\nreviewer: example-reviewer\n\n## Test commands\nx\n\n## Production boundary\nnone\n' > "$TMP/examples/a.AGENTS.md"
+out=$("$LINT" "$TMP" 2>&1); check "intact INSTALL.md passes" "0" "$?"
+
+printf '# x\nPropose, never assume\nNever commit without asking\nNever invent a value\n' > "$TMP/INSTALL.md"
+out=$("$LINT" "$TMP" 2>&1); check "missing guard rail fails" "1" "$?"
+contains "names the lost guard rail" "Never create credentials" "$out"
+
+rm "$TMP/INSTALL.md"
+out=$("$LINT" "$TMP" 2>&1); check "absent INSTALL.md fails" "1" "$?"
+
 summary

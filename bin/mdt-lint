@@ -43,6 +43,23 @@ for ex in "$ROOT"/examples/*.AGENTS.md; do
   done
 done
 
+# INSTALL.md instructs an agent to act on someone else's repository. These are
+# the sentences that keep it a guide rather than an installer; an edit that
+# drops one turns a careful walkthrough into an autonomous one.
+if [ -f "$ROOT/INSTALL.md" ]; then
+  for required in \
+    "Propose, never assume" \
+    "Never create credentials" \
+    "Never commit without asking" \
+    "Never invent a value"
+  do
+    grep -qF "$required" "$ROOT/INSTALL.md" \
+      || problem "INSTALL.md: lost its guard rail — \"$required\""
+  done
+else
+  problem "INSTALL.md is missing"
+fi
+
 # Vendor neutrality is the point of the project; a role file naming a tool
 # breaks it silently. agents/ is exempt — it is stated to be Claude-specific.
 if vendor=$(grep -rliE 'claude|codex|gemini|cursor|copilot|anthropic|openai' "$ROOT"/roles/ 2>/dev/null); then

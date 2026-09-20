@@ -2,6 +2,21 @@
 
 Give each AI coding session a fixed role and its own git worktree.
 
+## Setup
+
+Paste this into your coding agent:
+
+```
+Read https://raw.githubusercontent.com/culfin/mandate/main/INSTALL.md
+and walk me through setting this up for my project.
+```
+
+It reads your repository, proposes the values it cannot guess — above all the
+production boundary — and stops wherever a decision is yours.
+
+Prefer to do it by hand? [docs/setup.md](docs/setup.md) has the same steps
+without an agent.
+
 ## The problem
 
 Several AI sessions work on one project. Each one gets briefed from scratch —
