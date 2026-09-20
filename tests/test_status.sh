@@ -37,6 +37,9 @@ contains "asks for the ready label" "--label ready" "$calls"
 contains "falls back to review none" "review none" "$calls"
 contains "asks for approved PRs" "review approved" "$calls"
 contains "asks for decisions" "needs-decision" "$calls"
+# This proves the filter is REQUESTED, not that it filters: the stub replaces gh,
+# so the --jq expression never runs. Real filtering is verified against a live
+# organisation — see the task report.
 contains "filters out dependabot" "dependabot" "$calls"
 
 echo "wtr status: with a reviewer login"
@@ -47,7 +50,28 @@ contains "asks for that reviewer's queue" "review-requested somereviewer" "$call
 lacks "does not fall back" "review none" "$calls"
 lacks "no approximation notice" "WTR_REVIEWER" "$out"
 
+echo "wtr status: a failed query is not an empty board"
+cat > "$STUB/gh" <<'STUBEOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$GH_CALLS"
+echo "gh: could not authenticate" >&2
+exit 1
+STUBEOF
+chmod +x "$STUB/gh"
+out=$(PATH="$STUB:$PATH" WTR_REVIEWER=r "$WTR" status someowner 2>&1)
+check "failed queries exit 1" "1" "$?"
+contains "says it could not ask" "could not ask" "$out"
+lacks "does not claim an empty queue" "(none)" "$out"
+contains "warns the board is incomplete" "incomplete" "$out"
+
 echo "wtr attach: arguments"
 out=$("$WTR" attach 2>&1); check "attach without repo exits 2" "2" "$?"
+
+echo "wtr attach: missing tmux is diagnosed as missing tmux"
+NOTMUX=$(mktemp -d)
+out=$(PATH="$NOTMUX:$(dirname "$(command -v git)"):/usr/bin:/bin" "$WTR" attach demo 2>&1)
+check "exits 1" "1" "$?"
+contains "names tmux" "tmux is not installed" "$out"
+rm -rf "$NOTMUX"
 
 summary

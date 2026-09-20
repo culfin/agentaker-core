@@ -12,6 +12,7 @@ TOOL="${WTR_TOOL:-}"
 DRY_RUN="${WTR_DRY_RUN:-}"
 REVIEWER="${WTR_REVIEWER:-}"
 LAUNCH_CMD=()
+STATUS_FAILED=0
 
 die() { printf 'wtr: %s\n' "$1" >&2; exit "${2:-1}"; }
 
@@ -150,6 +151,9 @@ start_role() {
     return 0
   fi
 
+  command -v tmux >/dev/null 2>&1 \
+    || die "tmux is not installed — worktree-roles uses it so sessions outlive the device looking at them"
+
   # Two explicit branches rather than expanding a possibly-empty array:
   # "${arr[@]}" on an empty array is an unbound-variable error under `set -u`
   # in bash 3.2.
@@ -169,41 +173,74 @@ start_role() {
   fi
 }
 
+# Ask gh one question and render the answer. Distinguishes three outcomes that
+# must never look alike: rows, no rows, and "I could not ask".
+# Sets STATUS_FAILED=1 on the third, so status() can exit non-zero.
+status_query() {
+  local heading=$1
+  shift
+  local out rc
+  out=$(gh "$@" 2>&1)
+  rc=$?
+  printf '%s:\n' "$heading"
+  if [ "$rc" -ne 0 ]; then
+    printf '  could not ask: %s\n' "$(printf '%s' "$out" | head -1)"
+    STATUS_FAILED=1
+    return 0
+  fi
+  if [ -z "$out" ]; then
+    printf '  (none)\n'
+  else
+    printf '%s\n' "$out"
+  fi
+}
+
 status() {
   local owner=${1:-${WTR_OWNER:-}}
   [ -n "$owner" ] || die "give an owner: wtr status <owner>  (or set WTR_OWNER)"
 
-  printf 'ready to pick up:\n'
-  gh search issues --owner "$owner" --state open --label ready \
-    --json repository,number,title \
-    --jq '.[] | "  \(.repository.name)#\(.number)  \(.title)"' 2>/dev/null || printf '  (none)\n'
+  STATUS_FAILED=0
 
-  printf 'waiting for review:\n'
+  status_query "ready to pick up" \
+    search issues --owner "$owner" --state open --label ready \
+    --json repository,number,title \
+    --jq '.[] | "  \(.repository.name)#\(.number)  \(.title)"'
+
   if [ -n "$REVIEWER" ]; then
-    gh search prs --owner "$owner" --state open --draft=false --review-requested "$REVIEWER" \
+    status_query "waiting for review" \
+      search prs --owner "$owner" --state open --draft=false --review-requested "$REVIEWER" \
       --json repository,number,title,author \
-      --jq '.[] | select(.author.login | test("dependabot") | not) | "  \(.repository.name)#\(.number)  \(.title)"' 2>/dev/null || printf '  (none)\n'
+      --jq '.[] | select(.author.login | test("dependabot") | not) | "  \(.repository.name)#\(.number)  \(.title)"'
   else
-    gh search prs --owner "$owner" --state open --draft=false --review none \
+    status_query "waiting for review" \
+      search prs --owner "$owner" --state open --draft=false --review none \
       --json repository,number,title,author \
-      --jq '.[] | select(.author.login | test("dependabot") | not) | "  \(.repository.name)#\(.number)  \(.title)"' 2>/dev/null || printf '  (none)\n'
+      --jq '.[] | select(.author.login | test("dependabot") | not) | "  \(.repository.name)#\(.number)  \(.title)"'
     printf '  (approximate — set WTR_REVIEWER to your reviewer login for the exact queue)\n'
   fi
 
-  printf 'approved, waiting for merge:\n'
-  gh search prs --owner "$owner" --state open --review approved \
+  status_query "approved, waiting for merge" \
+    search prs --owner "$owner" --state open --review approved \
     --json repository,number,title \
-    --jq '.[] | "  \(.repository.name)#\(.number)  \(.title)"' 2>/dev/null || printf '  (none)\n'
+    --jq '.[] | "  \(.repository.name)#\(.number)  \(.title)"'
 
-  printf 'waiting on you:\n'
-  gh search issues --owner "$owner" --state open --label needs-decision \
+  status_query "waiting on you" \
+    search issues --owner "$owner" --state open --label needs-decision \
     --json repository,number,title \
-    --jq '.[] | "  \(.repository.name)#\(.number)  \(.title)"' 2>/dev/null || printf '  (none)\n'
+    --jq '.[] | "  \(.repository.name)#\(.number)  \(.title)"'
+
+  if [ "$STATUS_FAILED" -ne 0 ]; then
+    printf '\nSome questions could not be asked — this board is incomplete.\n' >&2
+    return 1
+  fi
+  return 0
 }
 
 attach() {
   local repo=${1:-}
   [ -n "$repo" ] || { usage; exit 2; }
+  command -v tmux >/dev/null 2>&1 \
+    || die "tmux is not installed — worktree-roles uses it so sessions outlive the device looking at them"
   local session; session=$(session_name "$repo")
   tmux has-session -t "$session" 2>/dev/null \
     || die "no session for '$repo' — start one with: wtr $repo developer"
