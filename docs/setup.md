@@ -20,6 +20,17 @@ own pull request:
     $ gh pr review 163 --approve
     failed to create review: Can not approve your own pull request
 
+The break happens earlier than that message suggests, and quietly: `gh pr
+edit <N> --add-reviewer <your own login>` — the command `roles/developer.md`
+uses to ask for review — exits 0 and prints the PR URL as if it worked, but
+does not add you as a requested reviewer (confirmed against the API:
+`requested_reviewers` stays empty). Only `--approve` and `--request-changes`
+fail loudly; the request itself just silently does nothing. So without a
+second account, the reviewer's queue (`is:open draft:false
+review-requested:@me`) never has anything in it to begin with — the loud
+failure above is what you'd hit if you tried to review anyway, by PR number,
+skipping the queue.
+
 Since your sessions share your token, the reviewer needs a second account. One
 is enough — `developer` and `maintainer` do nothing that gets blocked.
 
