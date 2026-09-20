@@ -119,3 +119,22 @@ see [limits.md](limits.md) for what happens in every other terminal. Turn it
 off, still keeping the title:
 
     export WTC_TAB_COLOUR=0
+
+## 7. Replacing a session without losing its place
+
+A session sometimes has to go — a tool update, a role file that changed, one
+that's wedged. Killing it loses where it had got to; reloading the whole
+conversation is expensive, tool-specific, and after an update carries
+artefacts of the version you just replaced.
+
+    wtc restart myproject DEV
+
+asks the session to write `.agents/handoff.md` (see "Handing over" in
+`roles/_base.md` for what belongs in it), waits for the file, replaces the
+process, and hands the file to its successor as part of its context. If the
+session doesn't answer within `WTC_HANDOFF_TIMEOUT` seconds (default 60),
+`wtc` aborts rather than restarting — see [limits.md](limits.md) for why, and
+for what `--fresh` costs you when you use it instead:
+
+    wtc restart myproject DEV --fresh   # replace without asking — loses state
+    wtc restart --all                   # every running session, across every project

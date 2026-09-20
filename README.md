@@ -42,6 +42,7 @@ wtc init myproject          # walks setup step by step, see docs/adding-a-projec
 wtc myproject developer     # opens a session that knows it's a developer
 wtc list                    # see every worktree, across every project
 wtc drop myproject DEV      # remove one — refuses unless it's safe to
+wtc restart myproject DEV   # hand over, replace the process, resume
 ```
 
 `wtc init` proposes an `AGENTS.md`, creates the `ready` / `needs-decision`

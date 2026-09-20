@@ -40,6 +40,9 @@ Usage:
   wtc status [owner]           show where work is waiting, across repos
   wtc list [repo]               show worktrees, their branch, size and state
   wtc drop <repo> <name>        remove a worktree (refuses if it isn't safe)
+  wtc restart <repo> <name>     hand over, replace the process, resume
+  wtc restart <repo> <name> --fresh   replace without asking for a handover
+  wtc restart --all             restart every running session
 
 Roles: developer, reviewer, maintainer
 
@@ -51,6 +54,8 @@ Environment:
   WTC_OWNER          default GitHub owner for `wtc status`
   WTC_REVIEWER       login of the reviewer account, for `wtc status`
   WTC_TAB_COLOUR     iTerm2 tab colour by role (default: on, 0 to disable)
+  WTC_HANDOFF_TIMEOUT   seconds to wait for a handover before `restart`
+                     aborts (default: 60)
 EOF
 }
 
@@ -106,9 +111,9 @@ osc6_component() {
 }
 
 # The full escape sequence for $1's tab colour, or nothing (rc 1) if the role
-# has none. Emitting this is the caller's job — see cmd_start(), which runs
-# it from inside the new pane itself, not from here, so there is no race
-# against the allow-passthrough option that has to be on first.
+# has none. Emitting this is the caller's job — see wrap_launch_command(),
+# which runs it from inside the new pane itself, not from here, so there is
+# no race against the allow-passthrough option that has to be on first.
 tab_colour_sequence() {
   local rgb r g b
   rgb=$(tab_colour_rgb "$1") || return 1
@@ -116,6 +121,53 @@ tab_colour_sequence() {
 $rgb
 EOF
   printf '%s%s%s' "$(osc6_component red "$r")" "$(osc6_component green "$g")" "$(osc6_component blue "$b")"
+}
+
+# Wraps $2.. (a vendor launch command) so that, from inside the new pane
+# itself, window options are pinned before the coding agent's first paint,
+# and $1's tab colour is set alongside it. Sets the global LAUNCH_CMD.
+#
+# The window name survives only if two other actors are stopped from
+# touching it — measured, not assumed: a coding agent that sets its own
+# process/window title, on a stock tmux (automatic-rename defaults on), gets
+# its own name back within moments of starting, silently, with no error
+# anywhere. `allow-rename` (the program renaming itself via escape sequence)
+# and `automatic-rename` (tmux's own rename-to-current-command) are two
+# separate mechanisms; measured against a real coding-agent session,
+# allow-rename was already off and the rename still happened —
+# automatic-rename was the one responsible. Both are turned off anyway, since
+# either could be the culprit on a different tmux config.
+#
+# This has to run from inside the pane itself, window-scoped via its own
+# $TMUX_PANE, as its first act: a `tmux set-window-option` issued from wtc's
+# own process, after creation, would race the pane's first automatic-rename
+# evaluation. Measured with a stand-in command across 3 seconds of wall time:
+# zero flicker once this runs before anything else does.
+#
+# Colour, right after, if the role has one, WTC_TAB_COLOUR hasn't disabled
+# it, and this is iTerm2. It has to come from inside the pane to reach the
+# terminal at all, and turning allow-passthrough on from inside — same
+# $TMUX_PANE, window-scoped, never global — avoids the same race: a pane
+# that starts emitting before the option is on.
+#
+# Used by both cmd_start() and cmd_restart() — a restarted pane needs exactly
+# the same protection a freshly started one does, or this fix silently stops
+# applying to it the moment the two drift apart.
+wrap_launch_command() {
+  local role=$1
+  shift
+  local colour_seq=""
+  if [ "${WTC_TAB_COLOUR:-1}" != "0" ] && iterm2_detected; then
+    colour_seq=$(tab_colour_sequence "$role") || colour_seq=""
+  fi
+  LAUNCH_CMD=(sh -c '
+    tmux set-window-option -t "$TMUX_PANE" automatic-rename off 2>/dev/null
+    tmux set-window-option -t "$TMUX_PANE" allow-rename off 2>/dev/null
+    tmux set-option -t "$TMUX_PANE" allow-passthrough on 2>/dev/null
+    printf "%s" "$1"
+    shift
+    exec "$@"
+  ' wtc "$colour_seq" "$@")
 }
 
 # --- the one vendor-aware function -------------------------------------------
@@ -252,42 +304,9 @@ cmd_start() {
   command -v tmux >/dev/null 2>&1 \
     || die "tmux is not installed — worktree-crew uses it so sessions outlive the device looking at them"
 
-  # The window name survives only if two other actors are stopped from
-  # touching it — measured, not assumed: a coding agent that sets its own
-  # process/window title, on a stock tmux (automatic-rename defaults on),
-  # gets its own name back within moments of starting, silently, with no
-  # error anywhere. `allow-rename` (the program renaming itself via escape
-  # sequence) and `automatic-rename` (tmux's own rename-to-current-command)
-  # are two separate mechanisms; measured against a real coding-agent
-  # session, allow-rename was already off and the rename still happened —
-  # automatic-rename was the one responsible. Both are turned off anyway,
-  # since either could be the culprit on a different tmux config.
-  #
-  # This — like the colour below — has to run from inside the pane itself,
-  # window-scoped via its own $TMUX_PANE, as its first act: a `tmux
-  # set-window-option` issued from wtc's own process, after creation, would
-  # race the pane's first automatic-rename evaluation. Measured with a
-  # stand-in command across 3 seconds of wall time: zero flicker once this
-  # runs before anything else does.
-  #
-  # Colour, right after, if the role has one, WTC_TAB_COLOUR hasn't disabled
-  # it, and this is iTerm2. It has to come from inside the pane to reach the
-  # terminal at all, and turning allow-passthrough on from inside — same
-  # $TMUX_PANE, window-scoped, never global — avoids the same race: a pane
-  # that starts emitting before the option is on.
-  local colour_seq=""
-  if [ "${WTC_TAB_COLOUR:-1}" != "0" ] && iterm2_detected; then
-    colour_seq=$(tab_colour_sequence "$role") || colour_seq=""
-  fi
-
-  LAUNCH_CMD=(sh -c '
-    tmux set-window-option -t "$TMUX_PANE" automatic-rename off 2>/dev/null
-    tmux set-window-option -t "$TMUX_PANE" allow-rename off 2>/dev/null
-    tmux set-option -t "$TMUX_PANE" allow-passthrough on 2>/dev/null
-    printf "%s" "$1"
-    shift
-    exec "$@"
-  ' wtc "$colour_seq" "${LAUNCH_CMD[@]}")
+  # See wrap_launch_command() for why this has to run from inside the pane
+  # itself, and why it exists as a shared function at all.
+  wrap_launch_command "$role" "${LAUNCH_CMD[@]}"
 
   # Two explicit branches rather than expanding a possibly-empty array:
   # "${arr[@]}" on an empty array is an unbound-variable error under `set -u`
@@ -412,6 +431,12 @@ case "${1:-}" in
     # shellcheck source=lib/manage.sh
     . "$WTC_HOME/lib/manage.sh" || die "cannot load $WTC_HOME/lib/manage.sh"
     cmd_drop "$@"
+    ;;
+  restart)
+    shift
+    # shellcheck source=lib/manage.sh
+    . "$WTC_HOME/lib/manage.sh" || die "cannot load $WTC_HOME/lib/manage.sh"
+    cmd_restart "$@"
     ;;
   *)         [ $# -ge 2 ] || { usage; exit 2; }; cmd_start "$@" ;;
 esac

@@ -116,3 +116,22 @@ open tmux window) and refuses by default, naming exactly what it found. Only
 `--force` proceeds anyway. This costs an extra step when you did mean it, on
 purpose: the cost of a false refusal is a few seconds re-running the command
 with `--force`; the cost of a false confirmation is the worktree.
+
+## A handover is only as good as the session that writes it
+
+`wtc restart` never reads the handoff file it waits for — it sends keystrokes
+and waits for a file to appear, and hands that file to the successor
+unexamined. What ends up in it is entirely up to the session: a role that
+follows `roles/_base.md`'s "Handing over" section closely leaves its
+successor a usable state; one that summarises the conversation instead, or
+skips `Not checked`, leaves a successor that inherits confidence nobody
+actually earned. `wtc` has no way to tell the difference, and doesn't try to.
+
+A wedged session cannot be handed over at all — by definition, it isn't
+answering. `wtc restart` waits `WTC_HANDOFF_TIMEOUT` seconds (default 60),
+then aborts rather than guessing: no restart happens, and the session is told
+so, because a lost handover is exactly what this command exists to prevent.
+`--fresh` is the honest way past that: it replaces the process without
+asking, and it loses whatever state existed. That trade is the whole point of
+naming it explicitly rather than falling back to it automatically — a session
+that silently lost its place is worse than one that stops and says so.

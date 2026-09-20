@@ -68,3 +68,20 @@ status is visible in the PR.
 
 **One round.** Question, answer, back to work. If you do not converge, escalate
 rather than start a third round.
+
+## Handing over
+
+When you are asked to hand over, write `.agents/handoff.md` and then exit. Keep
+it short and concrete:
+
+    Working on:   what you were doing, with the issue or PR number
+    In progress:  anything half-finished, and where it actually stands
+    Next:         the one thing you would do next
+    Not checked:  what you have NOT verified
+
+Do not summarise the conversation — your successor needs your STATE, not your
+history. Where you would have written "the tests pass", write the command you
+ran and what it printed.
+
+`Not checked` is the most valuable line. Without it your successor assumes
+everything you touched was verified, and inherits a claim you never made.
