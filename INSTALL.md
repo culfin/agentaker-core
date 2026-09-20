@@ -80,9 +80,12 @@ formatters or review skills, and list what you found.
 
 ### Phase 4 — Write `AGENTS.md`
 
-Run `mdt init <repo>` and let it do the mechanical work. When it proposes its
-draft, fill in the real values you established in Phase 3 rather than accepting
-its guesses. Show the human the finished file before writing it.
+`mdt init <repo>` only offers a yes/no on its own auto-generated draft — it has
+no way to take the values you established in Phase 3. So write `AGENTS.md`
+yourself instead: show the human the finished file using your Phase 3 findings
+(trunk, test commands, production boundary), then write it. Afterwards, run
+`mdt init <repo>` anyway — it detects the file already exists, leaves it alone,
+and still does the rest (labels, worktrees) that Phase 6 needs in place.
 
 The `reviewer:` field stays empty for now — Phase 5 explains why.
 
@@ -105,7 +108,7 @@ When they tell you it is done, ask for the account's login and put it in
 reviewer: their-reviewer-login
 ```
 
-### Phase 6 — Labels and worktrees
+### Phase 6 — Labels
 
 Two labels, in their repository:
 
@@ -114,30 +117,32 @@ gh label create ready --description "Ready for an agent to pick up" --color 0E8A
 gh label create needs-decision --description "Waiting on a human decision" --color D93F0B
 ```
 
-Then the three worktrees:
-
-```bash
-mdt <repo> developer
-mdt <repo> reviewer
-mdt <repo> maintainer
-```
-
-Explain that these are directories, not processes: they persist, cost only disk,
-and the session is whoever happens to be sitting in one.
+`mdt init` already created the three worktrees back in Phase 4 — do not start
+anything here. Explain what they are: directories, not processes. They
+persist, they cost only disk, and a session is whoever is sitting in one at
+the time. Nothing is running in them yet.
 
 ### Phase 7 — Prove it works
 
-Have them put `ready` on one real issue, then start a developer session:
+Have them put `ready` on one real issue, then start a single developer session:
 
 ```bash
 gh issue edit <N> --add-label ready
 mdt <repo> developer
 ```
 
-In that session, ask it: *"What is your role, and name one thing you may not
-do."* It must answer `developer` and name merging. If it does not, the role did
-not reach the model — check `.agents/ROLE` exists and `MDT_TOOL` names a tool
-that `launch_command()` in `bin/mdt` knows.
+That opens a tmux window and launches their coding agent in it. In that
+session, ask it: *"What is your role, and name one thing you may not do."* It
+must answer `developer` and name merging. If it does not, the role did not
+reach the model — check `.agents/ROLE` exists and `MDT_TOOL` names a tool that
+`launch_command()` in `bin/mdt` knows.
+
+To leave the session without stopping it, detach from tmux (`Ctrl-b d` by
+default). To come back later: `mdt attach <repo>`.
+
+**Start only this one.** The `reviewer` and `maintainer` worktrees stay idle
+until there is work for them — starting all three now means three agents with
+nothing to do.
 
 ### Phase 8 — Hand over
 
