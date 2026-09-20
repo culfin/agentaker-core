@@ -3,8 +3,14 @@
 #
 # Sourced by bin/wtc on demand rather than always: init runs once per project
 # and never during normal work, so the three everyday subcommands do not pay to
-# parse it. It relies on bin/wtc having already defined die(), usage(),
-# cmd_start(), PROJECTS_DIR, ROLES_DIR and DRY_RUN.
+# parse it.
+#
+# Needs from bin/wtc:  die(), usage(), cmd_start(), PROJECTS_DIR
+# Provides to it:      DRY_RUN, set for the subshell that creates the worktrees
+#                      so cmd_start() prepares them without launching anything
+#
+# ROLES_DIR is deliberately absent: cmd_start() reads it, and cmd_start() stays
+# in bin/wtc where it is already in scope.
 
 # `wtc init` shows every step instead of hiding it: each action is proposed and
 # confirmed separately, so someone who watched it run can redo it by hand.
