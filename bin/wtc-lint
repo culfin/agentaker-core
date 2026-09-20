@@ -51,14 +51,15 @@ fi
 
 [ -f "$ROOT/roles/_base.md" ] || problem "roles/_base.md is missing"
 
-# bin/wtc is deliberately one file: it is four subcommands over git, gh and tmux,
-# and splitting it would cost every reader a second hop. The ceiling is a
-# readability guard, not a budget — if it is ever raised again, that is the moment
-# to ask whether `init` should move to its own file instead.
-if [ -f "$ROOT/bin/wtc" ]; then
-  lines=$(wc -l < "$ROOT/bin/wtc")
-  [ "$lines" -le 450 ] || problem "bin/wtc is $lines lines — split it or raise the ceiling deliberately"
-fi
+# bin/wtc is deliberately few files. The ceiling guards readability, not a
+# budget — if a file approaches it, the question is which block has become its
+# own concern, the way `init` did.
+for script in bin/wtc lib/init.sh; do
+  if [ -f "$ROOT/$script" ]; then
+    lines=$(wc -l < "$ROOT/$script")
+    [ "$lines" -le 450 ] || problem "$script is $lines lines — split it or raise the ceiling deliberately"
+  fi
+done
 
 if [ "$PROBLEMS" -gt 0 ]; then
   printf '\n%d problem(s).\n' "$PROBLEMS"

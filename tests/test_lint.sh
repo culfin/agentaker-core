@@ -51,4 +51,13 @@ printf 'trunk: main\nreviewer: example-reviewer\n\n## Test commands\nx\n\n## Rol
 out=$("$LINT" "$TMP" 2>&1); check "repaired heading exposes the bad role" "1" "$?"
 contains "names the unknown role" "architect" "$out"
 
+echo "lint: a file over the line ceiling is caught, including the moved file"
+TMP2=$(mktemp -d); trap 'rm -rf "$TMP" "$TMP2"' EXIT
+mkdir -p "$TMP2/roles" "$TMP2/examples" "$TMP2/bin" "$TMP2/lib"
+touch "$TMP2/roles/_base.md"
+printf 'x\n' > "$TMP2/lib/init.sh"
+yes '# padding' | head -451 >> "$TMP2/lib/init.sh"
+out=$("$LINT" "$TMP2" 2>&1); check "oversized lib/init.sh fails" "1" "$?"
+contains "names lib/init.sh, not just bin/wtc" "lib/init.sh is" "$out"
+
 summary
