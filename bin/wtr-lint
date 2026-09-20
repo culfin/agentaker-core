@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Checks that this repository's parts still agree with each other.
+# Not a check of your working copies — a check of the repository, so nobody
+# lands an example naming a role or subagent we do not ship.
+set -uo pipefail
+
+ROOT="${1:-.}"
+PROBLEMS=0
+problem() { printf '%s\n' "$1"; PROBLEMS=$((PROBLEMS + 1)); }
+
+# Lines under a "## <name>" heading, up to the next heading.
+section() {
+  awk -v want="$2" '
+    /^## / { inside = (tolower(substr($0,4)) == tolower(want)); next }
+    inside && NF { print }
+  ' "$1"
+}
+
+for ex in "$ROOT"/examples/*.AGENTS.md; do
+  [ -e "$ex" ] || continue
+  name=$(basename "$ex")
+
+  grep -qE '^trunk:[[:space:]]*[^[:space:]]' "$ex" || problem "$name: no 'trunk:' line"
+  grep -qE '^reviewer:[[:space:]]*[^[:space:]]' "$ex" || problem "$name: no 'reviewer:' line — the review round trip needs an account login"
+  grep -qiE '^##[[:space:]]+Production boundary' "$ex" || problem "$name: no '## Production boundary' section"
+  grep -qiE '^##[[:space:]]+Test commands' "$ex" || problem "$name: no '## Test commands' section"
+
+  for role in $(section "$ex" "Roles"); do
+    [ -f "$ROOT/roles/$role.md" ] || problem "$name: names role '$role', which does not exist in roles/"
+  done
+
+  for agent in $(section "$ex" "Subagents"); do
+    [ -f "$ROOT/agents/$agent.md" ] || problem "$name: names subagent '$agent', which does not exist in agents/"
+  done
+done
+
+# Vendor neutrality is the point of the project; a role file naming a tool
+# breaks it silently. agents/ is exempt — it is stated to be Claude-specific.
+if vendor=$(grep -rliE 'claude|codex|gemini|cursor|copilot|anthropic|openai' "$ROOT"/roles/ 2>/dev/null); then
+  for f in $vendor; do problem "$(basename "$f"): names a specific tool — roles must stay vendor-neutral"; done
+fi
+
+[ -f "$ROOT/roles/_base.md" ] || problem "roles/_base.md is missing"
+
+# bin/wtr is deliberately one file: it is four subcommands over git, gh and tmux,
+# and splitting it would cost every reader a second hop. The ceiling is a
+# readability guard, not a budget — if it is ever raised again, that is the moment
+# to ask whether `init` should move to its own file instead.
+if [ -f "$ROOT/bin/wtr" ]; then
+  lines=$(wc -l < "$ROOT/bin/wtr")
+  [ "$lines" -le 450 ] || problem "bin/wtr is $lines lines — split it or raise the ceiling deliberately"
+fi
+
+if [ "$PROBLEMS" -gt 0 ]; then
+  printf '\n%d problem(s).\n' "$PROBLEMS"
+  exit 1
+fi
+printf 'worktree-roles: repository is consistent.\n'
