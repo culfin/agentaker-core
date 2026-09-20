@@ -13,6 +13,22 @@ doesn't ship, that every `examples/*.AGENTS.md` has the sections the flow
 depends on (`trunk:`, `reviewer:`, `## Test commands`, `## Production
 boundary`), and that nothing under `roles/` names a specific vendor.
 
+### An assertion must have been seen to fail
+
+Write the assertion, run it against code that does not yet satisfy it, and watch
+it fail. If you are adding an assertion to code that already works — in a fix
+round, say — break that code in a scratch copy and check the assertion notices.
+
+This is not ceremony. Three assertions in this repository's history passed while
+proving nothing: one matched a substring of an unrelated error message, one
+matched a phrase the command prints regardless, one was satisfied by a different
+check returning the same exit code. Every one was caught by someone deliberately
+breaking the code, never by running the suite.
+
+Prefer a phrase that only the behaviour under test can produce, and prefer
+asserting the mechanism over the outcome — `exit 1` is produced by many things,
+`is not a role name` by one.
+
 ## Vendor neutrality is enforced, not just asked for
 
 `roles/` must never mention a specific coding agent — no `claude`, `codex`,

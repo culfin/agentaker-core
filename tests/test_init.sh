@@ -64,7 +64,7 @@ out=$(PATH="$STUB:$PATH" WTC_YES=1 WTC_NO_NETWORK= "$WTC" init demo 2>&1)
 calls=$(cat "$GH_CALLS")
 contains "asks for the user id" "api user" "$calls"
 contains "creates the environment" "environments/production" "$calls"
-contains "explains what it protects" "production boundary" "$out"
+contains "explains what it protects" "wait for you in the browser" "$out"
 contains "names the workflow line the user must add" "environment: production" "$out"
 
 # With WTC_NO_NETWORK the environment step must be skipped entirely.
