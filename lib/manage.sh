@@ -70,7 +70,13 @@ cmd_list() {
       worktree_running "$repo" "$WT_LABEL" && running="running"
       local size="—"
       [ -n "$want_size" ] && size=$(du -sh "$wt" 2>/dev/null | awk '{print $1}')
-      printf '  %-16s %-22s %6s   %s\n' "$WT_LABEL" "$WT_BRANCH" "$size" "$running"
+      # The directory name, always — two worktrees can share a label
+      # (role_tag() falls back to the first three letters of an unknown role,
+      # so "devops" and "developer" both read DEV); a user reading this list
+      # has to be able to build a `wtc drop` command that means what they
+      # think, and the label alone can't promise that. See cmd_drop()'s own
+      # ambiguity handling for the other half of this.
+      printf '  %-16s %-24s %-22s %6s   %s\n' "$WT_LABEL" "$(basename "$wt")" "$WT_BRANCH" "$size" "$running"
     done
   done
 
@@ -96,19 +102,55 @@ cmd_drop() {
   local repo_dir="$PROJECTS_DIR/$repo"
   [ -e "$repo_dir/.git" ] || die "$repo_dir is not a git repository"
 
-  # Find the worktree whose label matches by asking git/the filesystem what
-  # actually exists — never build a path from $label itself. A tool that
-  # deletes the wrong directory because a name contained something
-  # unexpected is the worst bug this project could ship.
+  # Resolve the target by asking git/the filesystem what actually exists —
+  # never build a path from $label itself. A tool that deletes the wrong
+  # directory because a name contained something unexpected is the worst bug
+  # this project could ship.
+  #
+  # Two honest worktrees can share a label: role_tag() abbreviates an
+  # unrecognised role to its first three letters, so "devops" and
+  # "developer" both read DEV, and which directory a first-match loop would
+  # have picked depended on glob order — which is locale-dependent (measured:
+  # LC_ALL=de_DE.UTF-8 and LC_ALL=C sorted `demo-developer` and
+  # `demo-devops` differently on this same machine). So: collect every
+  # candidate, not just the first. The directory name is always unique
+  # (the filesystem guarantees it), so it's checked first and, if it
+  # matches, wins outright — no ambiguity possible from it.
   local match="" wt base
+  local dirname_match="" candidates=()
   for wt in "$repo_dir"/.worktrees/*/; do
     [ -e "$wt" ] || continue
     wt=${wt%/}
     base=$(basename "$wt")
+    [ "$base" = "$label" ] && dirname_match=$wt
     describe_worktree "$repo" "$base"
-    if [ "$WT_LABEL" = "$label" ]; then match=$wt; break; fi
+    [ "$WT_LABEL" = "$label" ] && candidates+=("$wt")
   done
-  [ -n "$match" ] || die "no worktree named '$label' in $repo — see \`wtc list $repo\`"
+
+  if [ -n "$dirname_match" ]; then
+    match=$dirname_match
+  elif [ "${#candidates[@]}" -eq 1 ]; then
+    match=${candidates[0]}
+  elif [ "${#candidates[@]}" -eq 0 ]; then
+    die "no worktree named '$label' in $repo — see \`wtc list $repo\`"
+  else
+    # More than one candidate. This refuses unconditionally — before the
+    # --force check below, and not reachable through it — because --force
+    # exists to override what a worktree CONTAINS (uncommitted changes,
+    # unpushed commits, an open window), never to proceed without knowing
+    # WHICH worktree it's about to remove.
+    {
+      printf 'wtc: "%s" matches more than one worktree in %s:\n\n' "$label" "$repo"
+      for wt in "${candidates[@]}"; do
+        describe_worktree "$repo" "$(basename "$wt")"
+        printf '  %-5s %-24s %s\n' "$WT_LABEL" "$(basename "$wt")" "$WT_BRANCH"
+      done
+      printf '\nUse the directory name to say which one:\n  wtc drop %s %s\n' \
+        "$repo" "$(basename "${candidates[0]}")"
+    } >&2
+    exit 1
+  fi
+  describe_worktree "$repo" "$(basename "$match")"
 
   if [ "$force" -ne 1 ]; then
     local dirty; dirty=$(git -C "$match" status --porcelain 2>/dev/null)
@@ -123,7 +165,11 @@ cmd_drop() {
       die "$label has $n commit(s) on $WT_BRANCH not on any remote — push them, or pass --force"
     fi
 
-    if worktree_running "$repo" "$label"; then
+    # WT_LABEL, not $label: a tmux window is named after the label
+    # cmd_start() gave it, which is what the user typed only when they
+    # typed the label — if they typed the directory name instead, $label
+    # would never match a real window and this check would silently miss.
+    if worktree_running "$repo" "$WT_LABEL"; then
       die "$label has a tmux window open in session $(session_name "$repo") — close it first, or pass --force"
     fi
   fi
@@ -139,8 +185,8 @@ cmd_drop() {
   git -C "$repo_dir" worktree remove $git_force "$match" \
     || die "git would not remove $match — see \`git -C $repo_dir worktree list\` for why"
 
-  if worktree_running "$repo" "$label"; then
-    tmux kill-window -t "$(session_name "$repo"):$label" 2>/dev/null
+  if worktree_running "$repo" "$WT_LABEL"; then
+    tmux kill-window -t "$(session_name "$repo"):$WT_LABEL" 2>/dev/null
   fi
 
   printf 'removed %s (%s) — freed %s\n' "$label" "$match" "${size:-an unknown amount}"

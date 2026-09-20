@@ -27,6 +27,13 @@ echo "wtc list: shows what exists"
 "$WTC" demo developer >/dev/null 2>&1
 "$WTC" demo developer eyeoffice >/dev/null 2>&1
 "$WTC" other developer >/dev/null 2>&1
+# A worktree whose directory name and branch differ, built directly like the
+# drop-ambiguity fixtures below: wtc's own worktrees always name the branch
+# after the directory, which would let a dirname-column check pass even if
+# the column were actually just repeating the branch column.
+git -C "$SANDBOX/demo" worktree add "$SANDBOX/demo/.worktrees/demo-mismatch" -b totally-different-branch >/dev/null 2>&1
+mkdir -p "$SANDBOX/demo/.worktrees/demo-mismatch/.agents"
+printf 'developer\n' > "$SANDBOX/demo/.worktrees/demo-mismatch/.agents/ROLE"
 out=$(WTC_PROJECTS_DIR="$SANDBOX" "$WTC" list 2>&1)
 # An exact-line match, not `contains`: "demo" is also a substring of every
 # branch name printed below it ("demo-developer"), which would pass even if
@@ -38,7 +45,21 @@ contains "lists the other heading" "other" "$out"
 # the plain row's own label broke.
 contains "tags the plain developer worktree DEV" "  DEV " "$out"
 contains "tags the suffixed one with its name" "DEV·eyeoffice" "$out"
+# The directory name, not just the branch: two rows can share a label (see
+# the drop-ambiguity tests below), and the directory name is the only column
+# that always tells them apart — a reader has to be able to build a `drop`
+# command from what's on screen. Checked on the mismatch fixture, where the
+# directory name and branch are genuinely different strings — on wtc's own
+# worktrees they're identical, so a check there couldn't tell "shows the
+# directory name" from "shows the branch again."
+contains "shows a directory name that differs from its branch" "demo-mismatch" "$out"
+contains "... alongside that actual branch name" "totally-different-branch" "$out"
 contains "shows the branch wtc created" "demo-developer-eyeoffice" "$out"
+# Done with it — it was only here to prove the dirname column isn't just the
+# branch column twice, and its DEV label would otherwise collide with
+# demo-developer for every `drop` test below (a real collision, correctly
+# refused, but not what those tests are checking).
+git -C "$SANDBOX/demo" worktree remove --force "$SANDBOX/demo/.worktrees/demo-mismatch" >/dev/null 2>&1
 contains "sizes are off by default — du is slow on a large tree" "sizes omitted" "$out"
 lacks "an idle worktree is not claimed to be running" "running" "$(WTC_PROJECTS_DIR="$SANDBOX" "$WTC" list demo 2>&1)"
 
@@ -105,6 +126,48 @@ check "exits 0" "0" "$?"
 contains "confirms the removal" "removed" "$out"
 check "the worktree is actually gone, not just claimed to be" "no" \
   "$([ -d "$SANDBOX/demo/.worktrees/demo-developer" ] && echo yes || echo no)"
+
+echo "wtc drop: refuses an ambiguous label, and deletes neither"
+# Two honest worktrees sharing a label: role_tag() abbreviates an
+# unrecognised role to its first three letters, so a "devops" worktree reads
+# DEV, same as "developer" — collision, not corruption. Built directly
+# (skipping cmd_start, which requires a role file) since describe_worktree()
+# is documented to handle a worktree wtc didn't create.
+git -C "$SANDBOX/demo" worktree add "$SANDBOX/demo/.worktrees/demo-developer" -b demo-developer-2 >/dev/null 2>&1
+mkdir -p "$SANDBOX/demo/.worktrees/demo-developer/.agents"
+printf 'developer\n' > "$SANDBOX/demo/.worktrees/demo-developer/.agents/ROLE"
+git -C "$SANDBOX/demo" worktree add "$SANDBOX/demo/.worktrees/demo-devops" -b demo-devops >/dev/null 2>&1
+mkdir -p "$SANDBOX/demo/.worktrees/demo-devops/.agents"
+printf 'devops\n' > "$SANDBOX/demo/.worktrees/demo-devops/.agents/ROLE"
+
+out=$(WTC_PROJECTS_DIR="$SANDBOX" "$WTC" drop demo DEV 2>&1)
+check "exits 1" "1" "$?"
+contains "names the first candidate by directory" "demo-developer" "$out"
+contains "names the second candidate by directory" "demo-devops" "$out"
+contains "suggests the directory name as the way out" "Use the directory name" "$out"
+check "neither worktree was removed" "yes yes" \
+  "$([ -d "$SANDBOX/demo/.worktrees/demo-developer" ] && echo yes || echo no) $([ -d "$SANDBOX/demo/.worktrees/demo-devops" ] && echo yes || echo no)"
+
+echo "wtc drop: --force does not override an ambiguous label"
+out=$(WTC_PROJECTS_DIR="$SANDBOX" "$WTC" drop demo DEV --force 2>&1)
+check "still exits 1" "1" "$?"
+contains "still refuses, by name" "matches more than one worktree" "$out"
+check "still neither worktree was removed" "yes yes" \
+  "$([ -d "$SANDBOX/demo/.worktrees/demo-developer" ] && echo yes || echo no) $([ -d "$SANDBOX/demo/.worktrees/demo-devops" ] && echo yes || echo no)"
+
+echo "wtc drop: the directory name resolves an ambiguous label unambiguously"
+out=$(WTC_PROJECTS_DIR="$SANDBOX" "$WTC" drop demo demo-devops --force 2>&1)
+check "exits 0" "0" "$?"
+contains "removes exactly that one" "removed" "$out"
+check "demo-devops is gone" "no" \
+  "$([ -d "$SANDBOX/demo/.worktrees/demo-devops" ] && echo yes || echo no)"
+check "demo-developer is untouched" "yes" \
+  "$([ -d "$SANDBOX/demo/.worktrees/demo-developer" ] && echo yes || echo no)"
+
+echo "wtc drop: with the collision gone, the label alone works again"
+out=$(WTC_PROJECTS_DIR="$SANDBOX" "$WTC" drop demo DEV --force 2>&1)
+check "exits 0" "0" "$?"
+contains "removes it" "removed" "$out"
 
 echo "wtc drop: an unknown label is explained, not confused with a missing repo"
 out=$(WTC_PROJECTS_DIR="$SANDBOX" "$WTC" drop other NOSUCH 2>&1)
