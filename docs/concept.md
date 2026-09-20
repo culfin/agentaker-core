@@ -35,7 +35,7 @@ time, without touching each other's files.
 ```
 ① TOOL       mandate itself             universal, knows no project
              roles/   _base · developer · reviewer · maintainer · none
-             bin/mdt  init · start · attach · status
+             bin/mdt  init · start · attach · status · list · drop · restart
              agents/  five subagents (Claude Code only, see docs/tools.md)
 
 ② PROJECT    <repo>/AGENTS.md                  committed, ~20 lines, standard format
@@ -53,9 +53,15 @@ its contents into the session's system prompt would just be a second copy that
 can drift from the first.
 
 The assembled text lands in `<worktree>/.agents/context.md`. It is never
-committed — `mdt` adds `.agents/` to that worktree's `git info/exclude` the
-first time it runs there, so it produces no `git status` noise and nothing
-gets committed by accident.
+committed — `mdt` adds `.agents/` to `git info/exclude` the first time it runs
+in a worktree, so it produces no `git status` noise and nothing gets
+committed by accident. Measured: that file is the *repository's* shared
+`info/exclude` (`<repo>/.git/info/exclude`), not a per-worktree one — git
+does not support the latter, so the entry covers `.agents/` in every worktree
+of the repository at once, not only the one that triggered the write. The
+first `mdt <repo> <role>` (or `mdt init`) in a fresh checkout is therefore
+also the first time `mdt` writes into that checkout's `.git/` — worth knowing
+before you point it at a repository you don't otherwise expect it to touch.
 
 ## Why roles are technology-free
 

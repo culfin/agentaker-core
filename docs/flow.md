@@ -81,7 +81,7 @@ The concrete fact that makes the native state usable at all is the same one
 that makes the reviewer's own account necessary. Measured directly, on a PR
 authored by the account attempting to review it:
 
-    $ gh pr review 163 --approve
+    $ gh pr review 42 --approve
     failed to create review: Can not approve your own pull request
 
 GitHub refuses both `--approve` and `--request-changes` on your own pull

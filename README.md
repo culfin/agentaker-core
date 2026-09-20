@@ -53,12 +53,24 @@ Three worktrees, three branches, three roles, one repository. See
 git clone https://github.com/culfin/mandate ~/.mandate
 ln -s ~/.mandate/bin/mdt ~/bin/mdt   # not on your PATH? see docs/setup.md
 
-mdt init myproject          # walks setup step by step, see docs/adding-a-project.md
+mdt init myproject          # myproject means ~/Projekte/myproject — see below
 mdt myproject developer     # opens a session that knows it's a developer
 mdt list                    # see every worktree, across every project
 mdt drop myproject DEV      # remove one — refuses unless it's safe to
 mdt restart myproject DEV   # hand over, replace the process, resume
 ```
+
+`mdt init myproject` and everything after it look for `myproject` under
+`MDT_PROJECTS_DIR` — default `~/Projekte` (German for "projects", not a typo).
+If your repositories live somewhere else, say `~/code`, set that first:
+
+```bash
+export MDT_PROJECTS_DIR=~/code
+```
+
+Otherwise the very first command fails with `myproject is not a git
+repository`, which reads like `mdt` is broken rather than pointed at the
+wrong directory.
 
 `mdt init` proposes an `AGENTS.md`, creates the `ready` / `needs-decision`
 labels, and creates the three role worktrees — confirming each step, not

@@ -34,6 +34,20 @@ reviewer:            # GitHub login of the account that reviews here — see doc
 
 # no test command detected — fill this in
 
+## Review tools
+
+    # optional — file globs mapped to review skills or linters, one per line, e.g.:
+    # .rs   rust-best-practices
+
+## Subagents
+
+    # optional — specialists under agents/ that apply here, one per line, e.g.:
+    # engineering-privacy-engineer
+
+## Roles
+
+developer reviewer maintainer
+
 ## Production boundary
 
 The one line an agent must never cross on its own. Examples:
@@ -41,11 +55,9 @@ The one line an agent must never cross on its own. Examples:
     git push origin main:production
     npm publish
 
-Replace this with yours. Until you do, agents will refuse to release.
-
-## Roles
-
-developer reviewer maintainer
+Replace this with yours. This line is a boundary agents are asked to respect,
+not one they are forced to observe — only a protected environment (offered
+next, or see docs/setup.md) actually makes a release wait for you.
 
   Write this file? (y/n) [y]
   written: /Users/you/Projekte/myproject/AGENTS.md — edit the production boundary before you rely on it.
@@ -55,7 +67,7 @@ developer reviewer maintainer
 
 The production boundary needs a lock: a protected environment makes the
 job wait for you in the browser, whoever triggered it.
-  Create a protected "production" environment? (y/n) [y]
+  Create or update a protected "production" environment? (y/n) [y]
   environment created: production (you are the required reviewer)
 
   One line is still yours to add, on the job that crosses the boundary:
@@ -69,10 +81,17 @@ job wait for you in the browser, whoever triggered it.
 (The production-environment step above needs a plan that supports required
 reviewers — a public repository, or GitHub Pro/Team/Enterprise for a private
 one. Without that, the API call fails with `422` and `init` prints `could not
-create the environment — create it by hand, see docs/setup.md` instead of
-`environment created: ...`, then carries on to the worktree step regardless —
-see `docs/setup.md` step 3 for the exact error and what it means. Measured
-directly: a private repository on a free plan hits this every time.)
+create or update the environment — create it by hand, see docs/setup.md`
+instead of `environment created: ...`, then carries on to the worktree step
+regardless — see `docs/setup.md` step 3 for the exact error and what it
+means. Measured directly: a private repository on a free plan hits this every
+time.
+
+`init` checks first whether `production` already exists, so a *second* run
+against the same repository prints `environment updated: production already
+existed — …` instead of `environment created: …` — see `docs/setup.md` step 3
+for what that distinction does and doesn't tell you about rules already on
+the environment.)
 
 (This is the outcome with a GitHub remote that the current `gh` login can
 create labels on. Against a repository with no configured remote — as in the
@@ -111,7 +130,7 @@ commit before worktree creation; Route A's confirm-each-step design doesn't,
 so the step has to be named explicitly instead.)
 
 (This transcript is real, run against a throwaway repository — the wording
-matches `init()` in `bin/mdt`. `stack: unknown` because the throwaway
+matches `cmd_init()` in `lib/init.sh`. `stack: unknown` because the throwaway
 repository had no `Cargo.toml`/`package.json`/etc. to detect; a real project
 would show something like `Rust Tauri Svelte`, which also changes the
 suggested test commands.)
@@ -127,8 +146,11 @@ name: trunk, reviewer, test commands, production boundary.
 At this point you have `AGENTS.md`, two labels, and three worktrees
 (`.worktrees/myproject-developer`, `-reviewer`, `-maintainer`) each carrying
 its own `.agents/ROLE`. **You still have to open `AGENTS.md` and fill in the
-production boundary** — `init` writes a placeholder that refuses to release
-until you replace it, deliberately.
+production boundary** — `init` writes a placeholder there, but nothing about
+it refuses anything by itself: it is a sentence an agent is asked to respect.
+Only a protected environment (offered earlier in this walkthrough, or see
+`docs/setup.md`) actually makes a release wait for you — see `docs/roles.md`
+for which boundaries in this tool are agreed and which are enforced.
 
 ## Route B: entirely by hand
 
@@ -185,9 +207,15 @@ cd ~/Projekte/myproject
 git worktree add .worktrees/myproject-developer -b myproject-developer
 mkdir -p .worktrees/myproject-developer/.agents
 echo developer > .worktrees/myproject-developer/.agents/ROLE
-cat roles/_base.md roles/developer.md > .worktrees/myproject-developer/.agents/context.md
+cat ~/.mandate/roles/_base.md ~/.mandate/roles/developer.md > .worktrees/myproject-developer/.agents/context.md
 echo '.agents/' >> .git/info/exclude
 ```
+
+`roles/` lives in the `mandate` installation (`~/.mandate`, per `docs/setup.md`
+step 1), not in the project checkout — adjust the path if you linked `mdt`
+somewhere else. `.git/info/exclude` is this checkout's own, run from its
+top level: git does not support a per-worktree exclude file, so this is also
+where the worktree's own `.agents/` gets excluded — see `docs/concept.md`.
 
 Repeat for `reviewer` and `maintainer`. (`mdt` does the `_base.md` + role
 concatenation with a blank line between the two files, not a bare `cat`; the
@@ -263,3 +291,12 @@ Some coding agents only read `AGENTS.md` when no tool-specific file
 property of the reading tool, not of `mandate`. If your project has one
 of those files, add a line to it pointing at `AGENTS.md` so the project
 knowledge isn't silently shadowed.
+
+**`mdt list developer` (or `attach`/`drop`/`init`/`restart`/`status`) says
+`.../developer is not a git repository`.**
+A project literally named one of `mdt`'s six subcommands can't be reached
+through the shape that names it — `bin/mdt` matches the first word against
+those six before it ever falls back to `<repo> <role>`, so `mdt list
+developer` runs `list` filtered to a repo called `developer`, not "start
+`developer` in the repo called `list`". See `docs/limits.md` for the full
+explanation; the fix is renaming the project, not the command.

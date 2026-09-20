@@ -1,6 +1,8 @@
 # Roles
 
-Three roles, plus `none` for a worktree that should not be worked in.
+Three roles, plus `none` for a worktree that should not be worked in — set it
+the same way as any other role, `mdt <repo> none [suffix]`; see
+`docs/limits.md` for when that's the right call.
 
 | Role | Worktree sits on | Does |
 |---|---|---|

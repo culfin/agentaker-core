@@ -27,7 +27,7 @@ longer points at it.
 This is what makes reviews work. A forge refuses to let an author approve their
 own pull request:
 
-    $ gh pr review 163 --approve
+    $ gh pr review 42 --approve
     failed to create review: Can not approve your own pull request
 
 The break happens earlier than that message suggests, and quietly: `gh pr
@@ -76,7 +76,12 @@ first approval, not at session start:
 
 `mdt init` offers to do this; here it is by hand.
 
-One API call creates an environment that requires your approval:
+One API call creates the environment — or updates it, if `production` already
+exists under a different rule set. `PUT` is both; there is no separate create
+call. `mdt init` checks first and tells you which one happened, but GitHub
+does not document whether updating preserves rules the PUT doesn't mention —
+if the environment already had other rules, verify with the command below
+rather than assuming either way:
 
     MYID=$(gh api user --jq .id)
     printf '{"reviewers":[{"type":"User","id":%s}]}' "$MYID" \
@@ -106,6 +111,11 @@ the fix is the plan or the repo's visibility, not the recipe.
 
 ## 4. Set up a project
 
+`<repo>` below is resolved under `MDT_PROJECTS_DIR` (default `~/Projekte`) —
+set it first if your repositories live somewhere else, or `init` fails with
+"not a git repository" against a path that doesn't exist:
+
+    export MDT_PROJECTS_DIR=~/code   # only if your repos aren't under ~/Projekte
     mdt init <repo>
 
 See [adding-a-project.md](adding-a-project.md) for what it does and how to do
@@ -159,3 +169,10 @@ for what `--fresh` costs you when you use it instead:
 
     mdt restart myproject DEV --fresh   # replace without asking — loses state
     mdt restart --all                   # every running session, across every project
+
+`--all` restarts one session at a time, not in parallel, so it prints the
+worst case up front before starting anything: N running sessions is up to
+N × `MDT_HANDOFF_TIMEOUT` if every one of them is wedged and times out
+waiting for a handover — six sessions at the 60s default is up to six
+minutes, and that line is what tells you before it starts, not partway
+through.

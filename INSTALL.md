@@ -75,6 +75,12 @@ If the trunk is not what they expect — a stale `main` next to an active
 `development`, say — point that out. Working against the wrong branch is a
 failure mode that stays invisible for days.
 
+`mdt init <repo>` in Phase 4 resolves `<repo>` under `MDT_PROJECTS_DIR`
+(default `~/Projekte`) — it takes a name, not the path you just confirmed
+above. Check the repository actually lives there; if it doesn't, tell them to
+`export MDT_PROJECTS_DIR=<parent directory>` before Phase 4, or `mdt init`
+fails with "not a git repository" against a path that was never theirs.
+
 ### Phase 3 — Read the project, then propose
 
 This is the part a script cannot do. **Read, do not guess.**

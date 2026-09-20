@@ -9,6 +9,10 @@ reviewer: example-reviewer
     uv run ruff check .
     uv run mypy src
 
+## Review tools
+
+    .py  ruff, mypy
+
 ## Subagents
 
 engineering-minimal-change-engineer

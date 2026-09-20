@@ -5,17 +5,22 @@
 ```bash
 bash tests/run.sh      # every tests/test_*.sh file, no framework — prints "passed: N failed: N" per file
 bin/mdt-lint .          # checks the repository stays internally consistent
+shellcheck -S warning bin/mdt lib/init.sh lib/manage.sh lib/tabs.sh bin/mdt-lint hooks/load_role.sh
 ```
 
 (The assertion count isn't stated here on purpose — it only ever goes stale by
 being hand-maintained. Run the command; the total is the sum of each file's
 `passed:` line.)
 
-Both must be clean before a PR. `bin/mdt-lint` isn't a check of your working
-copy — it checks that examples don't name a role or subagent this repository
-doesn't ship, that every `examples/*.AGENTS.md` has the sections the flow
-depends on (`trunk:`, `reviewer:`, `## Test commands`, `## Production
-boundary`), and that nothing under `roles/` names a specific vendor.
+All three must be clean before a PR — CI runs all three (`.github/workflows/ci.yml`),
+so a green `tests/run.sh` and `bin/mdt-lint` alone isn't green CI.
+`bin/mdt-lint` isn't a check of your working copy — it checks that examples
+don't name a role or subagent this repository doesn't ship, that every
+`examples/*.AGENTS.md` has the sections the flow depends on (`trunk:`,
+`reviewer:`, `## Test commands`, `## Production boundary`), and that nothing
+under `roles/` names a specific vendor. `shellcheck` isn't repository-specific
+at all — it's the standard shell linter, pointed at every script this project
+ships.
 
 ### An assertion must have been seen to fail
 
@@ -56,12 +61,18 @@ and `## Production boundary` at minimum (`bin/mdt-lint` checks this), and any
 role or subagent it names under `## Roles` / `## Subagents` must exist in this
 repository.
 
-## `bin/mdt` and `lib/init.sh` stay under 450 lines each
+## `bin/mdt`, `lib/init.sh`, `lib/manage.sh` and `lib/tabs.sh` stay under 450 lines each
 
 `bin/mdt` holds the three everyday subcommands; `lib/init.sh` holds `init`,
-which runs once per project. Both stay under 450 lines. The ceiling guards
-readability, not a budget: when a file approaches it, ask which block has
-become its own concern rather than raising the number.
+which runs once per project; `lib/manage.sh` holds `list`, `drop` and
+`restart`; `lib/tabs.sh` holds the tab-legibility helpers (role tag, iTerm2
+colour, the pane wrapper) that `bin/mdt` and `lib/manage.sh` both call on
+every session start or restart — split out of `bin/mdt` once it neared the
+ceiling, not for on-demand loading like the other two (see the header comment
+in `lib/tabs.sh`). All four stay under 450 lines — `bin/mdt-lint` checks all
+four. The ceiling guards readability, not a budget: when a file approaches
+it, ask which block has become its own concern rather than raising the
+number.
 
 ## Subagents under `agents/` are frozen copies
 

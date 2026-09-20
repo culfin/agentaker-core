@@ -106,8 +106,9 @@ irreversible action an agent can take. That is why it is the only one with a loc
 ## No polling
 
 Nothing runs while you're not looking. `mdt status` answers "where is work
-waiting" on demand — it costs one `gh search` call per owner, not a
-background loop — but it doesn't notify you on its own, and no session
+waiting" on demand — it costs four `gh search` calls per owner (ready issues,
+the review queue, approved PRs, decisions waiting on you — `cmd_status()` in
+`bin/mdt`), not a background loop — but it doesn't notify you on its own, and no session
 advances work it wasn't asked to advance. If you want to know whether
 something moved, you ask; the tool never wakes anyone up by itself. This is a
 deliberate omission (see `docs/concept.md`), not a missing feature — it keeps
@@ -132,11 +133,15 @@ never tried.
 `mdt drop` removes a worktree that can run to several gigabytes and may hold
 the only copy of something. A yes/no prompt gets answered on reflex, the same
 way every other prompt that session has seen was — so instead of asking,
-`drop` checks three things (uncommitted changes, commits not on any remote, an
-open tmux window) and refuses by default, naming exactly what it found. Only
-`--force` proceeds anyway. This costs an extra step when you did mean it, on
-purpose: the cost of a false refusal is a few seconds re-running the command
-with `--force`; the cost of a false confirmation is the worktree.
+`drop` checks three things (uncommitted changes, commits not on any remote —
+on the worktree's own branch only, not every local branch in the repository —
+an open tmux window) and refuses by default, naming exactly what it found.
+Only `--force` proceeds anyway. This costs an extra step when you did mean
+it, on purpose: the cost of a false refusal is a few seconds re-running the
+command with `--force`; the cost of a false confirmation is the worktree.
+`--force` only costs what the refusal named — uncommitted files. The branch
+and its commits, pushed or not, survive `git worktree remove --force`; only
+the worktree directory and anything not yet committed in it go.
 
 ## A handover is only as good as the session that writes it
 
@@ -156,3 +161,28 @@ so, because a lost handover is exactly what this command exists to prevent.
 asking, and it loses whatever state existed. That trade is the whole point of
 naming it explicitly rather than falling back to it automatically — a session
 that silently lost its place is worse than one that stops and says so.
+
+## A project named `init`, `status`, `attach`, `list`, `drop` or `restart` is unreachable
+
+`bin/mdt`'s argument parsing matches the first word against the six
+subcommand names before it ever considers "everything else is `<repo>
+<role>`". A repository whose directory is actually named `list` (say) can
+never be reached as `mdt list <role>` — that always runs `cmd_list "<role>"`
+instead, and `mdt list list` looks like a `list` filtered to a repo called
+`list`, not a request to start a role there. The failure isn't loud: `mdt
+list developer` runs `mdt list` filtered to a repository named `developer`
+and answers `mdt: .../developer is not a git repository` if none exists,
+which reads like a typo rather than a name collision. Name a project one of
+the six subcommands and every subcommand-shaped invocation of it is gone;
+rename the directory (the six names are otherwise unremarkable) rather than
+working around this.
+
+## `none` marks a worktree nobody should work in
+
+`roles/none.md` isn't wired up any differently from the three real roles —
+`mdt <repo> none [suffix]` creates (or resumes) a worktree exactly the way
+`mdt <repo> developer` does, just with `.agents/ROLE` set to `none` and a role
+file that tells whatever reads it not to work there. Use it for a worktree
+that has to exist for some other reason — an old clone, a scratch area, a
+restore test — and would otherwise look like an idle `developer` worktree in
+`mdt list`.
