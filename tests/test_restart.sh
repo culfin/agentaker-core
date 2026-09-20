@@ -20,12 +20,16 @@ trap cleanup EXIT
 
 # Waits on input; writes .agents/handoff.md the moment a line contains the
 # handover phrase, then exits. Playing the currently-running coding session.
+# Also logs every raw line it receives to .agents/input.log — not needed by
+# most tests, but it's what lets the corrupted-input test below see what
+# actually arrived, not just whether a match happened to fire.
 cat > "$STUB/fake-agent-responsive.sh" <<'EOF'
 #!/usr/bin/env bash
+mkdir -p "$PWD/.agents"
 while IFS= read -r line; do
+  printf '%s\n' "$line" >> "$PWD/.agents/input.log"
   case "$line" in
     *"hand over"*)
-      mkdir -p "$PWD/.agents"
       printf 'Working on: pretend issue\nNext: nothing\n' > "$PWD/.agents/handoff.md"
       exit 0
       ;;
@@ -105,6 +109,22 @@ check "allow-rename is still off" "off" \
 check "remain-on-exit was put back (not left on)" "off" \
   "$(tmux show-window-options -t "wtc-demo:DEV·happy" | awk '$1=="remain-on-exit"{print $2}')"
 
+echo "wtc restart: a half-typed line does not corrupt the handover phrase"
+make_worktree corrupt
+open_window corrupt "$STUB/fake-agent-responsive.sh"
+# No Enter — this sits in the pane's input buffer, exactly where a stray
+# keystroke or an unfinished thought would be when restart is asked for.
+tmux send-keys -t "wtc-demo:DEV·corrupt" "half-typed leftover"
+WTC_PROJECTS_DIR="$SANDBOX" "$WTC" restart demo DEV·corrupt >/dev/null 2>&1
+sleep 0.3
+log=$(cat "$SANDBOX/demo/.worktrees/demo-developer-corrupt/.agents/input.log" 2>/dev/null)
+contains "the stand-in received the handover phrase" "hand over now" "$log"
+# The load-bearing half: without the C-u clearing the buffer first, the
+# stale text and the phrase arrive concatenated as one line
+# ("half-typed leftoverPlease hand over now...") instead of the phrase
+# arriving on its own.
+lacks "and it was not prefixed with the leftover buffer text" "leftoverPlease hand over now" "$log"
+
 echo "wtc restart: --fresh replaces without asking, and does not wait"
 make_worktree fresh
 open_window fresh "$STUB/fake-agent-silent.sh"
@@ -178,6 +198,33 @@ out=$(WTC_PROJECTS_DIR="$SANDBOX" "$WTC" restart demo 2>&1)
 check "exits 2" "2" "$?"
 contains "prints usage" "Usage:" "$out"
 
+echo "wtc restart: a respawn-pane failure is reported, not claimed as a restart"
+make_worktree respawnfail
+open_window respawnfail "$STUB/fake-agent-responsive.sh"
+# A `tmux` on PATH ahead of the real one, transparent for everything except
+# respawn-pane, which it fails deterministically. This exercises the real
+# restart_window() end to end — handover, build_context, launch_command all
+# run for real — only the final respawn is made to fail, exactly the case
+# respawn_rc exists to catch.
+TMUXSTUB=$(mktemp -d)
+REAL_TMUX=$(command -v tmux)
+cat > "$TMUXSTUB/tmux" <<EOF
+#!/usr/bin/env bash
+if [ "\$1" = "respawn-pane" ]; then
+  echo "tmux: respawn-pane stubbed to fail for this test" >&2
+  exit 1
+fi
+exec "$REAL_TMUX" "\$@"
+EOF
+chmod +x "$TMUXSTUB/tmux"
+out=$(PATH="$TMUXSTUB:$PATH" WTC_PROJECTS_DIR="$SANDBOX" "$WTC" restart demo DEV·respawnfail 2>&1)
+check "exits 1, not 0" "1" "$?"
+contains "says the respawn failed" "would not respawn" "$out"
+lacks "and does not also claim a restart happened" "restarted DEV·respawnfail in demo" "$out"
+check "remain-on-exit was put back even though it failed" "off" \
+  "$(tmux show-window-options -t "wtc-demo:DEV·respawnfail" | awk '$1=="remain-on-exit"{print $2}')"
+rm -rf "$TMUXSTUB"
+
 echo "wtc restart --all: skips a dirty worktree, restarts a clean one"
 # --all has no repo argument — it sweeps every running window under
 # PROJECTS_DIR, so the windows opened above have to be closed first, or
@@ -185,8 +232,10 @@ echo "wtc restart --all: skips a dirty worktree, restarts a clean one"
 # the claude stub, which never reads stdin — a handover request to either
 # would just sit until WTC_HANDOFF_TIMEOUT).
 tmux kill-window -t "wtc-demo:DEV·happy" 2>/dev/null
+tmux kill-window -t "wtc-demo:DEV·corrupt" 2>/dev/null
 tmux kill-window -t "wtc-demo:DEV·fresh" 2>/dev/null
 tmux kill-window -t "wtc-demo:DEV·timeout" 2>/dev/null
+tmux kill-window -t "wtc-demo:DEV·respawnfail" 2>/dev/null
 make_worktree allclean
 open_window allclean "$STUB/fake-agent-responsive.sh"
 make_worktree alldirty
