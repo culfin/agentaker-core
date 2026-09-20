@@ -1,8 +1,107 @@
 # worktree-crew
 
 Give each AI coding session a fixed role and its own git worktree.
-GitHub is the handoff. No polling, no message bus, no database.
 
-Works with any coding agent that can take a system prompt at startup.
+## The problem
 
-Documentation lands in `docs/` — see Task 9.
+Several AI sessions work on one project. Each one gets briefed from scratch —
+how this project tests, who reviews, where the line is it must not cross —
+and something in that briefing gets forgotten every time. Meanwhile sessions
+collide over files because they share one checkout.
+
+## The picture
+
+```
+myproject/
+├── .worktrees/
+│   ├── myproject-developer/    branch: myproject-developer   role: developer
+│   ├── myproject-reviewer/     branch: review/<N>            role: reviewer
+│   └── myproject-integrator/   branch: main (the trunk)      role: integrator
+└── AGENTS.md                   committed — trunk, tests, reviewer, production boundary
+
+developer  --draft PR, ready, request review-->  reviewer
+                ^                                    |
+                |                          --approve / --request-changes
+                +---------- re-request <-------------+ (changes requested)
+                                                       |
+                                                  (approved)
+                                                       v
+                                                  integrator  --> merge, tag, ship
+```
+
+Three worktrees, three branches, three roles, one repository. See
+`docs/flow.md` for the exact commands at each step.
+
+## Quickstart
+
+```bash
+git clone https://github.com/culfin/worktree-crew ~/.worktree-crew
+export PATH="$HOME/.worktree-crew/bin:$PATH"   # add this line to your shell profile
+
+wtc init myproject          # walks setup step by step, see docs/adding-a-project.md
+wtc myproject developer     # opens a session that knows it's a developer
+```
+
+`wtc init` proposes an `AGENTS.md`, creates the `ready` / `needs-decision`
+labels, and creates the three role worktrees — confirming each step, not
+hiding it. Requires `git`, `gh` and `tmux`; no runtime, no package manager.
+Full walkthrough, including the equivalent by-hand steps and troubleshooting,
+in [docs/adding-a-project.md](docs/adding-a-project.md).
+
+## The one idea
+
+> The role says how you work. The project says what with.
+
+A "Rust developer" and a "Next.js developer" aren't two roles — they're the
+same role doing the same process in two projects:
+
+| | Rust/Tauri project | Next.js project |
+|---|---|---|
+| Role file (`roles/developer.md`) | identical | identical |
+| Test command (`AGENTS.md`) | `cargo test --workspace` | `pnpm test` |
+| Review tools (`AGENTS.md`) | `rust-best-practices`, `tauri-v2` | `next-best-practices` |
+
+Roles carry process and permissions; projects carry what the process is
+applied to. See [docs/concept.md](docs/concept.md).
+
+## Works with any coding agent
+
+Only one function in `bin/wtc` — `launch_command()` — knows about a specific
+coding agent. Everything else (worktrees, roles, the GitHub flow, `AGENTS.md`)
+is vendor-neutral. Claude Code is verified; other tools range from unverified
+to "paste this file in yourself." See [docs/tools.md](docs/tools.md) for
+exactly which is which — it does not imply parity where none has been
+checked.
+
+## What this deliberately is not
+
+- No message bus. GitHub carries the state.
+- No board, no queue, no database. An issue and a PR *are* the state.
+- No polling. Nothing happens while you're not looking; `wtc status` answers
+  on demand, it doesn't watch.
+
+## Limits, in three lines
+
+One `integrator` per repository — git won't check out the same trunk branch
+twice. Disk is cheap (a Rust/Tauri worktree runs about 9 GB, mostly build
+output); memory is the real ceiling, and two concurrent `cargo` builds already
+strain a 32 GB machine. Role boundaries are self-imposed — the token can do
+more than the role allows; what stops it is the role file, not the forge. Full
+numbers and what they were measured on: [docs/limits.md](docs/limits.md).
+
+## Documentation
+
+- [docs/concept.md](docs/concept.md) — the problem, the one idea, the three layers
+- [docs/setup.md](docs/setup.md) — install, reviewer account, first project
+- [docs/adding-a-project.md](docs/adding-a-project.md) — the same setup twice, with `wtc init` and by hand, plus troubleshooting
+- [docs/roles.md](docs/roles.md) — permissions, what each role never does, and why they're not enforced
+- [docs/flow.md](docs/flow.md) — the GitHub states, the two labels, the review round trip
+- [docs/tools.md](docs/tools.md) — which coding agent integration is verified
+- [docs/limits.md](docs/limits.md) — measured numbers, not estimates
+
+## Licence and attribution
+
+MIT — see `LICENSE`. The five subagents under `agents/` and part of
+`roles/_base.md` are adapted from
+[agency-agents](https://github.com/msitarzewski/agency-agents) (MIT); see
+`NOTICE`.
