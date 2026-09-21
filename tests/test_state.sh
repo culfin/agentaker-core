@@ -129,8 +129,7 @@ echo "collect_state: an open PR with a claim actually held"
 # and check both steps. A silent `push -q` here made a CI failure look like a
 # lookup bug ("claim held: none") when the push itself was what went wrong —
 # a test that cannot tell those two apart is only half a test.
-claim_sha=$(git -C "$SANDBOX/demo" commit-tree \
-  "$(git -C "$SANDBOX/demo" hash-object -w -t tree /dev/null)" -m x </dev/null 2>&1) \
+claim_sha=$(printf 'claim test' | git -C "$SANDBOX/demo" hash-object -w --stdin 2>&1) \
   || { printf '  FAIL could not build the claim object\n       %s\n' "$claim_sha"; FAIL=$((FAIL + 1)); }
 claim_push=$(git -C "$SANDBOX/demo" push origin "${claim_sha}:refs/claims/issue-42" 2>&1) \
   || { printf '  FAIL could not push the claim ref\n       %s\n' "$claim_push"; FAIL=$((FAIL + 1)); }

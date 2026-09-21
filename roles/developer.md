@@ -28,7 +28,7 @@ will never see a ref while glancing at the issue in a browser:
 
 ```bash
 sha=$(printf 'claim %s' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-      | git commit-tree "$(git hash-object -w -t tree /dev/null)")
+      | git hash-object -w --stdin)
 if git push origin "${sha}:refs/claims/issue-<N>" 2>/dev/null; then
   gh issue edit <N> --add-assignee @me   # display only, may fail
 else
@@ -36,9 +36,15 @@ else
 fi
 ```
 
-The empty tree keeps the claim object minimal; the timestamp makes every
-claim unique, so two sessions never push the identical SHA — identical SHAs
-would be idempotent, and both pushes would "succeed" against the same ref.
+A blob, not a commit: `git commit-tree` refuses to run without a configured
+`user.name`, and a machine that has never had one — a fresh container, a CI
+runner — would fail the claim with `empty ident name`, which reads like a git
+setup problem rather than a claim problem. Measured: that is exactly how this
+failed on ubuntu-latest. A blob needs no identity, and GitHub accepts a ref
+pointing at one; measured, 8 runs of 3 simultaneous pushes, always exactly one
+winner. The timestamp makes every claim unique, so two sessions never push the
+identical SHA — identical SHAs would be idempotent, and both pushes would
+"succeed" against the same ref.
 `docs/flow.md` has the measurements behind why a ref push is the part that
 actually decides.
 
