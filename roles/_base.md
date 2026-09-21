@@ -71,6 +71,10 @@ rather than start a third round.
 
 ## Handing over
 
+Handing over is one of several things a phase boundary can mean — see
+`docs/phase-boundaries.md` for when this is the right call rather than
+continuing, clearing context, or something else.
+
 When you are asked to hand over, write `.agents/handoff.md` and then exit. Keep
 it short and concrete:
 
