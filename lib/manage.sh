@@ -8,7 +8,8 @@
 #
 # Needs from bin/tender: die(), usage(), role_tag(), session_name(),
 #   build_context(), launch_command(), wrap_launch_command(),
-#   read_reviewer_token(), PROJECTS_DIR, ROLES_DIR, TOOL
+#   read_reviewer_token(), PROJECTS_DIR, ROLES_DIR, TOOL, TENDER_HOME, and
+#   credential_recorded()/credential_wrapper_argv() from lib/credential.sh
 # Needs from lib/state.sh: collect_state() — bin/tender sources it alongside
 #   this file, only in the `restart` branch of its dispatch.
 # Provides to it:     nothing — cmd_list()/cmd_drop()/cmd_restart() are the
@@ -251,6 +252,7 @@ restart_window() {
     printf 'tender: no running session for %s in %s — see `tender list %s`\n' "$label" "$repo" "$repo" >&2
     return 1
   }
+  local cred; cred=$(credential_recorded "$wt") || return 1  # before anything is touched
 
   local handoff="$wt/.agents/handoff.md"
 
@@ -305,6 +307,7 @@ restart_window() {
     printf 'tender: no launch command known for tool %s\n' "${TOOL:-claude}" >&2
     return 1
   fi
+  [ -n "$cred" ] && credential_wrapper_argv "$TENDER_HOME" "$cred" "${LAUNCH_CMD[@]}"
 
   local token=""
   [ "$role" = "reviewer" ] && { token=$(read_reviewer_token) || token=""; }

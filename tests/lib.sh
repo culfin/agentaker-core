@@ -101,6 +101,9 @@ make_sandbox() {
   export TENDER_PROJECTS_DIR="$SANDBOX"
   export TENDER_DRY_RUN=1
   export TENDER_TOOLS_FILE="$SANDBOX/no-such-tools-file"
+  # Where a start records its credential label (lib/credential.sh) — kept
+  # out of the real ~/.local/state, which a test has no business writing to.
+  export TENDER_STATE_DIR="$SANDBOX/state"
   git init -q -b main "$SANDBOX/demo"
   git -C "$SANDBOX/demo" -c user.email=t@e -c user.name=t commit -q --allow-empty -m init
 }

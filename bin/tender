@@ -28,6 +28,7 @@ PROJECTS_DIR="${TENDER_PROJECTS_DIR:-$HOME/Projekte}"
 TOOL="${TENDER_TOOL:-}"
 DRY_RUN="${TENDER_DRY_RUN:-}"
 REVIEWER="${TENDER_REVIEWER:-}"
+CREDENTIAL="${TENDER_CREDENTIAL:-}"
 LAUNCH_CMD=()
 STATUS_FAILED=0
 STATUS_HAD_ROWS=0
@@ -45,6 +46,13 @@ die() { printf 'tender: %s\n' "$1" >&2; exit "${2:-1}"; }
 # for why it, too, is sourced unconditionally rather than on demand.
 # shellcheck source=lib/tools.sh
 . "$TENDER_HOME/lib/tools.sh" || die "cannot load $TENDER_HOME/lib/tools.sh"
+
+# credential_available() runs on the same hot path, for the same reason —
+# see lib/credential.sh's own header for why this one file is also the
+# script cmd_start() hands tmux to run directly, later, from inside the
+# new pane.
+# shellcheck source=lib/credential.sh
+. "$TENDER_HOME/lib/credential.sh" || die "cannot load $TENDER_HOME/lib/credential.sh"
 
 usage() {
   cat <<'EOF'
@@ -100,6 +108,10 @@ Environment:
                         of launching it (any non-empty value). The worktree,
                         its branch and .agents/ are still created — only the
                         agent process is skipped
+  TENDER_CREDENTIAL     label of a keychain entry (treetender-cred-<label>) to
+                        put into the started agent's environment — never its
+                        argv. A missing or unreadable entry aborts the start;
+                        see docs/setup.md, "Named credentials for an agent"
 EOF
 }
 
@@ -145,6 +157,15 @@ read_reviewer_token() {
   return 1
 }
 
+# After tmux accepted the window, never before and never on a dry run — see
+# credential_record() in lib/credential.sh. A record that cannot be written
+# is said out loud: the session runs, but a later restart would not know
+# which credential to put back.
+remember_credential() {
+  credential_record "$1" "$CREDENTIAL" \
+    || printf 'tender: could not record the credential label for %s — a restart would start it without one\n' "$1" >&2
+}
+
 cmd_start() {
   local repo=$1 role=$2 suffix=${3:-}
   local repo_dir="$PROJECTS_DIR/$repo"
@@ -174,6 +195,19 @@ cmd_start() {
 
   if [ "${TOOL_STATUS:-verified}" = unverified ]; then
     printf 'tender: the launch path for "%s" has never been run — if this session starts without its role, that is why. See docs/tools.md.\n' "$TOOL" >&2
+  fi
+
+  # A named credential (issue #5), unlike the reviewer token below, never
+  # falls back to starting without it: a missing or unreadable entry aborts
+  # the start outright, before tmux exists in the picture, rather than
+  # launching an agent that might quietly authenticate as someone else. See
+  # docs/setup.md, "Named credentials for an agent".
+  if [ -n "$CREDENTIAL" ]; then
+    valid_credential_label "$CREDENTIAL" \
+      || die "'$CREDENTIAL' is not a credential label (letters, digits, - and _; see TENDER_CREDENTIAL)"
+    credential_available "$CREDENTIAL" \
+      || die "no readable credential named '$CREDENTIAL' in the keychain — refusing to start without it. See docs/setup.md"
+    credential_wrapper_argv "$TENDER_HOME" "$CREDENTIAL" "${LAUNCH_CMD[@]}"
   fi
 
   # The reviewer runs under its own hosting account. Its token lives in the OS
@@ -225,7 +259,7 @@ cmd_start() {
       tmux new-window -t "$session" -c "$wt" -n "$window_label" -e "GH_TOKEN=$token" "${LAUNCH_CMD[@]}"
     else
       tmux new-window -t "$session" -c "$wt" -n "$window_label" "${LAUNCH_CMD[@]}"
-    fi
+    fi && remember_credential "$wt"
     tmux set-option -t "$session" set-titles on
     tmux set-option -t "$session" set-titles-string '#{s/^tender-//:#S} · #W'
     tmux attach -t "$session"
@@ -237,7 +271,7 @@ cmd_start() {
       tmux new-session -d -s "$session" -c "$wt" -n "$window_label" -e "GH_TOKEN=$token" "${LAUNCH_CMD[@]}"
     else
       tmux new-session -d -s "$session" -c "$wt" -n "$window_label" "${LAUNCH_CMD[@]}"
-    fi
+    fi && remember_credential "$wt"
     tmux set-option -t "$session" set-titles on
     tmux set-option -t "$session" set-titles-string '#{s/^tender-//:#S} · #W'
     tmux attach -t "$session"

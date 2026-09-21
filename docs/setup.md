@@ -207,3 +207,84 @@ only. If it is missing, `tender` says so and starts anyway — you find out at t
 first approval, not at session start:
 
     tender: no reviewer token found — approvals will fail. See docs/setup.md
+
+## 8. Named credentials for an agent
+
+A separate mechanism from the reviewer token above, and stricter: `tender` never
+starts an agent without a credential it was told to use. Where an app (not
+this project) has stored an API key under a label in the OS keychain,
+
+    TENDER_CREDENTIAL=work tender myproject developer
+
+picks that entry, puts it into the started agent's *environment*, and never
+lets it touch a process's argv — not `tender`'s own, not `tmux`'s, not the
+agent's. `tmux new-window`/`new-session` inherit the environment of the tmux
+*server*, not of the caller, which is why the reviewer token above is passed
+via `-e "GH_TOKEN=$token"` instead — but `-e "KEY=value"` puts the secret
+into `tmux`'s own argv, visible to `ps` for as long as that process runs.
+`TENDER_CREDENTIAL` avoids that: only the label travels through `tender`'s own argv
+and `tmux`'s; the value is fetched from inside the new pane's own process,
+right before the agent starts, by `lib/credential.sh` run directly rather
+than sourced (see its own header). `tests/test_credential.sh` proves this
+with `ps -o args` against the actual processes involved, not just by reading
+the code.
+
+Storage contract — the app writes what `tender` reads, so agree it here:
+
+    # macOS — -w last, with no value after it: security then prompts for it
+    security add-generic-password -s treetender-cred-work -a ANTHROPIC_API_KEY -w
+    # Linux (libsecret) — prompts for the value as well
+    secret-tool store --label="treetender-cred-work" service treetender-cred-work account ANTHROPIC_API_KEY
+
+Never type the value into the command line itself (`-w 'sk-…'`): it would
+land in the argv of `security` and in your shell history — exactly the
+exposure this mechanism exists to avoid.
+
+On macOS, a keychain entry is readable without a prompt only by the
+program that created it. An entry created with `security` as above is read
+back by `security`, so `tender` gets it silently. An entry an app wrote
+through its own keychain calls makes macOS ask once whether `security` may
+read it — answer "Always Allow", or the start waits on that dialog.
+
+- **service**: `treetender-cred-<label>` — `<label>` is what `TENDER_CREDENTIAL`
+  names, a plain identifier (letters, digits, `-` and `_`); it ends up in
+  both a keychain service name and a shell command line, so anything else is
+  rejected before use.
+- **account**: the environment variable name the started agent should see —
+  `tender` never knows this in advance. It exports whatever account name the
+  entry carries; which variable a given tool reads is the app's business,
+  not this project's.
+- **password**: the value.
+
+Unlike the reviewer token, a missing or unreadable credential is not a soft
+warning: `tender` refuses to start the session at all.
+
+    tender: no readable credential named 'work' in the keychain — refusing to start without it. See docs/setup.md
+
+An agent that started anyway, without its key, might quietly authenticate
+under some other, already-logged-in account instead — silently, and against
+whoever's login happened to be lying around. A failed start is cheaper than
+that. `TENDER_CREDENTIAL` unset behaves exactly as it did before this mechanism
+existed — nothing changes for a session that doesn't ask for a credential.
+
+`tender restart` keeps the credential. A start records the label — never
+the value — once tmux has actually opened the window (a dry run records
+nothing), under `${XDG_STATE_HOME:-~/.local/state}/treetender/credentials/`,
+outside the worktree, so an agent cleaning up its worktree cannot delete it.
+A restart says which label it restores and puts the same key back — or, if
+that entry has become unreadable, refuses before it touches the running
+session, which then keeps running as it was. Starting a second window in the
+same worktree replaces the record with that start's label.
+
+The key is looked up twice: once by `tender` before anything starts, and
+once more inside the new window, right before the agent — the second
+lookup runs in the tmux server's environment, which can differ from
+yours. If that one fails, the window stays open showing why, until you
+press Enter; nothing is started without the key. On a restart the old
+agent has already been replaced at that point.
+
+Account names that would change how the agent itself starts are refused
+even though they are valid identifiers: `PATH`, `HOME`, `IFS`, `BASH_*`,
+`LD_*`, `DYLD_*`, `TMUX*`, `TENDER_*` and a few other shell variables.
+Store values as printable ASCII — API keys are — because macOS's `security`
+prints anything else in hex, and the agent would receive the hex.
