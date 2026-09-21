@@ -52,8 +52,8 @@ version you tested against.
 
 ## What only Claude Code gets
 
-- The five subagents in `agents/` — their file format is Claude Code's. See
-  `agents/README.md`.
+- The subagents in `agents/` (ten, a curated selection — see `agents/README.md`
+  for what upstream actually holds) — their file format is Claude Code's.
 - The optional SessionStart hook in `hooks/`, packaged as a Claude Code plugin
   via `.claude-plugin/`. It reads `.agents/ROLE` and emits the same text
   `mdt` would have assembled, for a session started by hand

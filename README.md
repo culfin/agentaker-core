@@ -134,7 +134,7 @@ forge. Full numbers and what they were measured on:
 
 ## Licence and attribution
 
-MIT — see `LICENSE`. The five subagents under `agents/` and part of
-`roles/_base.md` are adapted from
+MIT — see `LICENSE`. The subagents under `agents/` (a curated selection, not a
+mirror — see `agents/README.md`) and part of `roles/_base.md` are adapted from
 [agency-agents](https://github.com/msitarzewski/agency-agents) (MIT); see
 `NOTICE`.

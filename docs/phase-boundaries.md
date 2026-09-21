@@ -32,8 +32,8 @@ decided about how the next stretch continues, not whether it does.
   keeps running and the thread of the current phase survives.
 - **Subagent** — a bounded sub-task inside the current phase that would
   otherwise bloat the main context with detail nobody upstream needs again: a
-  wide search, a narrow investigation. Mandate's five subagents under
-  `agents/` are this shape — see `docs/concept.md`, "Roles versus subagents."
+  wide search, a narrow investigation. Mandate's subagents under `agents/`
+  are this shape — see `docs/concept.md`, "Roles versus subagents."
   Not really a phase boundary for the session itself: the main phase resumes
   around it once the subagent reports back.
 - **Hand over in place (`mdt restart`)** — the phase is not done, but this

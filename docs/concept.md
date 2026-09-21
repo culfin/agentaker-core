@@ -40,7 +40,7 @@ filesystem one; see `docs/flow.md` for what closes it.
 ① TOOL       mandate itself             universal, knows no project
              roles/   _base · developer · reviewer · maintainer · none
              bin/mdt  init · start · attach · status · list · drop · restart
-             agents/  five subagents (Claude Code only, see docs/tools.md)
+             agents/  subagents, a curated selection (Claude Code only, see docs/tools.md)
 
 ② PROJECT    <repo>/AGENTS.md                  committed, ~20 lines, standard format
              trunk, reviewer login, test commands, review tools, production boundary
@@ -111,10 +111,11 @@ in at all.
 
 A **subagent** is expertise called for the length of one task, inside a
 session. It has no worktree, no branch, and no permissions of its own — it
-answers a question or does a piece of work and hands control back. The five
+answers a question or does a piece of work and hands control back. The
 subagents under `agents/` (desktop-app engineering, privacy, i18n, Rust
-refactoring, minimal-change discipline) are this kind of thing, curated from
-`agency-agents` (see `agents/README.md` and `NOTICE`).
+refactoring, minimal-change discipline, plus SEO, content, social media, UI,
+and UX) are this kind of thing, a curated selection from `agency-agents`'
+260+ agents (see `agents/README.md` and `NOTICE`).
 
 A project's `AGENTS.md` lists which subagents apply there, under `##
 Subagents`; `roles/reviewer.md` tells the reviewer to call the ones relevant to
