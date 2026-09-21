@@ -63,6 +63,12 @@ Usage:
   mdt restart --all             restart every running session
   mdt doctor [tool]             start a tool with a throwaway context and
                                  check whether its role arrived
+  mdt claims <repo> [--json]    list refs/claims/* — who claimed what, how
+                                 long ago, and whether it's past this
+                                 project's claim-timeout-days
+  mdt claim-release <repo> <N>  release and reclaim an orphaned claim
+                                 (<N>, 'issue-N' or 'pr-N'); refuses unless
+                                 it is actually past the threshold
 
 Roles: developer, reviewer, maintainer
 
@@ -359,6 +365,18 @@ case "${1:-}" in
     # shellcheck source=lib/doctor.sh
     . "$MDT_HOME/lib/doctor.sh" || die "cannot load $MDT_HOME/lib/doctor.sh"
     cmd_doctor "$@"
+    ;;
+  claims)
+    shift
+    # shellcheck source=lib/claims.sh
+    . "$MDT_HOME/lib/claims.sh" || die "cannot load $MDT_HOME/lib/claims.sh"
+    cmd_claims "$@"
+    ;;
+  claim-release)
+    shift
+    # shellcheck source=lib/claims.sh
+    . "$MDT_HOME/lib/claims.sh" || die "cannot load $MDT_HOME/lib/claims.sh"
+    cmd_claim_release "$@"
     ;;
   *)         [ $# -ge 2 ] || { usage; exit 2; }; cmd_start "$@" ;;
 esac

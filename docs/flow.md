@@ -233,6 +233,12 @@ releases it and reclaims it in two ordinary pushes — never `--force` — and
 says so on the issue or PR, so a human reading it later can see whose claim
 it was and why it changed hands.
 
+`mdt claims <repo>` (`--json` for a script or a GUI) lists every claim this
+way — name, timestamp, age, and whether it's past the threshold — without
+waiting for a second session to collide with one first. `mdt claim-release
+<repo> <N>` runs the same release-then-reclaim by hand, and refuses exactly
+where the mechanism above would: a claim younger than `claim-timeout-days`.
+
 Taking over an orphaned claim can still be wrong — the session that held it
 may be alive and simply slow, not gone. That is the reason
 `roles/developer.md`'s "Working" step 1 and `roles/reviewer.md`'s verdict

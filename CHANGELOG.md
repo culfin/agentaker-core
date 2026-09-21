@@ -9,6 +9,13 @@ agent without editing `bin/mdt` or waiting for a release — see
 Adds `mdt doctor [tool]`, which starts a tool with a throwaway context and
 checks whether its role arrived.
 
+Adds `mdt claims <repo> [--json]` and `mdt claim-release <repo> <N>`: the
+claim mechanism `roles/developer.md` and `roles/reviewer.md` describe as
+prose (a git ref as the lock, a timestamped blob, release-then-reclaim,
+never `--force`), now a command — so a GUI can list and take over claims
+without reimplementing it. `claim-release` refuses unless the held claim is
+actually older than the project's `claim-timeout-days`.
+
 ## 0.1.0 — 2026-09-20
 
 First version. Three roles (`developer`, `reviewer`, `maintainer`), the `mdt`

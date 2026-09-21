@@ -343,11 +343,11 @@ property of the reading tool, not of `mandate`. If your project has one
 of those files, add a line to it pointing at `AGENTS.md` so the project
 knowledge isn't silently shadowed.
 
-**`mdt list developer` (or `attach`/`drop`/`init`/`restart`/`status`) says
-`.../developer is not a git repository`.**
-A project literally named one of `mdt`'s six subcommands can't be reached
+**`mdt list developer` (or `attach`/`drop`/`init`/`restart`/`status`/`doctor`/
+`claims`/`claim-release`) says `.../developer is not a git repository`.**
+A project literally named one of `mdt`'s nine subcommands can't be reached
 through the shape that names it — `bin/mdt` matches the first word against
-those six before it ever falls back to `<repo> <role>`, so `mdt list
+those nine before it ever falls back to `<repo> <role>`, so `mdt list
 developer` runs `list` filtered to a repo called `developer`, not "start
 `developer` in the repo called `list`". See `docs/limits.md` for the full
 explanation; the fix is renaming the project, not the command.

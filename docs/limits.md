@@ -233,9 +233,9 @@ asking, and it loses whatever state existed. That trade is the whole point of
 naming it explicitly rather than falling back to it automatically — a session
 that silently lost its place is worse than one that stops and says so.
 
-## A project named `init`, `status`, `attach`, `list`, `drop`, `restart` or `doctor` is unreachable
+## A project named `init`, `status`, `attach`, `list`, `drop`, `restart`, `doctor`, `claims` or `claim-release` is unreachable
 
-`bin/mdt`'s argument parsing matches the first word against the seven
+`bin/mdt`'s argument parsing matches the first word against the nine
 subcommand names before it ever considers "everything else is `<repo>
 <role>`". A repository whose directory is actually named `list` (say) can
 never be reached as `mdt list <role>` — that always runs `cmd_list "<role>"`
@@ -244,8 +244,8 @@ instead, and `mdt list list` looks like a `list` filtered to a repo called
 list developer` runs `mdt list` filtered to a repository named `developer`
 and answers `mdt: .../developer is not a git repository` if none exists,
 which reads like a typo rather than a name collision. Name a project one of
-the seven subcommands and every subcommand-shaped invocation of it is gone;
-rename the directory (the seven names are otherwise unremarkable) rather than
+the nine subcommands and every subcommand-shaped invocation of it is gone;
+rename the directory (the nine names are otherwise unremarkable) rather than
 working around this.
 
 ## `none` marks a worktree nobody should work in
