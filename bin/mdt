@@ -353,6 +353,8 @@ case "${1:-}" in
     shift
     # shellcheck source=lib/manage.sh
     . "$MDT_HOME/lib/manage.sh" || die "cannot load $MDT_HOME/lib/manage.sh"
+    # shellcheck source=lib/state.sh
+    . "$MDT_HOME/lib/state.sh" || die "cannot load $MDT_HOME/lib/state.sh"
     cmd_restart "$@"
     ;;
   *)         [ $# -ge 2 ] || { usage; exit 2; }; cmd_start "$@" ;;

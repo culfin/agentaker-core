@@ -87,6 +87,11 @@ it short and concrete:
     Next:         the one thing you would do next
     Not checked:  what you have NOT verified
 
+`mdt` writes its own `.agents/state.md` alongside this — role, branch, commits
+ahead, uncommitted files, open PR, claim held, pulled from git and GitHub
+itself, not from you. Your successor reads it first. Do not repeat those facts
+here; if you're unsure one of them still holds, say so instead of restating it.
+
 Do not summarise the conversation — your successor needs your STATE, not your
 history. Where you would have written "the tests pass", write the command you
 ran and what it printed.

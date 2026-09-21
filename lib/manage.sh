@@ -9,6 +9,8 @@
 # Needs from bin/mdt: die(), usage(), role_tag(), session_name(),
 #   build_context(), launch_command(), wrap_launch_command(),
 #   read_reviewer_token(), PROJECTS_DIR, ROLES_DIR, TOOL
+# Needs from lib/state.sh: collect_state() — bin/mdt sources it alongside
+#   this file, only in the `restart` branch of its dispatch.
 # Provides to it:     nothing — cmd_list()/cmd_drop()/cmd_restart() are the
 #   whole surface.
 
@@ -252,6 +254,11 @@ restart_window() {
 
   local handoff="$wt/.agents/handoff.md"
 
+  # Collected every restart, fresh or not — these are git/gh facts, not
+  # anything the dying session has to cooperate in producing. See
+  # lib/state.sh for what each line can and cannot say.
+  collect_state "$wt" "$role"
+
   if [ "$fresh" -eq 1 ]; then
     printf 'restarting %s in %s without a handover (--fresh)\n' "$label" "$repo"
   else
@@ -280,6 +287,11 @@ restart_window() {
     printf 'mdt: could not assemble the role context from %s\n' "$ROLES_DIR" >&2
     return 1
   }
+  # Facts before free text: whoever reads this next hits the part that can't
+  # be wrong about itself first, so a contradiction below is visible at once.
+  local state="$wt/.agents/state.md"
+  [ -s "$state" ] && { printf '\n\n'; cat "$state"; } >> "$wt/.agents/context.md"
+
   if [ "$fresh" -ne 1 ] && [ -s "$handoff" ]; then
     {
       printf '\n\n## Handover from your predecessor\n\n'

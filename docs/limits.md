@@ -178,15 +178,24 @@ command with `--force`; the cost of a false confirmation is the worktree.
 and its commits, pushed or not, survive `git worktree remove --force`; only
 the worktree directory and anything not yet committed in it go.
 
-## A handover is only as good as the session that writes it
+## A handover is only as good as the session that writes it — for the half the session writes
 
-`mdt restart` never reads the handoff file it waits for — it sends keystrokes
-and waits for a file to appear, and hands that file to the successor
-unexamined. What ends up in it is entirely up to the session: a role that
-follows `roles/_base.md`'s "Handing over" section closely leaves its
-successor a usable state; one that summarises the conversation instead, or
-skips `Not checked`, leaves a successor that inherits confidence nobody
-actually earned. `mdt` has no way to tell the difference, and doesn't try to.
+That sentence is now only true of `.agents/handoff.md`, the free-text half.
+`mdt restart` never reads it before waiting for it — it sends keystrokes and
+waits for a file to appear, and hands that file to the successor unexamined.
+What ends up in it is entirely up to the session: a role that follows
+`roles/_base.md`'s "Handing over" section closely leaves its successor a
+usable state; one that summarises the conversation instead, or skips `Not
+checked`, leaves a successor that inherits confidence nobody actually earned.
+`mdt` has no way to tell the difference in that file, and doesn't try to.
+
+The other half, `.agents/state.md` (`lib/state.sh`), `mdt` writes itself,
+from git and `gh` — the session never touches it. That makes it honest, not
+complete: it says what the repository and the forge hold (branch, commits,
+uncommitted files, open PR, claim), never whether the work behind them is any
+good. A branch with three commits "ahead" says nothing about whether those
+three commits are right. Reading it first catches a free-text contradiction;
+it cannot catch a free-text lie that happens to agree with the facts.
 
 A wedged session cannot be handed over at all — by definition, it isn't
 answering. `mdt restart` waits `MDT_HANDOFF_TIMEOUT` seconds (default 60),
