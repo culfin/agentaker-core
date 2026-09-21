@@ -13,7 +13,7 @@ FLOW=$(cat docs/flow.md)
 CONCEPT=$(cat docs/concept.md)
 
 echo "roles: developer only looks at unassigned ready issues"
-contains "finding-work filters no:assignee" "no:assignee" "$DEV"
+contains "finding-work filters no:assignee" '--search "no:assignee"' "$DEV"
 
 echo "roles: developer claims an issue before working it"
 contains "claims with --add-assignee @me" "gh issue edit <N> --add-assignee @me" "$DEV"
@@ -32,6 +32,9 @@ contains "claims with --add-assignee @me" "gh pr edit <N> --add-assignee @me" "$
 
 echo "roles: reviewer releases the claim after submitting a review"
 contains "releases with --remove-assignee @me" "gh pr edit <N> --remove-assignee @me" "$REV"
+
+echo "roles: reviewer releases the claim even without submitting a review"
+contains "covers the abandoned-review case" "submitting a review at all" "$REV"
 
 echo "docs: flow.md documents the same-role collision and its fix"
 contains "has the new section heading" "## Multiple agents in the same role" "$FLOW"

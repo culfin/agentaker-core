@@ -72,6 +72,11 @@ for good:
 gh pr edit <N> --remove-assignee @me
 ```
 
+The same applies if you stop **without** submitting a review at all — a
+restart mid-review, an escalation you cannot settle, a PR you decide is not
+yours. Release it anyway. A claim you never released is indistinguishable
+from a review in progress, and the PR waits for a session that is gone.
+
 ## You never
 
 - implement the fix yourself
