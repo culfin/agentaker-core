@@ -105,4 +105,104 @@ lacks "does not fall back to main for a non-main trunk" \
   "pull $TRUNK_SANDBOX/other-trunk main" "$out"
 rm -rf "$TRUNK_SANDBOX"
 
+# --- issue #3: flags for a non-interactive caller (a GUI) ------------------
+# These use their own throwaway sandboxes, not $SANDBOX/demo above, so they
+# cannot interact with state the tests before them already built up there
+# (an existing AGENTS.md, existing worktrees).
+
+echo "mdt init: flags override what trunk/reviewer/tests/boundary would otherwise propose"
+FLAG_SANDBOX=$(mktemp -d)
+git init -q -b main "$FLAG_SANDBOX/flagged"
+git -C "$FLAG_SANDBOX/flagged" -c user.email=t@e -c user.name=t commit -q --allow-empty -m init
+out=$(MDT_PROJECTS_DIR="$FLAG_SANDBOX" MDT_NO_NETWORK=1 MDT_DRY_RUN=1 "$MDT" init flagged \
+  --trunk release --reviewer octocat --tests 'pnpm test' --tests 'pnpm build' \
+  --boundary 'gh workflow run deploy.yml' --yes 2>&1)
+check "at least one step changed something: exits done (0)" "0" "$?"
+agents=$(cat "$FLAG_SANDBOX/flagged/AGENTS.md")
+contains "uses the overridden trunk" "trunk: release" "$agents"
+contains "uses the overridden reviewer" "reviewer: octocat" "$agents"
+contains "uses the first overridden test command" "pnpm test" "$agents"
+contains "uses the second overridden test command" "pnpm build" "$agents"
+contains "uses the overridden boundary text" "gh workflow run deploy.yml" "$agents"
+lacks "does not fall back to the generic boundary example" "Replace this with yours" "$agents"
+lacks "does not fall back to the stack-detected placeholder" "no test command detected" "$agents"
+rm -rf "$FLAG_SANDBOX"
+
+echo "mdt init: --boundary '' writes an explicit 'deliberately none', not the generic example"
+BOUND_SANDBOX=$(mktemp -d)
+git init -q -b main "$BOUND_SANDBOX/none"
+git -C "$BOUND_SANDBOX/none" -c user.email=t@e -c user.name=t commit -q --allow-empty -m init
+out=$(MDT_PROJECTS_DIR="$BOUND_SANDBOX" MDT_NO_NETWORK=1 MDT_DRY_RUN=1 "$MDT" init none --boundary '' --yes 2>&1)
+check "an explicit empty boundary still exits done (0)" "0" "$?"
+agents=$(cat "$BOUND_SANDBOX/none/AGENTS.md")
+contains "says the boundary was deliberately left blank" "intentionally left blank" "$agents"
+lacks "does not fall back to the generic boundary example" "Replace this with yours" "$agents"
+rm -rf "$BOUND_SANDBOX"
+
+echo "mdt init: --yes without --boundary refuses rather than silently writing no boundary"
+REFUSE_SANDBOX=$(mktemp -d)
+git init -q -b main "$REFUSE_SANDBOX/norefuse"
+git -C "$REFUSE_SANDBOX/norefuse" -c user.email=t@e -c user.name=t commit -q --allow-empty -m init
+out=$(MDT_PROJECTS_DIR="$REFUSE_SANDBOX" MDT_NO_NETWORK=1 MDT_DRY_RUN=1 "$MDT" init norefuse --yes 2>&1)
+check "exits refused at step 1 (20 + step)" "21" "$?"
+contains "names which step refused" "step 1 (AGENTS.md)" "$out"
+contains "names the missing flag" "--boundary" "$out"
+check "does not write an AGENTS.md with no boundary anyone chose" "no" \
+  "$([ -f "$REFUSE_SANDBOX/norefuse/AGENTS.md" ] && echo yes || echo no)"
+rm -rf "$REFUSE_SANDBOX"
+
+echo "mdt init: the existing env-var route (MDT_YES, no --yes flag) is untouched by the boundary guard"
+LEGACY_SANDBOX=$(mktemp -d)
+git init -q -b main "$LEGACY_SANDBOX/legacy"
+git -C "$LEGACY_SANDBOX/legacy" -c user.email=t@e -c user.name=t commit -q --allow-empty -m init
+out=$(MDT_PROJECTS_DIR="$LEGACY_SANDBOX" MDT_YES=1 MDT_NO_NETWORK=1 MDT_DRY_RUN=1 "$MDT" init legacy 2>&1)
+check "the interactive env-var route still succeeds with no --boundary given" "0" "$?"
+contains "still writes AGENTS.md with the generic boundary placeholder, unchanged" \
+  "Replace this with yours" "$(cat "$LEGACY_SANDBOX/legacy/AGENTS.md")"
+rm -rf "$LEGACY_SANDBOX"
+
+echo "mdt init: --no-agents-md / --no-labels / --no-environment / --no-worktrees skip individually"
+SKIP_SANDBOX=$(mktemp -d)
+git init -q -b main "$SKIP_SANDBOX/skipme"
+git -C "$SKIP_SANDBOX/skipme" -c user.email=t@e -c user.name=t commit -q --allow-empty -m init
+out=$(MDT_PROJECTS_DIR="$SKIP_SANDBOX" MDT_DRY_RUN=1 "$MDT" init skipme \
+  --no-agents-md --no-labels --no-environment --no-worktrees --yes 2>&1)
+check "a run that skips every step, and refuses nothing, has nothing to do: exits 3" "3" "$?"
+contains "reports the AGENTS.md skip" "skipped: AGENTS.md (--no-agents-md)" "$out"
+contains "reports the labels skip" "skipped: labels (--no-labels)" "$out"
+contains "reports the environment skip" "skipped: production environment (--no-environment)" "$out"
+contains "reports the worktrees skip" "skipped: worktrees (--no-worktrees)" "$out"
+check "AGENTS.md not written" "no" "$([ -f "$SKIP_SANDBOX/skipme/AGENTS.md" ] && echo yes || echo no)"
+check "no worktree created" "no" "$([ -d "$SKIP_SANDBOX/skipme/.worktrees/skipme-developer" ] && echo yes || echo no)"
+rm -rf "$SKIP_SANDBOX"
+
+echo "mdt init: exit codes distinguish done from nothing-to-do across two runs"
+IDEM_SANDBOX=$(mktemp -d)
+git init -q -b main "$IDEM_SANDBOX/idem"
+git -C "$IDEM_SANDBOX/idem" -c user.email=t@e -c user.name=t commit -q --allow-empty -m init
+out=$(MDT_PROJECTS_DIR="$IDEM_SANDBOX" MDT_NO_NETWORK=1 MDT_DRY_RUN=1 "$MDT" init idem --yes --boundary 'npm publish' 2>&1)
+check "first run creates AGENTS.md and worktrees: exits done (0)" "0" "$?"
+out=$(MDT_PROJECTS_DIR="$IDEM_SANDBOX" MDT_NO_NETWORK=1 MDT_DRY_RUN=1 "$MDT" init idem --yes --boundary 'npm publish' 2>&1)
+check "second run finds it all already there: exits nothing-to-do (3)" "3" "$?"
+rm -rf "$IDEM_SANDBOX"
+
+echo "mdt init: bad flags are usage errors, not silently ignored"
+out=$("$MDT" init demo --trunk 2>&1)
+check "a flag missing its value exits 2" "2" "$?"
+contains "names the flag" "--trunk" "$out"
+
+out=$("$MDT" init demo --nope 2>&1)
+check "an unknown flag exits 2" "2" "$?"
+contains "names the flag" "--nope" "$out"
+
+out=$("$MDT" init demo extra 2>&1)
+check "a second positional argument exits 2" "2" "$?"
+contains "explains the repo is already set" "already" "$out"
+
+echo "mdt init: --help documents the flags and exits 0 without requiring a repo"
+out=$("$MDT" init --help 2>&1)
+check "exits 0" "0" "$?"
+contains "documents --boundary and its tri-state" "deliberately none" "$out"
+contains "documents the exit codes" "21-24 refused at step N" "$out"
+
 summary

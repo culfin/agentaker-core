@@ -10,6 +10,17 @@ init` did, the by-hand section is what it did, spelled out.
 Throughout, `myproject` stands for whatever your repository is called, cloned
 under `MDT_PROJECTS_DIR` (default `~/Projekte/myproject`).
 
+This walkthrough is the interactive route — a human answering four
+confirmations on a terminal, which is still how everyone runs `init` today.
+A caller that cannot answer a prompt (a setup wizard driving `mdt` from a
+GUI, say) uses the same four steps through flags instead: `mdt init --help`
+lists them — `--trunk`, `--reviewer`, `--tests`, `--boundary`, `--yes`, and a
+`--no-*` per step. The one worth reading closely before scripting against it
+is `--boundary`: passing `--boundary ''` states a project deliberately has no
+production boundary, which is different from not passing `--boundary` at all
+— under `--yes`, omitting it entirely is refused (exit code in the 20s)
+rather than silently producing a project with no declared boundary.
+
 ## Route A: `mdt init`
 
 ```

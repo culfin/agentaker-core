@@ -49,7 +49,10 @@ die() { printf 'mdt: %s\n' "$1" >&2; exit "${2:-1}"; }
 usage() {
   cat <<'EOF'
 Usage:
-  mdt init [repo]              set a project up, step by step
+  mdt init [repo] [flags]      set a project up, step by step
+                                 (mdt init --help: flags for a non-interactive
+                                 caller, e.g. a GUI — --trunk, --reviewer,
+                                 --tests, --boundary, --yes, --no-*)
   mdt <repo> <role> [suffix]   start a session in its own worktree
   mdt attach <repo>            re-attach to a repo's tmux session
   mdt status [owner]           show where work is waiting, across repos
@@ -81,7 +84,9 @@ Environment:
   MDT_HANDOFF_TIMEOUT   seconds to wait for a handover before `restart`
                      aborts (default: 60)
   MDT_YES            answer every `mdt init` prompt with its default —
-                     the only way to run `init` non-interactively
+                     the env-var route through it; `mdt init --yes` is the
+                     flag-driven route and additionally requires --boundary
+                     (see `mdt init --help`)
   MDT_NO_NETWORK     `mdt init` skips the label and environment steps,
                      which otherwise call `gh`
   MDT_DRY_RUN        print what `mdt <repo> <role>` would launch instead
@@ -321,6 +326,8 @@ case "${1:-}" in
   -h|--help) usage; exit 0 ;;
   init)
     shift
+    # shellcheck source=lib/init_flags.sh
+    . "$MDT_HOME/lib/init_flags.sh" || die "cannot load $MDT_HOME/lib/init_flags.sh"
     # shellcheck source=lib/init.sh
     . "$MDT_HOME/lib/init.sh" || die "cannot load $MDT_HOME/lib/init.sh"
     cmd_init "$@"

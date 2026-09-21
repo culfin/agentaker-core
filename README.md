@@ -92,7 +92,9 @@ wrong directory.
 labels, and creates the three role worktrees — confirming each step, not
 hiding it. Requires `git`, `gh` and `tmux`; no runtime, no package manager.
 Full walkthrough, including the equivalent by-hand steps and troubleshooting,
-in [docs/adding-a-project.md](docs/adding-a-project.md).
+in [docs/adding-a-project.md](docs/adding-a-project.md). A caller that can't
+answer those confirmations (a GUI, say) runs the same four steps through
+flags instead — `mdt init --help`.
 
 ## The one idea
 

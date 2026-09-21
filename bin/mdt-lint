@@ -94,7 +94,7 @@ done
 # budget — if a file approaches it, the question is which block has become its
 # own concern, the way `init` did (lib/init.sh) and tab/colour handling did
 # (lib/tabs.sh).
-for script in bin/mdt lib/init.sh lib/manage.sh lib/tabs.sh lib/state.sh lib/tools.sh lib/doctor.sh; do
+for script in bin/mdt lib/init.sh lib/init_flags.sh lib/manage.sh lib/tabs.sh lib/state.sh lib/tools.sh lib/doctor.sh; do
   if [ -f "$ROOT/$script" ]; then
     lines=$(wc -l < "$ROOT/$script")
     [ "$lines" -le 450 ] || problem "$script is $lines lines — split it or raise the ceiling deliberately"
