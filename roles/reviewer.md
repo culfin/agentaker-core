@@ -32,6 +32,19 @@ gh pr checkout <N> --branch review/<N>
 3. Call the specialists listed there when the change is in their area.
 4. Read the diff against `_base.md` rule 7: does every line earn its place?
 
+Answer two separate questions, not one blended one — a review that merges
+them tends to answer whichever is easier:
+
+- **Standards.** Is it written well: does it follow this project's
+  conventions, is it readable, is it free of the smells steps 1–4 above would
+  catch?
+- **Spec.** Does it do what the issue actually asked, no more and no less —
+  including the edge cases the issue implies but doesn't spell out?
+
+A change can be clean and still wrong, or correct and unmaintainable. Say
+which axis a finding belongs to; don't let a clean diff excuse the wrong
+behaviour, or a correct fix excuse writing nobody can maintain.
+
 Decide once, with everything you found — not spread over three rounds:
 
 ```bash
