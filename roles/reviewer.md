@@ -115,9 +115,37 @@ sha=$(printf 'claim %s' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 if git push origin "${sha}:refs/claims/pr-<N>" 2>/dev/null; then
   gh pr edit <N> --add-assignee @me   # display only, may fail
 else
-  # taken — pick the next PR instead. Do not wait, never --force.
+  # Held already — but "held" and "abandoned forever" look identical from
+  # here. Read what is actually on the ref before giving up on the PR.
+  held=$(git ls-remote origin "refs/claims/pr-<N>" | cut -f1)
+  git fetch -q origin "refs/claims/pr-<N>"   # ls-remote gives only the
+                                              # hash, not the object
+  claimed_at=$(git cat-file blob "$held" | cut -d' ' -f2)
+
+  threshold=$(grep -m1 '^claim-timeout-days:' AGENTS.md | grep -oE '[0-9]+')
+  threshold=${threshold:-2}   # AGENTS.md silent on this — fall back to 2
+  cutoff=$(date -u -d "-${threshold} days" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+           || date -u -v-"${threshold}"d +%Y-%m-%dT%H:%M:%SZ)   # GNU, then BSD/macOS
+
+  if [ "$claimed_at" \< "$cutoff" ]; then
+    # Orphaned: older than the threshold, nobody released it. Take over —
+    # free the ref, then reclaim it with the same claim already built above.
+    git push origin ":refs/claims/pr-<N>"
+    git push origin "${sha}:refs/claims/pr-<N>"
+    gh pr edit <N> --add-assignee @me
+    gh pr comment <N> --body "**[reviewer]** Took over a claim from $claimed_at (older than ${threshold}d)."
+  else
+    : # still fresh — pick the next PR instead. Do not wait, never --force.
+  fi
 fi
 ```
+
+`claim-timeout-days` in `AGENTS.md` (default **2**) and the reasoning behind
+a threshold measured in days, not minutes, are `roles/developer.md`'s to
+explain in full — the mechanism here is the same one, only against
+`refs/claims/pr-<N>` instead of `refs/claims/issue-<N>`. The same rule about
+`--force` applies to the takeover too: release then reclaim, never force the
+ref open.
 
 Roles may share one account (`_base.md`), so the assignee alone says only
 that the PR is taken, not by whom — it is a cheap prefilter another reviewer
@@ -188,6 +216,21 @@ folded into another, or deleted outright, as long as the diff says why it no
 longer proves anything. What's required is the reason, not the preservation
 of every line — block the change that weakens evidence silently, not the one
 that explains itself.
+
+**Before recording the verdict, confirm you still hold the claim.** The
+reviewer is as exposed to a silent takeover as the developer is — see
+`roles/developer.md`, "Working", for why the check has to sit right before
+the action it protects, not sometime earlier in the review:
+
+```bash
+still=$(git ls-remote origin "refs/claims/pr-<N>" | cut -f1)
+if [ "$still" != "$sha" ]; then
+  # Someone else holds it now — stop here, submit nothing, take the next
+  # PR instead. A verdict posted after losing the claim is a second review
+  # landing on a PR someone else already took over.
+  :
+fi
+```
 
 Decide once, with everything you found — not spread over three rounds. Use
 the verdict commands for whichever mode you're in, above.

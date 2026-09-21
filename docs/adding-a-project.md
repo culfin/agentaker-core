@@ -29,6 +29,7 @@ Proposed AGENTS.md:
 
 trunk: main
 reviewer:            # GitHub login of the account that reviews here — see docs/setup.md
+claim-timeout-days: 2  # days before an unreleased claim counts as orphaned and may be taken over — see docs/limits.md
 
 ## Test commands
 
@@ -185,6 +186,13 @@ Then edit four things:
   missing production boundary costs you a release nobody meant to ship, or —
   just as bad — the tool refusing to release something that was actually
   fine, because it correctly can't tell where the line is.
+
+`claim-timeout-days:` is not on that list — the copied default (**2**) is a
+reasonable starting point everywhere, so there is nothing to fill in. Raise
+it if this project's issues routinely take longer than that to work through
+without a PR appearing; lower it only with the eviction risk in mind —
+`docs/limits.md`, "The claim ref locks task selection, not the work after
+it", has the full trade-off.
 
 **2. Commit it.**
 

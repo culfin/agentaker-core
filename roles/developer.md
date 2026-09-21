@@ -32,7 +32,30 @@ sha=$(printf 'claim %s' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 if git push origin "${sha}:refs/claims/issue-<N>" 2>/dev/null; then
   gh issue edit <N> --add-assignee @me   # display only, may fail
 else
-  # taken — pick the next issue instead. Do not wait, do not retry, never --force.
+  # Held already — but "held" and "abandoned forever" look identical from
+  # here. Read what is actually on the ref before giving up on the issue.
+  held=$(git ls-remote origin "refs/claims/issue-<N>" | cut -f1)
+  git fetch -q origin "refs/claims/issue-<N>"   # ls-remote gives only the
+                                                 # hash, not the object
+  claimed_at=$(git cat-file blob "$held" | cut -d' ' -f2)
+
+  threshold=$(grep -m1 '^claim-timeout-days:' AGENTS.md | grep -oE '[0-9]+')
+  threshold=${threshold:-2}   # AGENTS.md silent on this — fall back to 2
+  cutoff=$(date -u -d "-${threshold} days" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+           || date -u -v-"${threshold}"d +%Y-%m-%dT%H:%M:%SZ)   # GNU, then BSD/macOS
+
+  if [ "$claimed_at" \< "$cutoff" ]; then
+    # Orphaned: older than the threshold, nobody released it. Take over —
+    # free the ref, then reclaim it with the same claim already built above.
+    # Release-then-reclaim, never --force: the reclaim is a normal claim
+    # push and can still lose to a third session racing for the same issue.
+    git push origin ":refs/claims/issue-<N>"
+    git push origin "${sha}:refs/claims/issue-<N>"
+    gh issue edit <N> --add-assignee @me
+    gh issue comment <N> --body "**[developer]** Took over a claim from $claimed_at (older than ${threshold}d)."
+  else
+    : # still fresh — pick the next issue instead. Do not wait, do not retry, never --force.
+  fi
 fi
 ```
 
@@ -48,6 +71,23 @@ identical SHA — identical SHAs would be idempotent, and both pushes would
 `docs/flow.md` has the measurements behind why a ref push is the part that
 actually decides.
 
+**Orphaned claims** — this is the one case where taking someone else's issue
+is correct, not a collision. Reading the held claim needs the fetch: `git
+ls-remote` returns only the hash, and running `git cat-file` against that
+hash without fetching it first fails with `could not get object info` —
+measured, not assumed. `claim-timeout-days` in `AGENTS.md` (default **2**)
+is measured in days, not minutes, on purpose: unlike a fixed batch dispatch,
+a session here may reasonably sit on a hard issue for the better part of a
+day without being anyone's problem. `docs/limits.md` has the reasoning and
+the price — a threshold can still evict a session that is alive and merely
+slow, which is exactly why the check in "Working" below, right before the
+draft PR opens, exists: it is what keeps that price from turning into a
+silently duplicated PR. The takeover itself is always comment-then-reclaim,
+never a bare force: `gh issue comment` says so on the issue, so a human
+reading it later can tell why it changed hands, and the release-then-push
+pair is the same two commands as a voluntary release followed by a normal
+claim — nothing about the takeover needs `--force`.
+
 Three ways this goes wrong in practice:
 
 - **Check the exit code, never the message.** A genuine race prints
@@ -56,7 +96,8 @@ Three ways this goes wrong in practice:
   1. Branch on the exit code — a check against either message text handles
   only half the failures.
 - **`--force` defeats the lock.** Never pass it to this push. There is no
-  legitimate reason to on this ref, ever.
+  legitimate reason to on this ref, ever — not even to take over an
+  orphaned one; release then reclaim instead, as above.
 - **zsh eats the refspec.** `"$sha:refs/claims/issue-<N>"` loses its `:r`
   under zsh, because zsh treats `:r` as a modifier inside an unbraced
   parameter expansion — the refspec silently corrupts to
@@ -95,19 +136,38 @@ A PR stays in that state until you re-request review, so this is your inbox.
 
 ## Working
 
-1. Open the PR **immediately, as a draft**, so the work is visible:
+1. **Before opening the draft PR, confirm you still hold the claim.** An
+   orphaned-claim takeover ("Finding work" above) can happen to you as
+   easily as it lets you happen to someone else — a session that never
+   checks back can work for hours on an issue a threshold quietly handed to
+   someone else, and find out only by opening a second PR nobody asked for.
+   The check is one cheap comparison, the SHA you pushed against the SHA
+   held now:
+   ```bash
+   still=$(git ls-remote origin "refs/claims/issue-<N>" | cut -f1)
+   if [ "$still" != "$sha" ]; then
+     # Someone else holds it now — stop here, open nothing, take the next
+     # ready issue instead. Whatever you had is unfinished, not wasted:
+     # the next session starts from the issue, not from your half-done diff.
+     :
+   fi
+   ```
+   This belongs to the same step as opening the PR, not a separate check run
+   sometime earlier — the longer the gap between the check and the `gh pr
+   create` below, the less it proves.
+2. Open the PR **immediately, as a draft**, so the work is visible:
    ```bash
    gh pr create --draft --title "…" --body "Closes #<N>
 
    Opened by: developer"
    ```
-2. Implement test-first. The test commands are in this project's `AGENTS.md`.
+3. Implement test-first. The test commands are in this project's `AGENTS.md`.
    Fixing a bug: show the new test failing against the old code before you
    fix it — a reviewer who can't see that has no way to know the bug was
    ever real, or that it's actually gone (`roles/reviewer.md` checks for
    this).
-3. Run them. Show the output. Only then say it works.
-4. Mark it ready and ask for review. Which command depends on the mode
+4. Run them. Show the output. Only then say it works.
+5. Mark it ready and ask for review. Which command depends on the mode
    (`roles/reviewer.md`):
 
    **Single-account mode:**

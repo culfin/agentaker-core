@@ -68,7 +68,8 @@ contains "covers the abandoned-review case" "submitting a review at all" "$REV"
 
 echo "roles: _base.md states the cleanup duty for a claim ref"
 contains "names the ref pattern" "refs/claims/" "$BASE"
-contains "says there is no timeout" "no timeout" "$BASE"
+contains "names the age-based release instead of claiming there is none" "claim-timeout-days" "$BASE"
+lacks "no longer claims a claim ref locks forever with no way back" "there is no timeout" "$BASE"
 
 echo "docs: flow.md documents the same-role collision and its fix"
 contains "has the new section heading" "## Multiple agents in the same role" "$FLOW"
@@ -84,7 +85,10 @@ contains "diagram line carries the filter" "gh issue list --label ready --search
 echo "docs: limits.md is honest about what the claim ref does not cover"
 contains "has the new section heading" "## The claim ref locks task selection, not the work after it" "$LIMITS"
 contains "names the crash case" "crashes" "$LIMITS"
-contains "says there is no timeout" "no timeout" "$LIMITS"
+lacks "no longer claims a claim ref locks forever with no way back" "there is no timeout" "$LIMITS"
+contains "documents the age-based release" "claim-timeout-days" "$LIMITS"
+contains "admits the release is lazy, not a sweep" "still lazy, not a sweep" "$LIMITS"
+contains "admits a threshold can evict a live, slow session" "evicts a session mid-task" "$LIMITS"
 
 echo "docs: concept.md no longer claims the worktree split fixes same-role collisions"
 lacks "drops the unqualified 'for free' collision claim" "fixes the collision problem for free" "$CONCEPT"
@@ -126,5 +130,52 @@ contains "makes the duplication-vs-replacement distinction" "does not exist here
 echo "docs: limits.md is honest that single-account separation is agreed, not enforced"
 contains "says a self-approval is physically impossible only with two accounts" "physically impossible" "$LIMITS"
 contains "says a label proves a command ran, not who ran it" "proves a review command ran, not who ran it" "$LIMITS"
+
+echo "roles: developer takes over an orphaned claim after reading its timestamp, never a fresh one"
+contains "reads the hash via ls-remote first" 'held=$(git ls-remote origin "refs/claims/issue-<N>" | cut -f1)' "$DEV"
+contains "fetches the object before cat-file can read it" 'git fetch -q origin "refs/claims/issue-<N>"' "$DEV"
+contains "reads claim-timeout-days from AGENTS.md" "grep -m1 '^claim-timeout-days:' AGENTS.md" "$DEV"
+contains "falls back to a 2-day default when AGENTS.md is silent" 'threshold=${threshold:-2}' "$DEV"
+contains "computes the cutoff across both GNU and BSD/macOS date" "date -u -v-" "$DEV"
+contains "compares the claimed timestamp against the cutoff before touching the ref" '[ "$claimed_at" \< "$cutoff" ]' "$DEV"
+contains "releases before reclaiming — never forces the ref open, even for a takeover" 'git push origin ":refs/claims/issue-<N>"' "$DEV"
+contains "comments on the issue so a human can see the takeover happened" 'gh issue comment <N> --body "**[developer]** Took over a claim from' "$DEV"
+contains "a claim still inside the threshold is left alone" "still fresh" "$DEV"
+
+echo "roles: developer confirms it still holds the claim before opening the draft PR"
+contains "compares the held sha against its own, right before opening" 'still=$(git ls-remote origin "refs/claims/issue-<N>" | cut -f1)' "$DEV"
+contains "opens nothing and moves to the next issue if it lost the claim" "open nothing" "$DEV"
+contains "explains why the check has to sit right at that step, not earlier" "the less it proves" "$DEV"
+
+echo "roles: reviewer takes over an orphaned claim the same way, against a PR claim"
+contains "reads the hash via ls-remote first" 'held=$(git ls-remote origin "refs/claims/pr-<N>" | cut -f1)' "$REV"
+contains "fetches the object before cat-file can read it" 'git fetch -q origin "refs/claims/pr-<N>"' "$REV"
+contains "comments on the PR so a human can see the takeover happened" 'gh pr comment <N> --body "**[reviewer]** Took over a claim from' "$REV"
+contains "points to developer.md for the full reasoning, rather than repeating it" "roles/developer.md\`'s to" "$REV"
+
+echo "roles: reviewer confirms it still holds the claim before recording the verdict"
+contains "compares the held sha against its own before the verdict" 'still=$(git ls-remote origin "refs/claims/pr-<N>" | cut -f1)' "$REV"
+contains "submits nothing and moves to the next PR if it lost the claim" "submit nothing" "$REV"
+
+echo "roles: neither role's takeover ever reaches for --force"
+contains "developer names the takeover explicitly in the --force warning" "not even to take over an" "$DEV"
+
+echo "docs: flow.md documents the age-based release, honestly bounded"
+contains "has the new section heading" "## Orphaned claims: age-based release" "$FLOW"
+contains "names the AGENTS.md field and its default" "claim-timeout-days\` in \`AGENTS.md\` (default **2**" "$FLOW"
+contains "names the measured object-info failure that makes the fetch necessary" "could not get object info" "$FLOW"
+contains "is honest that a live, slow session can still be evicted" "may be alive and simply slow, not gone" "$FLOW"
+
+echo "docs: limits.md's orphaned-claim update is honest about what it does not fix"
+contains "still lazy" "still lazy" "$LIMITS"
+lacks "old sentence gone — nothing checks on a stale claim used to be flatly true" \
+  "nothing checks on it again" "$LIMITS"
+
+echo "AGENTS.md: the claim-timeout-days field ships with every template"
+INIT=$(cat lib/init.sh)
+contains "lib/init.sh proposes the field with a 2-day default" "claim-timeout-days: 2" "$INIT"
+for ex in examples/*.AGENTS.md; do
+  contains "$ex ships claim-timeout-days" "claim-timeout-days: 2" "$(cat "$ex")"
+done
 
 summary

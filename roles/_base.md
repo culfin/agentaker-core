@@ -36,9 +36,13 @@ Items 1–8 are adapted from agency-agents (MIT) — see NOTICE.
     this?" is knowledge transfer and fine. "Should we rename this field?" is a
     decision and goes to the human.
 13. **Release a claim the moment you stop.** A `refs/claims/...` ref nobody
-    releases locks that issue or PR forever — there is no timeout. Your role
-    file has the exact commands; this applies whether you finish, hand over,
-    or abandon the work.
+    releases stays locked until it is old enough for another session to take
+    over (`claim-timeout-days` in `AGENTS.md`, default 2 — `docs/limits.md`
+    has the reasoning) — that is days, not a safety net for a session that
+    stops mid-task. Release it yourself; do not lean on the threshold to do
+    it for you. Your role file has the exact commands, both for releasing
+    and for the takeover on the other side of that threshold; this applies
+    whether you finish, hand over, or abandon the work.
 
 ## Signing your work
 

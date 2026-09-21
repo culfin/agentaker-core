@@ -113,23 +113,42 @@ a second account", for the upgrade that removes it.
 
 `refs/claims/issue-<N>` and `refs/claims/pr-<N>` (`docs/flow.md` has the
 measurements, `roles/developer.md` and `roles/reviewer.md` the commands) stop
-two sessions from *starting* the same issue or PR at the same moment. That is
-all they stop. Once a session holds the ref, nothing checks on it again: a
-session that crashes, is killed, or simply stops responding keeps its claim
-exactly as pushed. There is no lease, no heartbeat, and no timeout to fall
-back on — the ref does not know the difference between a session still
-working and one that is gone.
+two sessions from *starting* the same issue or PR at the same moment. Once a
+session holds the ref, nothing watches it: a session that crashes, is
+killed, or simply stops responding keeps its claim exactly as pushed, and
+nothing here polls to notice — the same "no polling" limit further down
+applies here too.
 
-An issue or PR stuck this way needs a manual release from any clone with push
-access, the same command the holding session would have run:
+It used to stay that way until a human ran a manual release. It no longer
+does: every claim already carries the timestamp it was pushed with, and a
+session that loses a claim attempt now reads it before giving up
+(`docs/flow.md`, "Orphaned claims: age-based release", has the mechanism).
+Older than `claim-timeout-days` in `AGENTS.md` (default **2**) and it counts
+as orphaned — the next session to want that issue or PR takes it over, comments
+to say so, and moves on.
+
+**What this does not fix.** The release is still lazy, not a sweep: nothing
+here runs on its own, so a claim nobody else ever asks for stays held exactly
+as before, no matter how old it gets — the mechanism only fires at the
+moment a second session tries to claim the same ref and loses. And the
+threshold cannot distinguish "crashed" from "alive and slow" any better than
+a human glancing at the issue could; it just waits longer before guessing.
+Set the threshold too low and it evicts a session mid-task, handing its
+issue to someone else while it is still working — the reason
+`claim-timeout-days` defaults to days, not minutes, and the reason
+`roles/developer.md` and `roles/reviewer.md` both check, right before the
+action a takeover would otherwise duplicate, whether they still hold what
+they started with. That check bounds the damage to lost in-progress work; it
+does not make eviction of a live session impossible, only rare and
+survivable rather than silent.
+
+A claim can still be released by hand at any time, from any clone with push
+access — faster than waiting out the threshold, and the only option before
+this existed:
 
 ```bash
 git push origin ":refs/claims/issue-<N>"   # or pr-<N>
 ```
-
-Nothing currently notices a stale claim on its own — the same "no polling"
-limit further down applies here too. Whoever notices the issue or PR has gone
-quiet has to run the release by hand.
 
 ## Why only one thing is locked
 

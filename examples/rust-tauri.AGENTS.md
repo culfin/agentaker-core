@@ -2,6 +2,7 @@
 
 trunk: development
 reviewer: example-reviewer
+claim-timeout-days: 2
 
 ## Test commands
 

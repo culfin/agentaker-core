@@ -206,7 +206,37 @@ invisible. It remains the cheap prefilter the `no:assignee` search runs
 against — unchanged — while the ref is what actually decides.
 
 A claim that's never released is worse than no claim at all: it hides the
-issue or PR from every other session forever, and there is no timeout to fall
-back on. A developer who abandons an issue releases it; a reviewer releases a
-PR the moment its review is submitted, since — unlike an issue closing a PR —
+issue or PR from every other session until it is old enough for a takeover —
+days, not a safety net for the next few minutes; see "Orphaned claims" below.
+A developer who abandons an issue releases it; a reviewer releases a PR the
+moment its review is submitted, since — unlike an issue closing a PR —
 nothing here does that step automatically.
+
+## Orphaned claims: age-based release
+
+A held claim used to have no way back short of a human running the release
+command by hand — `docs/limits.md` documented that as a limit, not a
+mechanism. It still can't tell a session that crashed from one still working
+quietly, but it no longer has to wait forever to find out: every claim
+already carries its own timestamp (`claim <ISO-8601 UTC>`, in the blob
+`roles/developer.md`'s claim push writes), and nothing ever read it back
+until now.
+
+`roles/developer.md` and `roles/reviewer.md` have the exact mechanism: a
+session whose claim attempt loses reads the timestamp on the ref it lost to
+(`git ls-remote` for the hash, then `git fetch` and `git cat-file blob` for
+the content — `ls-remote` alone leaves the object unfetched, and reading it
+straight off that fails with `could not get object info`). Older than
+`claim-timeout-days` in `AGENTS.md` (default **2**, see `docs/limits.md` for
+why days rather than minutes) and the claim counts as orphaned: the session
+releases it and reclaims it in two ordinary pushes — never `--force` — and
+says so on the issue or PR, so a human reading it later can see whose claim
+it was and why it changed hands.
+
+Taking over an orphaned claim can still be wrong — the session that held it
+may be alive and simply slow, not gone. That is the reason
+`roles/developer.md`'s "Working" step 1 and `roles/reviewer.md`'s verdict
+step both check, right before the action that would otherwise ship
+duplicated work, whether the claim they started with is still theirs. The
+age-based release makes eviction possible; that check is what keeps eviction
+from silently producing a second PR or a second review.
