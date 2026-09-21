@@ -83,7 +83,10 @@ Setup wizard:
                         Never pushes. A refused commit exits 21. An AGENTS.md
                         that exists but was never committed (not in HEAD) is
                         committed the same way, so a rerun finishes a refused
-                        one; one already in HEAD is left alone, edits and all.
+                        one; one already in HEAD (in any letter case) is left
+                        alone, edits and all, and so is one git ignores. An
+                        unmerged or intent-to-add index entry for AGENTS.md
+                        is refused (exit 21) before the index is touched.
 
 Without --yes, this is the same interactive tool it always was — flags just
 pre-fill what it proposes, and it still stops to ask. With --yes and no

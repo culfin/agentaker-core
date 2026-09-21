@@ -142,22 +142,54 @@ init_trunk() {
 # True if AGENTS.md in $1 is part of the commit HEAD points at. An
 # AGENTS.md that is on disk but not in HEAD was never committed — `--commit`
 # commits it; one that is in HEAD but edited holds the user's edits and is
-# left alone.
+# left alone. Case-insensitive: on a case-insensitive file system (macOS,
+# Windows) a committed `agents.md` *is* the AGENTS.md on disk, and committing
+# the other spelling next to it would put two files into the history.
 init_agents_md_in_head() {
-  git -C "$1" cat-file -e HEAD:AGENTS.md 2>/dev/null
+  git -C "$1" ls-tree --name-only HEAD 2>/dev/null | grep -qixF 'AGENTS.md'
+}
+
+# Why AGENTS.md's index entry in $1 is one --commit must not touch, or
+# nothing (rc 1) when it is ordinary: no entry, or one plain stage-0 entry.
+# Unmerged (stage 1-3, several lines) and intent-to-add (`git add -N`) are
+# states our add-then-restore cannot put back exactly, so they are refused
+# before the index is touched. Intent-to-add is read from `status
+# --porcelain=v2`, where such an entry is ".A" — the documented format, not
+# the internal flag bit `ls-files --debug` prints.
+init_agents_md_index_unusual() {
+  local dir=$1 entries status
+  entries=$(git -C "$dir" ls-files -s -- AGENTS.md 2>/dev/null)
+  if [ "$(printf '%s\n' "$entries" | grep -c .)" -gt 1 ] \
+     || printf '%s\n' "$entries" | grep -q "$(printf ' [1-3]\t')"; then
+    printf 'unmerged — a conflict on AGENTS.md is unresolved'; return 0
+  fi
+  status=$(git -C "$dir" status --porcelain=v2 --untracked-files=no -- AGENTS.md 2>/dev/null)
+  case "$status" in
+    "1 .A "*) printf 'intent-to-add (git add -N)'; return 0 ;;
+  esac
+  return 1
 }
 
 # `--commit`: commit exactly AGENTS.md in $1, on whatever branch HEAD is on,
 # so the worktrees created next already contain it. The pathspec after `--`
 # makes it a `git commit --only`: whatever else the user has staged stays
 # staged and out of this commit. Never pushes, never switches branches.
+# Returns 0 when it committed, 1 when AGENTS.md is ignored by git here (left
+# alone, not a refusal — the project chose not to track it).
 # A refused commit (no identity, a pre-commit hook, ...) refuses step 1 —
 # AGENTS.md stays written, and its index entry goes back to exactly what it
 # was before our `git add`: the same staged blob, or no entry at all. Not
 # `git reset`, which would restore HEAD's entry and so undo a deletion the
 # user had staged.
 init_commit_agents_md() {
-  local dir=$1 err entry mode sha
+  local dir=$1 err entry mode sha unusual
+  if git -C "$dir" check-ignore -q -- AGENTS.md 2>/dev/null; then
+    printf '  AGENTS.md is ignored by git here — not committed\n'
+    return 1
+  fi
+  if unusual=$(init_agents_md_index_unusual "$dir"); then
+    refuse_step 1 "AGENTS.md's index entry is $unusual — resolve it and run again; nothing was staged or committed"
+  fi
   entry=$(git -C "$dir" ls-files -s -- AGENTS.md 2>/dev/null)
   if err=$(git -C "$dir" add -- AGENTS.md 2>&1) \
      && err=$(git -C "$dir" commit -q -m "Add AGENTS.md (tender init)" -- AGENTS.md 2>&1); then
@@ -230,7 +262,7 @@ cmd_init() {
     # Never committed (a refused --commit earlier, or written by hand): the
     # same commit a freshly written one gets, so a retry finishes the job.
     if [ "$INIT_COMMIT" -eq 1 ] && ! init_agents_md_in_head "$dir"; then
-      init_commit_agents_md "$dir"; committed=1; did_something=1
+      if init_commit_agents_md "$dir"; then committed=1; did_something=1; fi
     fi
   else
     # The one flag this whole feature exists to be careful with (issue #3,
@@ -251,7 +283,7 @@ cmd_init() {
       printf '%s\n' "$draft" > "$dir/AGENTS.md"
       printf '  written: %s/AGENTS.md — edit the production boundary before you rely on it.\n' "$dir"
       did_something=1
-      if [ "$INIT_COMMIT" -eq 1 ]; then init_commit_agents_md "$dir"; committed=1; fi
+      if [ "$INIT_COMMIT" -eq 1 ] && init_commit_agents_md "$dir"; then committed=1; fi
     fi
   fi
 
@@ -352,11 +384,17 @@ cmd_init() {
   # With --commit the commit-and-pull step already happened — but only if
   # every worktree was made after the commit; one from an earlier run still
   # needs the pull. Numbering follows.
-  local commit_step="" pulls
+  # What the worktrees pull: without --commit, the trunk the user is told
+  # to commit on; with it, the branch the commit actually went onto — HEAD's,
+  # which need not be the trunk — or, on a detached HEAD, the commit itself.
+  local commit_step="" pulls src=$trunk
+  if [ "$committed" -eq 1 ]; then
+    src=$(git -C "$dir" symbolic-ref --short HEAD 2>/dev/null) || src=$(git -C "$dir" rev-parse HEAD)
+  fi
   pulls=$(cat <<EOF
-       git -C $dir/.worktrees/$repo-developer  pull $dir $trunk
-       git -C $dir/.worktrees/$repo-reviewer   pull $dir $trunk
-       git -C $dir/.worktrees/$repo-maintainer pull $dir $trunk
+       git -C $dir/.worktrees/$repo-developer  pull $dir $src
+       git -C $dir/.worktrees/$repo-reviewer   pull $dir $src
+       git -C $dir/.worktrees/$repo-maintainer pull $dir $src
 EOF
 )
   if [ "$committed" -eq 0 ]; then

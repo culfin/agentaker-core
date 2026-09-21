@@ -226,13 +226,15 @@ check "labels.existing: case-insensitive, only the three names, named as init na
   '["ready"]' "$(jget "$out" 'd["labels"]["existing"]')"
 check "environment.slug" '"owner/acme"' "$(jget "$out" 'd["environment"]["slug"]')"
 check "a 404 means the environment does not exist" "false" "$(jget "$out" 'd["environment"]["exists"]')"
+: > "$GH_CALLS"
 out=$(PATH="$STUB:$PATH" TENDER_NO_NETWORK='' GH_ENV=yes "$TENDER" init acme --propose --json 2>/dev/null)
 check "a 200 means it exists" "true" "$(jget "$out" 'd["environment"]["exists"]')"
+check "the 200 run: exactly the allowed calls, each once" "$(sort "$STUB/allowed")" "$(sort "$GH_CALLS")"
 : > "$GH_CALLS"
 out=$(PATH="$STUB:$PATH" TENDER_NO_NETWORK='' GH_ENV=down GH_LABELS_FAIL=1 "$TENDER" init acme --propose --json 2>/dev/null)
 check "any other failure is null, not false" "null" "$(jget "$out" 'd["environment"]["exists"]')"
 check "labels that could not be listed are null, not []" "null" "$(jget "$out" 'd["labels"]["existing"]')"
-check "failures add no other gh calls" "" "$(grep -vxF -f "$STUB/allowed" "$GH_CALLS")"
+check "the failure run: only allowed calls" "" "$(grep -vxF -f "$STUB/allowed" "$GH_CALLS")"
 
 echo "tender init --commit: commits exactly AGENTS.md, before the worktrees"
 fresh_repo com
@@ -308,6 +310,81 @@ check "committed" "Add AGENTS.md (tender init)" "$(git -C "$SANDBOX/older" log -
 lacks "does not ask to commit what is committed" "Commit AGENTS.md, then update" "$out"
 contains "keeps the pull step for the older worktrees" "2. Update the worktrees that existed before this run" "$out"
 contains "names the pull" "git -C $SANDBOX/older/.worktrees/older-developer  pull $SANDBOX/older main" "$out"
+
+echo "tender init --commit: the pull names the branch the commit went onto, not the trunk"
+fresh_repo side
+"$TENDER" init side --yes --boundary '' --no-agents-md >/dev/null 2>&1
+git -C "$SANDBOX/side" checkout -q -b feature
+out=$("$TENDER" init side --trunk main --yes --boundary 'npm publish' --commit 2>&1)
+check "exits 0" "0" "$?"
+check "committed on feature" "Add AGENTS.md (tender init)" "$(git -C "$SANDBOX/side" log -1 --format=%s feature)"
+contains "pulls feature" "git -C $SANDBOX/side/.worktrees/side-reviewer   pull $SANDBOX/side feature" "$out"
+lacks "not the trunk" "pull $SANDBOX/side main" "$out"
+fresh_repo detached
+"$TENDER" init detached --yes --boundary '' --no-agents-md >/dev/null 2>&1
+git -C "$SANDBOX/detached" checkout -q --detach
+out=$("$TENDER" init detached --yes --boundary 'npm publish' --commit 2>&1)
+check "detached HEAD: exits 0" "0" "$?"
+sha=$(git -C "$SANDBOX/detached" rev-parse HEAD)
+check "detached HEAD: the commit is HEAD" "Add AGENTS.md (tender init)" "$(git -C "$SANDBOX/detached" log -1 --format=%s)"
+contains "detached HEAD: pulls the commit by SHA" "pull $SANDBOX/detached $sha" "$out"
+git -C "$SANDBOX/detached/.worktrees/detached-developer" pull -q "$SANDBOX/detached" "$sha" 2>/dev/null
+check "and that pull actually works" "yes" \
+  "$([ -f "$SANDBOX/detached/.worktrees/detached-developer/AGENTS.md" ] && echo yes || echo no)"
+
+echo "tender init --commit: an AGENTS.md git ignores is left alone — not committed, not refused"
+fresh_repo ign
+printf 'AGENTS.md\n' > "$SANDBOX/ign/.gitignore"
+git -C "$SANDBOX/ign" add .gitignore && git -C "$SANDBOX/ign" commit -q -m ignore
+head_before=$(git -C "$SANDBOX/ign" rev-parse HEAD)
+out=$("$TENDER" init ign --yes --boundary 'npm publish' --commit 2>&1)
+check "a freshly written one: exits 0" "0" "$?"
+contains "says so" "AGENTS.md is ignored by git here — not committed" "$out"
+check "no commit" "$head_before" "$(git -C "$SANDBOX/ign" rev-parse HEAD)"
+check "not staged" "" "$(git -C "$SANDBOX/ign" diff --cached --name-only)"
+contains "still tells you what to do about it" "Commit AGENTS.md, then update" "$out"
+out=$("$TENDER" init ign --yes --boundary 'npm publish' --commit 2>&1)
+check "an existing one: exits 3, not 21" "3" "$?"
+contains "says so again" "AGENTS.md is ignored by git here — not committed" "$out"
+check "still no commit" "$head_before" "$(git -C "$SANDBOX/ign" rev-parse HEAD)"
+
+echo "tender init --commit: HEAD tracking agents.md under another case counts as committed"
+fresh_repo lower
+printf 'lower\n' > "$SANDBOX/lower/agents.md"
+git -C "$SANDBOX/lower" add agents.md && git -C "$SANDBOX/lower" commit -q -m lower
+# On a case-insensitive file system agents.md already is AGENTS.md; on a
+# case-sensitive one, put an AGENTS.md beside it so both cases test the same.
+[ -f "$SANDBOX/lower/AGENTS.md" ] || printf 'upper\n' > "$SANDBOX/lower/AGENTS.md"
+head_before=$(git -C "$SANDBOX/lower" rev-parse HEAD)
+out=$("$TENDER" init lower --propose --json 2>/dev/null)
+check "--propose: committed true" "true" "$(jget "$out" 'd["agents_md"]["committed"]')"
+"$TENDER" init lower --yes --boundary 'npm publish' --commit --no-worktrees >/dev/null 2>&1
+check "init: nothing to do (3)" "3" "$?"
+check "init: no second spelling committed" "$head_before" "$(git -C "$SANDBOX/lower" rev-parse HEAD)"
+
+echo "tender init --commit: an unusual index entry is refused before the index is touched"
+fresh_repo unmerged
+printf 'on disk\n' > "$SANDBOX/unmerged/AGENTS.md"
+blob=$(printf 'x\n' | git -C "$SANDBOX/unmerged" hash-object -w --stdin)
+printf '100644 %s 1\tAGENTS.md\n100644 %s 2\tAGENTS.md\n' "$blob" "$blob" \
+  | git -C "$SANDBOX/unmerged" update-index --index-info
+entry_before=$(git -C "$SANDBOX/unmerged" ls-files -s -- AGENTS.md)
+head_before=$(git -C "$SANDBOX/unmerged" rev-parse HEAD)
+err=$("$TENDER" init unmerged --yes --boundary 'npm publish' --commit 2>&1 >/dev/null)
+check "unmerged: exits 21" "21" "$?"
+contains "unmerged: says why" "index entry is unmerged" "$err"
+check "unmerged: index untouched" "$entry_before" "$(git -C "$SANDBOX/unmerged" ls-files -s -- AGENTS.md)"
+check "unmerged: no commit" "$head_before" "$(git -C "$SANDBOX/unmerged" rev-parse HEAD)"
+fresh_repo ita
+printf 'on disk\n' > "$SANDBOX/ita/AGENTS.md"
+git -C "$SANDBOX/ita" add -N AGENTS.md
+entry_before=$(git -C "$SANDBOX/ita" status --porcelain=v2 -- AGENTS.md)
+head_before=$(git -C "$SANDBOX/ita" rev-parse HEAD)
+err=$("$TENDER" init ita --yes --boundary 'npm publish' --commit 2>&1 >/dev/null)
+check "intent-to-add: exits 21" "21" "$?"
+contains "intent-to-add: says why" "index entry is intent-to-add" "$err"
+check "intent-to-add: still intent-to-add" "$entry_before" "$(git -C "$SANDBOX/ita" status --porcelain=v2 -- AGENTS.md)"
+check "intent-to-add: no commit" "$head_before" "$(git -C "$SANDBOX/ita" rev-parse HEAD)"
 
 echo "tender init --commit: a refused commit restores the index exactly"
 # A deletion the user had staged: `git reset` would bring HEAD's AGENTS.md
