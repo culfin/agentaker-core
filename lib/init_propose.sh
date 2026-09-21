@@ -20,7 +20,8 @@
 #
 # Needs from bin/tender:   PROJECTS_DIR
 # Needs from lib/init.sh:  detect_stack(), suggest_tests(), init_trunk(),
-#                          init_render_agents_md(), and the INIT_* globals
+#                          init_render_agents_md(), init_agents_md_in_head(),
+#                          and the INIT_* globals
 #                          init_parse_args() (lib/init_flags.sh) set
 # Needs from lib/json.sh:  json_escape(), json_string()
 # Provides to lib/init.sh: init_propose()
@@ -59,7 +60,8 @@ init_propose_labels() {
   have=$(cd "$dir" && gh label list --limit 1000 --json name --jq '.[].name' 2>/dev/null) \
     || { printf 'null'; return 0; }
   for name in $INIT_LABEL_NAMES; do
-    if printf '%s\n' "$have" | grep -qxF "$name"; then
+    # GitHub label names are case-insensitive: `Ready` blocks creating `ready`.
+    if printf '%s\n' "$have" | grep -qixF "$name"; then
       out="$out${out:+,}$(json_string "$name")"
     fi
   done
@@ -85,7 +87,7 @@ init_propose_environment() {
 
 init_propose() {
   local repo=$1 dir=$2
-  local branch trunk stack agents_path agents_exists content bin
+  local branch trunk stack agents_path agents_exists agents_committed content bin
   local prereq="" role wt worktrees="" wt_exists
 
   # A relative TENDER_PROJECTS_DIR would make every path below relative to
@@ -116,6 +118,14 @@ init_propose() {
   fi
 
   agents_path="$dir/AGENTS.md"
+  # On disk and in HEAD, i.e. what `--commit` would leave alone. False for a
+  # file that is not there (yet) — init would write and commit one — and for
+  # one on disk but never committed, which `--commit` would commit.
+  if [ -f "$agents_path" ] && init_agents_md_in_head "$dir"; then
+    agents_committed=true
+  else
+    agents_committed=false
+  fi
   if [ -f "$agents_path" ]; then
     agents_exists=true content=null
   else
@@ -137,8 +147,8 @@ init_propose() {
   # shellcheck disable=SC2086  # detect_stack() output is space-separated names
   printf '"stack":%s,' "$(init_json_lines "$(printf '%s\n' $stack)")"
   printf '"tests":%s,' "$tests_json"
-  printf '"agents_md":{"path":%s,"exists":%s,"content":%s},' \
-    "$(json_string "$agents_path")" "$agents_exists" "$content"
+  printf '"agents_md":{"path":%s,"exists":%s,"committed":%s,"content":%s},' \
+    "$(json_string "$agents_path")" "$agents_exists" "$agents_committed" "$content"
   if [ "$INIT_BOUNDARY_GIVEN" -eq 1 ]; then printf '"boundary_given":true,'; else printf '"boundary_given":false,'; fi
   # shellcheck disable=SC2086  # INIT_LABEL_NAMES is a space-separated list
   printf '"labels":{"names":%s,"existing":%s},' \

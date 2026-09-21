@@ -59,6 +59,8 @@ Values:
   --boundary <text>    the production boundary line for AGENTS.md.
                         --boundary '' means deliberately none — omitting the
                         flag entirely is a different thing (see below).
+  Each value must be one line of plain text: a newline, carriage return, tab
+  or other control character is a usage error (exit 2).
 
 Confirmations (each defaults to the interactive "yes"):
   --yes                 answer all four confirmations, non-interactively
@@ -78,8 +80,10 @@ Setup wizard:
   --commit             after writing AGENTS.md, commit exactly that file on
                         the branch HEAD is on — before the worktrees are made,
                         so they contain it. Other changes stay uncommitted.
-                        Never pushes. A refused commit exits 21. A no-op when
-                        AGENTS.md was not written by this run.
+                        Never pushes. A refused commit exits 21. An AGENTS.md
+                        that exists but was never committed (not in HEAD) is
+                        committed the same way, so a rerun finishes a refused
+                        one; one already in HEAD is left alone, edits and all.
 
 Without --yes, this is the same interactive tool it always was — flags just
 pre-fill what it proposes, and it still stops to ask. With --yes and no
@@ -149,6 +153,24 @@ init_parse_args() {
         INIT_REPO=$1; shift ;;
     esac
   done
+
+  # Every value lands on a line of its own in AGENTS.md (or inside one). A
+  # newline would start a line of its own — a forged `trunk:` or a new
+  # `## ` section — and the other control characters have no business in a
+  # branch name, a login, a command line or a boundary either. [[:cntrl:]]
+  # is 0x00-0x1f plus 0x7f.
+  local flag value
+  for flag in --trunk --reviewer --boundary; do
+    case $flag in
+      --trunk) value=$INIT_TRUNK ;; --reviewer) value=$INIT_REVIEWER ;; *) value=$INIT_BOUNDARY ;;
+    esac
+    case "$value" in *[[:cntrl:]]*) die "$flag must be one line of plain text" 2 ;; esac
+  done
+  if [ "${#INIT_TESTS[@]}" -gt 0 ]; then
+    for value in "${INIT_TESTS[@]}"; do
+      case "$value" in *[[:cntrl:]]*) die "--tests must be one line of plain text" 2 ;; esac
+    done
+  fi
 
   # JSON is only ever the output of a proposal; a proposal has no other form.
   [ "$INIT_PROPOSE" -eq 0 ] || [ "$INIT_JSON" -eq 1 ] \

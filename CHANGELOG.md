@@ -20,7 +20,10 @@ Adds `tender init <repo> --propose --json` and `tender init --commit`, for a
 setup wizard (app issue #6). `--propose --json` prints what `init` would do —
 including the exact `AGENTS.md` text, from the same rendering `init` writes —
 as one JSON object, and changes nothing. `--commit` commits exactly
-`AGENTS.md` before the worktrees are made, so all three roles see it at once.
+`AGENTS.md` before the worktrees are made, so all three roles see it at once
+(also one on disk that was never committed, so a rerun finishes a refused
+commit). `--trunk`, `--reviewer`, `--tests` and `--boundary` now refuse
+control characters (exit 2) — a newline would forge lines in `AGENTS.md`.
 Without either flag `init` behaves as before. `tender claims --json` now
 escapes every control character instead of flattening newlines to spaces
 (the escaper is shared, `lib/json.sh`).

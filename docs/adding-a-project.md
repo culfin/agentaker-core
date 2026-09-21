@@ -31,7 +31,13 @@ user's edits and show the text `init` itself renders; a remote answer that
 could not be had (no `gh`, offline, `TENDER_NO_NETWORK`) is `null`, never a
 guess. `--commit` commits `AGENTS.md` — only that file, on the branch HEAD is
 on, never pushed — right after writing it, so the worktrees are made from a
-commit that already contains it and step 2 below falls away.
+commit that already contains it and step 2 below falls away (unless some
+role worktrees already existed — those still need the pull). An `AGENTS.md`
+that is on disk but was never committed, say after a refused `--commit`, is
+committed the same way on the next run; one already committed is left alone.
+Every value flag must be one line of plain text — a newline, tab or other
+control character is a usage error, since it would forge lines in
+`AGENTS.md`.
 
 ## Route A: `tender init`
 

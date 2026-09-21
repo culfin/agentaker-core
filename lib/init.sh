@@ -139,22 +139,39 @@ init_trunk() {
   git -C "$1" symbolic-ref --short HEAD 2>/dev/null || printf 'main'
 }
 
+# True if AGENTS.md in $1 is part of the commit HEAD points at. An
+# AGENTS.md that is on disk but not in HEAD was never committed — `--commit`
+# commits it; one that is in HEAD but edited holds the user's edits and is
+# left alone.
+init_agents_md_in_head() {
+  git -C "$1" cat-file -e HEAD:AGENTS.md 2>/dev/null
+}
+
 # `--commit`: commit exactly AGENTS.md in $1, on whatever branch HEAD is on,
 # so the worktrees created next already contain it. The pathspec after `--`
 # makes it a `git commit --only`: whatever else the user has staged stays
 # staged and out of this commit. Never pushes, never switches branches.
 # A refused commit (no identity, a pre-commit hook, ...) refuses step 1 —
-# AGENTS.md stays written, and is taken back out of the index so the user's
-# staging area looks as it did before.
+# AGENTS.md stays written, and its index entry goes back to exactly what it
+# was before our `git add`: the same staged blob, or no entry at all. Not
+# `git reset`, which would restore HEAD's entry and so undo a deletion the
+# user had staged.
 init_commit_agents_md() {
-  local dir=$1 err
+  local dir=$1 err entry mode sha
+  entry=$(git -C "$dir" ls-files -s -- AGENTS.md 2>/dev/null)
   if err=$(git -C "$dir" add -- AGENTS.md 2>&1) \
      && err=$(git -C "$dir" commit -q -m "Add AGENTS.md (tender init)" -- AGENTS.md 2>&1); then
     printf '  committed: AGENTS.md on %s\n' \
       "$(git -C "$dir" symbolic-ref --short HEAD 2>/dev/null || printf 'a detached HEAD')"
     return 0
   fi
-  git -C "$dir" reset -q -- AGENTS.md >/dev/null 2>&1
+  if [ -n "$entry" ]; then
+    # `ls-files -s` prints "<mode> <sha> <stage>\t<path>".
+    mode=${entry%% *}; sha=${entry#* }; sha=${sha%% *}
+    git -C "$dir" update-index --cacheinfo "$mode" "$sha" AGENTS.md >/dev/null 2>&1
+  else
+    git -C "$dir" rm -q --cached --ignore-unmatch -- AGENTS.md >/dev/null 2>&1
+  fi
   refuse_step 1 "could not commit AGENTS.md (it is written, not committed): $(printf '%s' "$err" | grep -v '^[[:space:]]*$' | head -1)"
 }
 
@@ -177,7 +194,14 @@ cmd_init() {
   local TENDER_YES=${TENDER_YES:-}
   [ "$INIT_YES" -eq 1 ] && TENDER_YES=1
 
-  local did_something=0 committed=0
+  local did_something=0 committed=0 role
+
+  # Whether any role worktree predates this run: those were made from an
+  # older commit, so even a --commit leaves them needing a pull.
+  local worktrees_before=0
+  for role in developer reviewer maintainer; do
+    [ -d "$dir/.worktrees/$repo-$role" ] && worktrees_before=1
+  done
 
   local ver
   printf 'Checking what we need:\n'
@@ -203,6 +227,11 @@ cmd_init() {
   elif [ -f "$dir/AGENTS.md" ]; then
     printf '\n  %s already has an AGENTS.md — leaving it alone.\n' "$repo"
     printf '  Make sure it names: trunk, reviewer, test commands, production boundary.\n'
+    # Never committed (a refused --commit earlier, or written by hand): the
+    # same commit a freshly written one gets, so a retry finishes the job.
+    if [ "$INIT_COMMIT" -eq 1 ] && ! init_agents_md_in_head "$dir"; then
+      init_commit_agents_md "$dir"; committed=1; did_something=1
+    fi
   else
     # The one flag this whole feature exists to be careful with (issue #3,
     # "Careful with"): --boundary '' (deliberately none) and --boundary never
@@ -320,18 +349,26 @@ cmd_init() {
     first_step="Create $dir/AGENTS.md — run this again, or copy one from examples/."
   fi
 
-  # With --commit the commit-and-pull step already happened: the worktrees
-  # were made from the commit that holds AGENTS.md. Numbering follows.
-  local commit_step=""
-  [ "$committed" -eq 0 ] && commit_step=$(cat <<EOF
-Commit AGENTS.md, then update the worktrees just created — they were
-     made from the commit before this one, so none of them can see it yet:
-       git -C $dir add AGENTS.md && git -C $dir commit -m "add AGENTS.md"
+  # With --commit the commit-and-pull step already happened — but only if
+  # every worktree was made after the commit; one from an earlier run still
+  # needs the pull. Numbering follows.
+  local commit_step="" pulls
+  pulls=$(cat <<EOF
        git -C $dir/.worktrees/$repo-developer  pull $dir $trunk
        git -C $dir/.worktrees/$repo-reviewer   pull $dir $trunk
        git -C $dir/.worktrees/$repo-maintainer pull $dir $trunk
 EOF
 )
+  if [ "$committed" -eq 0 ]; then
+    commit_step="Commit AGENTS.md, then update the worktrees just created — they were
+     made from the commit before this one, so none of them can see it yet:
+       git -C $dir add AGENTS.md && git -C $dir commit -m \"add AGENTS.md\"
+$pulls"
+  elif [ "$worktrees_before" -eq 1 ]; then
+    commit_step="Update the worktrees that existed before this run — they were made
+     from an older commit and cannot see the AGENTS.md just committed:
+$pulls"
+  fi
 
   printf '\nDone. Next:\n'
   local n=0 step
