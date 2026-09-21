@@ -31,6 +31,8 @@ contains "shows review queue" "waiting for review" "$out"
 contains "shows merge queue" "approved" "$out"
 contains "shows human queue" "waiting on you" "$out"
 contains "admits the queue is approximate" "MDT_REVIEWER" "$out"
+contains "notes that blocked issues are already counted, when there is a row to count" \
+  "blocked issues are counted here" "$out"
 
 calls=$(cat "$GH_CALLS")
 contains "asks for the ready label" "--label ready" "$calls"
@@ -50,6 +52,26 @@ contains "asks for that reviewer's queue" "review-requested somereviewer" "$call
 lacks "does not fall back" "review none" "$calls"
 lacks "no approximation notice" "MDT_REVIEWER" "$out"
 
+echo "mdt status: the blocked-issues note is section-specific, not unconditional"
+# gh search issues has no dependency filter (see bin/mdt's comment above the
+# call) — the note is compensating for that gap, so it must track whether the
+# READY section actually had a row, not just print unconditionally. A stub
+# that returns a row for every section except "ready" isolates that.
+cat > "$STUB/gh" <<'STUBEOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$GH_CALLS"
+case "$*" in
+  *"--label ready"*) ;;  # no rows — an empty "ready to pick up" section
+  *) echo "  demo#1  a fake row" ;;
+esac
+STUBEOF
+chmod +x "$STUB/gh"
+: > "$GH_CALLS"
+out=$(PATH="$STUB:$PATH" MDT_REVIEWER=r "$MDT" status someowner 2>&1)
+contains "still reports an empty ready section" "(none)" "$out"
+lacks "says nothing about blocked issues when there was nothing to count" \
+  "blocked issues are counted here" "$out"
+
 echo "mdt status: a failed query is not an empty board"
 cat > "$STUB/gh" <<'STUBEOF'
 #!/usr/bin/env bash
@@ -63,6 +85,8 @@ check "failed queries exit 1" "1" "$?"
 contains "says it could not ask" "could not ask" "$out"
 lacks "does not claim an empty queue" "(none)" "$out"
 contains "warns the board is incomplete" "incomplete" "$out"
+lacks "says nothing about blocked issues when the ready query itself failed" \
+  "blocked issues are counted here" "$out"
 
 echo "mdt attach: arguments"
 out=$("$MDT" attach 2>&1); check "attach without repo exits 2" "2" "$?"

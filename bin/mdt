@@ -28,6 +28,7 @@ DRY_RUN="${MDT_DRY_RUN:-}"
 REVIEWER="${MDT_REVIEWER:-}"
 LAUNCH_CMD=()
 STATUS_FAILED=0
+STATUS_HAD_ROWS=0
 
 die() { printf 'mdt: %s\n' "$1" >&2; exit "${2:-1}"; }
 
@@ -242,12 +243,15 @@ cmd_start() {
 # Ask gh one question and render the answer. Distinguishes three outcomes that
 # must never look alike: rows, no rows, and "I could not ask".
 # Sets STATUS_FAILED=1 on the third, so cmd_status() can exit non-zero.
+# Sets STATUS_HAD_ROWS=1 on the first, so a caller can add a section-specific
+# note without printing it over "(none)" or a failed query.
 status_query() {
   local heading=$1
   shift
   local out rc
   out=$(gh "$@" 2>&1)
   rc=$?
+  STATUS_HAD_ROWS=0
   printf '%s:\n' "$heading"
   if [ "$rc" -ne 0 ]; then
     printf '  could not ask: %s\n' "$(printf '%s' "$out" | head -1)"
@@ -258,6 +262,7 @@ status_query() {
     printf '  (none)\n'
   else
     printf '%s\n' "$out"
+    STATUS_HAD_ROWS=1
   fi
 }
 
@@ -267,10 +272,18 @@ cmd_status() {
 
   STATUS_FAILED=0
 
+  # `gh search issues` — unlike `gh issue list` — has no --json blockedBy /
+  # dependency filter, and this command asks across every repository in one
+  # call, so it cannot loop per-repo to get one either (see roles/developer.md
+  # for why the developer itself can and does filter). Say so rather than
+  # silently listing issues the developer would skip.
   status_query "ready to pick up" \
     search issues --owner "$owner" --state open --label ready \
     --json repository,number,title \
     --jq '.[] | "  \(.repository.name)#\(.number)  \(.title)"'
+  if [ "$STATUS_HAD_ROWS" -eq 1 ]; then
+    printf '  (blocked issues are counted here — the developer skips them)\n'
+  fi
 
   if [ -n "$REVIEWER" ]; then
     status_query "waiting for review" \
