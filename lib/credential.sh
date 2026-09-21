@@ -94,16 +94,14 @@ credential_account_macos() {
   printf '%s' "$out"
 }
 
-# Linux counterpart. Unlike its macOS twin, `secret-tool search` prints the
-# secret too (a `secret = ...` line next to the attributes), so its output
-# goes straight into sed and is never held in a variable, where a trace
-# (`bash -x`) would print it. Only `attribute.account = ` lines survive. A
-# multi-line secret that happens to contain such a line could name a wrong
-# account -- the value lookup for that account then finds nothing, and the
-# start is refused rather than misdirected.
+# Linux counterpart. `secret-tool search` splits its output: the secret goes
+# to stdout, the `attribute.<name> = <value>` lines to *stderr* (g_printerr
+# in libsecret's tool/secret-tool.c). So stderr is the one read here and
+# stdout is thrown away -- the secret never enters this pipe at all, and
+# nothing here is held where a trace (`bash -x`) would print it.
 credential_account_linux() {
   local out
-  out=$(secret-tool search --all service "$1" 2>/dev/null \
+  out=$(secret-tool search --all service "$1" 2>&1 >/dev/null \
     | sed -n 's/^attribute\.account = \(.*\)$/\1/p')
   out=${out%%$'\n'*}
   [ -n "$out" ] || return 1

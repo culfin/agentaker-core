@@ -262,8 +262,11 @@ echo "credential: the Linux parser reads the account, and never holds the secret
   LINUX_STUB=$(mktemp -d)
   cat > "$LINUX_STUB/secret-tool" <<'EOF'
 #!/usr/bin/env bash
-# The shape `secret-tool search --all` prints: attributes AND the secret.
-printf '[/org/freedesktop/secrets/collection/login/7]\nlabel = treetender-cred-work\nsecret = sk-linux-secret\ncreated = 2026-09-21 10:00:00\nattribute.account = OPENAI_API_KEY\nattribute.service = treetender-cred-work\n'
+# The split `secret-tool search --all` really makes (libsecret
+# tool/secret-tool.c): item header and secret on stdout, the attributes on
+# stderr via g_printerr.
+printf '[/org/freedesktop/secrets/collection/login/7]\nlabel = treetender-cred-work\nsecret = sk-linux-secret\ncreated = 2026-09-21 10:00:00\n'
+printf 'attribute.account = OPENAI_API_KEY\nattribute.service = treetender-cred-work\n' >&2
 EOF
   chmod +x "$LINUX_STUB/secret-tool"
   . "$PWD/lib/credential.sh"
