@@ -3,7 +3,7 @@
 ```
 human       puts `ready` on an issue                      ← the only starting point
    |
-developer   gh issue list --label ready
+developer   gh issue list --label ready --search no:assignee
             gh pr create --draft   …work…   gh pr ready <N>
             gh pr edit <N> --add-reviewer <login from AGENTS.md>
                  |
@@ -91,3 +91,33 @@ single account authored — and would have had to fake both with labels, which
 is exactly the fragility this design avoids. The reviewer's separate account
 (`docs/setup.md`) is what lets the flow run on GitHub's real review state
 instead.
+
+## Multiple agents in the same role
+
+Nothing stops two developer sessions from running against the same repository
+at once, and `roles/maintainer.md` calls that out explicitly for its own role
+("There is exactly one of you per repository") precisely because it is *not*
+true for developer or reviewer. Two developers reading the same `ready` list
+can reach for the same issue; two reviewers reading `review-requested:@me` can
+reach for the same PR. `docs/concept.md` explains why the worktree split
+doesn't touch this: it keeps roles from colliding on files, not a role from
+colliding with itself.
+
+The fix reuses the GitHub assignee for state rather than identity.
+`roles/_base.md` established that roles may share one account, so `--assignee
+@me` cannot tell two developer sessions apart — but it doesn't need to. It only
+needs to say an issue or PR is *taken*, which the next session's `no:assignee`
+search then excludes. So the developer assigns itself an issue before opening
+the draft PR, and the reviewer assigns itself a PR before starting the review.
+
+The claim is a signal, not a lock, so two sessions can still land on the same
+issue seconds apart. If a second draft PR for the same issue turns up anyway,
+the **lower PR number wins**: the other session closes its PR, removes its
+assignment, and takes the next issue instead — no lock, no timestamp, the
+collision becomes visible rather than silently duplicated work.
+
+A claim that's never released is worse than no claim at all: it hides the
+issue or PR from every other session forever. A developer who abandons an
+issue releases it; a reviewer releases a PR the moment its review is
+submitted, since — unlike an issue closing a PR — nothing here does that step
+automatically.
