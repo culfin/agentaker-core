@@ -10,6 +10,7 @@ echo "mdt: usage"
 out=$("$MDT" 2>&1); check "no arguments exits 2" "2" "$?"
 contains "no arguments prints usage" "Usage:" "$out"
 contains "documents MDT_DRY_RUN — the only way a user discovers it otherwise" "MDT_DRY_RUN" "$out"
+contains "says a dry run still creates the worktree — it reads as side-effect free otherwise" "still created" "$out"
 contains "documents MDT_YES — the only non-interactive route through init" "MDT_YES" "$out"
 contains "documents MDT_NO_NETWORK" "MDT_NO_NETWORK" "$out"
 
