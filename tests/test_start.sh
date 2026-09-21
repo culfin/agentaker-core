@@ -39,6 +39,9 @@ contains "dry run passes the context file" "append-system-prompt-file" "$out"
 contains "dry run uses tmux" "tmux" "$out"
 out=$(MDT_TOOL=codex "$MDT" demo developer 2>&1)
 contains "another tool is honoured" "codex" "$out"
+contains "an unrun launch path says so at launch time" "has never been run" "$out"
+out=$("$MDT" demo developer 2>&1)
+lacks "a verified path stays quiet about it" "has never been run" "$out"
 out=$(MDT_TOOL=nonesuch "$MDT" demo developer 2>&1)
 contains "unknown tool explains itself" "context.md" "$out"
 

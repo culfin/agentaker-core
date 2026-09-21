@@ -11,6 +11,10 @@ agent you run: the worktrees, the role files, `AGENTS.md`, the GitHub flow,
 | Codex CLI | `codex` | `--prompt-file` | **unverified** — please report |
 | anything else | any | `mdt` prints the path to `.agents/context.md`; paste it as your first message | works, manually |
 
+`mdt` says this out loud, too: starting a session on an unverified path
+prints a line to stderr naming the tool and pointing here. A table nobody has
+open at that moment is not a warning.
+
 **Verified** means what it says: run and checked on the development machine on
 the date given, for example:
 

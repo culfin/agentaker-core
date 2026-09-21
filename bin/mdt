@@ -87,6 +87,11 @@ EOF
 # nothing else in this repository changes.
 launch_command() {
   local ctx=$1 tool=${TOOL:-claude}
+  # Set alongside LAUNCH_CMD so the caller can say out loud that a path was
+  # never run. A wrong flag here fails silently in the worst way: the session
+  # starts, looks fine, and simply has no role -- and the docs table saying
+  # "unverified" is not in front of anyone at that moment.
+  TOOL_STATUS=verified
   case "$tool" in
     claude)
       # Verified 2026-09-20 against Claude Code.
@@ -95,6 +100,7 @@ launch_command() {
     codex)
       # UNVERIFIED — codex was not installed when this was written.
       # If this is wrong, fix it here and say so in docs/tools.md.
+      TOOL_STATUS=unverified
       LAUNCH_CMD=(codex --prompt-file "$ctx")
       ;;
     *)
@@ -168,8 +174,13 @@ cmd_start() {
   build_context "$wt" "$role" || die "could not assemble the role context from $ROLES_DIR"
 
   LAUNCH_CMD=()
+  TOOL_STATUS=verified
   if ! launch_command "$wt/.agents/context.md"; then
     die "no launch command known for tool '$TOOL' — paste $wt/.agents/context.md as your first message, and consider adding a branch to launch_command() in bin/mdt"
+  fi
+
+  if [ "${TOOL_STATUS:-verified}" = unverified ]; then
+    printf 'mdt: the launch path for "%s" has never been run — if this session starts without its role, that is why. See docs/tools.md.\n' "$TOOL" >&2
   fi
 
   # The reviewer runs under its own hosting account. Its token lives in the OS
