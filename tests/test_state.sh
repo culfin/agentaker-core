@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# `.agents/state.md` — the facts mdt collects itself before a restart, never
+# `.agents/state.md` — the facts tender collects itself before a restart, never
 # from the session being replaced. The case the brief calls out as the one
 # that matters most: gh is unreachable, and the file has to say so, not go
 # blank or invent a row (see .superpowers/sdd/plan/handoff-fakten-brief.md).
 set -uo pipefail
 cd "$(dirname "$0")/.."
 . tests/lib.sh
-MDT="$PWD/bin/mdt"
+TENDER="$PWD/bin/tender"
 make_sandbox
 STUB=$(mktemp -d)
 
 cleanup() {
-  tmux kill-session -t mdt-demo >/dev/null 2>&1
+  tmux kill-session -t tender-demo >/dev/null 2>&1
   rm -rf "$SANDBOX" "$STUB"
 }
 trap cleanup EXIT
@@ -57,22 +57,22 @@ export PATH="$STUB:$PATH"
 open_window() {
   local suffix=$1 agent=$2
   local wt="$SANDBOX/demo/.worktrees/demo-developer-$suffix"
-  if tmux has-session -t mdt-demo 2>/dev/null; then
-    tmux new-window -t mdt-demo -c "$wt" -n "DEV·$suffix" "$agent"
+  if tmux has-session -t tender-demo 2>/dev/null; then
+    tmux new-window -t tender-demo -c "$wt" -n "DEV·$suffix" "$agent"
   else
-    tmux new-session -d -s mdt-demo -c "$wt" -n "DEV·$suffix" "$agent"
+    tmux new-session -d -s tender-demo -c "$wt" -n "DEV·$suffix" "$agent"
   fi
 }
 
 # Creates worktree $1, opens a window running the responsive stand-in,
-# restarts it for real (through bin/mdt, not by calling collect_state
+# restarts it for real (through bin/tender, not by calling collect_state
 # directly — this is the path a real restart takes), and prints the
 # resulting .agents/state.md.
 restart_and_read_state() {
   local suffix=$1
-  "$MDT" demo developer "$suffix" >/dev/null 2>&1
+  "$TENDER" demo developer "$suffix" >/dev/null 2>&1
   open_window "$suffix" "$STUB/fake-agent-responsive.sh"
-  MDT_PROJECTS_DIR="$SANDBOX" "$MDT" restart demo "DEV·$suffix" >/dev/null 2>&1
+  TENDER_PROJECTS_DIR="$SANDBOX" "$TENDER" restart demo "DEV·$suffix" >/dev/null 2>&1
   cat "$SANDBOX/demo/.worktrees/demo-developer-$suffix/.agents/state.md" 2>/dev/null
 }
 
@@ -87,7 +87,7 @@ EOF
 chmod +x "$STUB/gh"
 
 state=$(restart_and_read_state unreachable)
-contains "heading is present" "State (collected by mdt, not reported by the session)" "$state"
+contains "heading is present" "State (collected by tender, not reported by the session)" "$state"
 check "open PR says it could not ask" \
   "$(line_for "open PR" "could not ask: gh: authentication required")" \
   "$(printf '%s\n' "$state" | grep '^open PR:')"
@@ -97,11 +97,11 @@ check "claim held says it could not ask" \
 lacks "never claims an empty PR queue instead" "$(line_for "open PR" "none")" "$state"
 lacks "never claims no claim instead" "$(line_for "claim held" "none")" "$state"
 
-echo "mdt restart: gh failing does not fail the restart itself"
+echo "tender restart: gh failing does not fail the restart itself"
 # --fresh: the window is now running the claude stub from the restart above,
 # which never answers a handover request — --fresh is what skips waiting for
 # one, the same reasoning tests/test_restart.sh's --fresh case documents.
-out=$(MDT_PROJECTS_DIR="$SANDBOX" "$MDT" restart demo DEV·unreachable --fresh 2>&1)
+out=$(TENDER_PROJECTS_DIR="$SANDBOX" "$TENDER" restart demo DEV·unreachable --fresh 2>&1)
 check "exits 0 even though gh cannot be asked" "0" "$?"
 contains "still restarts" "restarted DEV·unreachable in demo" "$out"
 
@@ -148,7 +148,7 @@ check "reports the PR number, that it's ready, and what it closes" \
 check "finds the claim actually held" \
   "$(line_for "claim held" "refs/claims/issue-42")" \
   "$(printf '%s\n' "$state" | grep '^claim held:')"
-check "role comes from mdt, not gh" \
+check "role comes from tender, not gh" \
   "$(line_for "role" "developer")" "$(printf '%s\n' "$state" | grep '^role:')"
 check "worktree comes from the directory, not gh" \
   "$(line_for "worktree" "demo-developer-found")" \
@@ -161,7 +161,7 @@ check "branch comes from git, not gh" \
 
 echo "the new session's context has facts before free text"
 ctx=$(cat "$SANDBOX/demo/.worktrees/demo-developer-found/.agents/context.md")
-contains "state section present" "## State (collected by mdt" "$ctx"
+contains "state section present" "## State (collected by tender" "$ctx"
 contains "handover section present" "## Handover from your predecessor" "$ctx"
 state_pos=${ctx%%"## State"*}
 handover_pos=${ctx%%"## Handover from your predecessor"*}

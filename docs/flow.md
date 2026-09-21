@@ -233,9 +233,9 @@ releases it and reclaims it in two ordinary pushes — never `--force` — and
 says so on the issue or PR, so a human reading it later can see whose claim
 it was and why it changed hands.
 
-`mdt claims <repo>` (`--json` for a script or a GUI) lists every claim this
+`tender claims <repo>` (`--json` for a script or a GUI) lists every claim this
 way — name, timestamp, age, and whether it's past the threshold — without
-waiting for a second session to collide with one first. `mdt claim-release
+waiting for a second session to collide with one first. `tender claim-release
 <repo> <N>` runs the same release-then-reclaim by hand, and refuses exactly
 where the mechanism above would: a claim younger than `claim-timeout-days`.
 

@@ -2,14 +2,14 @@
 
 ## 1. Get the tool
 
-    git clone https://github.com/culfin/mandate ~/.mandate
-    ln -s ~/.mandate/bin/mdt ~/bin/mdt   # or wherever is actually on your PATH — see below
+    git clone https://github.com/culfin/treetender ~/.treetender
+    ln -s ~/.treetender/bin/tender ~/bin/tender   # or wherever is actually on your PATH — see below
 
 Requires `git`, `gh` and `tmux`. No runtime, no package manager.
 
 `~/bin` is a guess, and on some machines it's the wrong one: it can exist
 without being on `PATH` (`~/.local/bin` is the more common default on a fresh
-install), in which case the symlink is created, `mdt` still says "command not
+install), in which case the symlink is created, `tender` still says "command not
 found", and that looks like a broken install rather than a wrong target
 directory. Check first:
 
@@ -17,8 +17,8 @@ directory. Check first:
 
 and link into one of those instead if `~/bin` isn't among them.
 
-`mdt` resolves its own symlink to find `roles/` next to the real install, so
-it works wherever you link it from — move `~/.mandate` later and the
+`tender` resolves its own symlink to find `roles/` next to the real install, so
+it works wherever you link it from — move `~/.treetender` later and the
 link still finds it, as long as the link itself isn't moved somewhere that no
 longer points at it.
 
@@ -32,11 +32,11 @@ for, that's the last section below, and it's optional.
 
 ## 2. Lock the production boundary
 
-`mdt init` offers to do this; here it is by hand.
+`tender init` offers to do this; here it is by hand.
 
 One API call creates the environment — or updates it, if `production` already
 exists under a different rule set. `PUT` is both; there is no separate create
-call. `mdt init` checks first and tells you which one happened, but GitHub
+call. `tender init` checks first and tells you which one happened, but GitHub
 does not document whether updating preserves rules the PUT doesn't mention —
 if the environment already had other rules, verify with the command below
 rather than assuming either way:
@@ -63,41 +63,41 @@ Required reviewers need a public repository, or GitHub Pro/Team/Enterprise for
 a private one — on a private repo without that plan, the API call above fails
 with `422` (`"Please ensure the billing plan supports the required reviewers
 protection rule"`) and leaves a bare environment behind with no rule attached.
-`mdt init` treats that failure as "create it by hand" and points back here;
+`tender init` treats that failure as "create it by hand" and points back here;
 doing it by hand hits the same `422` for the same reason, so if you see it,
 the fix is the plan or the repo's visibility, not the recipe.
 
 ## 3. Set up a project
 
-`<repo>` below is resolved under `MDT_PROJECTS_DIR` (default `~/Projekte`) —
+`<repo>` below is resolved under `TENDER_PROJECTS_DIR` (default `~/Projekte`) —
 set it first if your repositories live somewhere else, or `init` fails with
 "not a git repository" against a path that doesn't exist:
 
-    export MDT_PROJECTS_DIR=~/code   # only if your repos aren't under ~/Projekte
-    mdt init <repo>
+    export TENDER_PROJECTS_DIR=~/code   # only if your repos aren't under ~/Projekte
+    tender init <repo>
 
 See [adding-a-project.md](adding-a-project.md) for what it does and how to do
 it by hand.
 
 ## 4. Choose your coding agent
 
-    export MDT_TOOL=claude      # default
+    export TENDER_TOOL=claude      # default
 
 Claude Code and Codex CLI are built in; anything else goes in a tools file
-(`~/.config/mandate/tools`) instead of a code change — see
+(`~/.config/treetender/tools`) instead of a code change — see
 [tools.md](tools.md) for the format, what's verified versus untested, and
-`mdt doctor` for checking a tool actually works before you rely on it
+`tender doctor` for checking a tool actually works before you rely on it
 unattended.
 
 ## 5. Tell your tabs apart
 
 Several sessions across several projects means several terminal tabs, and by
-default they all say the same thing. `mdt` sets the tab title itself, scoped
+default they all say the same thing. `tender` sets the tab title itself, scoped
 to that project's tmux session only — it never touches the global title, so
 your other tmux sessions keep whatever they already show.
 
 The title is short on purpose: project, then who, nothing else — the session
-name already carries "mdt", repeating it would just cost characters:
+name already carries "tender", repeating it would just cost characters:
 
     dateye · DEV
     dateye · DEV·eyeoffice        # a suffixed developer session
@@ -111,7 +111,7 @@ proprietary escape codes, wrapped for tmux passthrough. This is iTerm2-only;
 see [limits.md](limits.md) for what happens in every other terminal. Turn it
 off, still keeping the title:
 
-    export MDT_TAB_COLOUR=0
+    export TENDER_TAB_COLOUR=0
 
 ## 6. Replacing a session without losing its place
 
@@ -120,21 +120,21 @@ that's wedged. Killing it loses where it had got to; reloading the whole
 conversation is expensive, tool-specific, and after an update carries
 artefacts of the version you just replaced.
 
-    mdt restart myproject DEV
+    tender restart myproject DEV
 
 asks the session to write `.agents/handoff.md` (see "Handing over" in
 `roles/_base.md` for what belongs in it), waits for the file, replaces the
 process, and hands the file to its successor as part of its context. If the
-session doesn't answer within `MDT_HANDOFF_TIMEOUT` seconds (default 60),
-`mdt` aborts rather than restarting — see [limits.md](limits.md) for why, and
+session doesn't answer within `TENDER_HANDOFF_TIMEOUT` seconds (default 60),
+`tender` aborts rather than restarting — see [limits.md](limits.md) for why, and
 for what `--fresh` costs you when you use it instead:
 
-    mdt restart myproject DEV --fresh   # replace without asking — loses state
-    mdt restart --all                   # every running session, across every project
+    tender restart myproject DEV --fresh   # replace without asking — loses state
+    tender restart --all                   # every running session, across every project
 
 `--all` restarts one session at a time, not in parallel, so it prints the
 worst case up front before starting anything: N running sessions is up to
-N × `MDT_HANDOFF_TIMEOUT` if every one of them is wedged and times out
+N × `TENDER_HANDOFF_TIMEOUT` if every one of them is wedged and times out
 waiting for a handover — six sessions at the 60s default is up to six
 minutes, and that line is what tells you before it starts, not partway
 through.
@@ -184,13 +184,13 @@ blocked even on a shared one.
 4. Store it in the OS keychain — never in a settings file:
 
        # macOS
-       security add-generic-password -s mandate-reviewer -a "$USER" -w '<token>'
+       security add-generic-password -s treetender-reviewer -a "$USER" -w '<token>'
        # Linux (libsecret)
-       secret-tool store --label="mandate reviewer" service mandate-reviewer
+       secret-tool store --label="treetender reviewer" service treetender-reviewer
 
-   `mdt` reads it back with `security find-generic-password -s
-   mandate-reviewer -w` (or the `secret-tool lookup` equivalent) — the
-   exact commands are in `read_reviewer_token()` in `bin/mdt`, if you want to
+   `tender` reads it back with `security find-generic-password -s
+   treetender-reviewer -w` (or the `secret-tool lookup` equivalent) — the
+   exact commands are in `read_reviewer_token()` in `bin/tender`, if you want to
    check by hand.
 
 5. Put that account's login in each project's `AGENTS.md`:
@@ -202,8 +202,8 @@ blocked even on a shared one.
    mode otherwise — leave it blank, or matching your own login, to stay on
    single-account mode.
 
-`mdt <repo> reviewer` reads the token and sets `GH_TOKEN` for that session
-only. If it is missing, `mdt` says so and starts anyway — you find out at the
+`tender <repo> reviewer` reads the token and sets `GH_TOKEN` for that session
+only. If it is missing, `tender` says so and starts anyway — you find out at the
 first approval, not at session start:
 
-    mdt: no reviewer token found — approvals will fail. See docs/setup.md
+    tender: no reviewer token found — approvals will fail. See docs/setup.md

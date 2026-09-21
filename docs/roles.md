@@ -1,7 +1,7 @@
 # Roles
 
 Three roles, plus `none` for a worktree that should not be worked in — set it
-the same way as any other role, `mdt <repo> none [suffix]`; see
+the same way as any other role, `tender <repo> none [suffix]`; see
 `docs/limits.md` for when that's the right call.
 
 | Role | Worktree sits on | Does |
@@ -64,7 +64,7 @@ Two boundaries are **enforced** — in **two-account mode**:
 - **A reviewer cannot approve their own pull request.** The forge refuses it.
   That is why the reviewer runs under a second account (`docs/setup.md`).
 - **The production boundary**, if you set up a protected environment
-  (`mdt init` offers this). The job halts and waits for a named human,
+  (`tender init` offers this). The job halts and waits for a named human,
   whoever triggered it — including you. For an action that reaches real users
   and cannot be recalled, that is the point.
 

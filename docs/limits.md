@@ -6,12 +6,12 @@ a number is given, it's measured, and the paragraph says on what.
 ## One maintainer per repository — a convention, not a git-enforced fact
 
 `maintainer`, like every other role, gets its own branch (`$repo-maintainer`)
-when `mdt` creates its worktree — the same `git worktree add ... -b` any other
+when `tender` creates its worktree — the same `git worktree add ... -b` any other
 role gets. It does **not** sit on the trunk branch: the top-level clone
 already has trunk checked out, so no worktree ever could, and a maintainer
 merges through the forge (`gh pr merge`), never with a local `git merge` on a
 checked-out trunk — it never needed the branch. Nothing stops a second
-`maintainer` worktree from being created; `mdt mandate maintainer second`
+`maintainer` worktree from being created; `tender treetender maintainer second`
 succeeds exactly like any other suffixed role would.
 
 Stick to one anyway. Two maintainers would contend over merge order and
@@ -28,8 +28,8 @@ other regardless of how many worktrees exist.
 `developer` and `reviewer` don't sit on a shared branch, so nothing stops more
 than one of either running at once. The name suffix is what tells them apart:
 
-    mdt dateye developer
-    mdt dateye developer a11y
+    tender dateye developer
+    tender dateye developer a11y
 
 gives two worktrees, `dateye-developer` and `dateye-developer-a11y`, each with
 its own branch, each addressable independently. Use this for parallel,
@@ -37,7 +37,7 @@ unrelated work — not for two sessions on the same issue.
 
 **And nothing caps how many.** Renovate solved the equivalent problem in 2019
 with `prConcurrentLimit`: unbounded automation does not overwhelm the machine,
-it overwhelms the human who has to read the results. `mandate` has no such
+it overwhelms the human who has to read the results. `treetender` has no such
 knob, deliberately — with three roles and one session each there is nothing to
 cap, and an option with no effect still has to be documented, tested and
 explained. The reasoning, the triggers that would make it real, and what to
@@ -58,7 +58,7 @@ disk is the cheap limit here, not the binding one.
 
 `du -sh` on one real Rust/Tauri worktree (DATEYE, 9.1 GB): **~0.99s cold,
 ~0.54s warm.** Measured with `time du -sh`, on the same machine and worktree
-the 9.1 GB figure above comes from — not estimated. `mdt list` runs this once
+the 9.1 GB figure above comes from — not estimated. `tender list` runs this once
 per worktree, so a board of a dozen such worktrees costs several seconds with
 a cold cache, on a command whose whole point is to answer quickly. That is
 the number `--size` sits behind a flag for: `list` without it shows worktree,
@@ -167,10 +167,10 @@ irreversible action an agent can take. That is why it is the only one with a loc
 
 ## No polling
 
-Nothing runs while you're not looking. `mdt status` answers "where is work
+Nothing runs while you're not looking. `tender status` answers "where is work
 waiting" on demand — it costs four `gh search` calls per owner (ready issues,
 the review queue, approved PRs, decisions waiting on you — `cmd_status()` in
-`bin/mdt`), not a background loop — but it doesn't notify you on its own, and no session
+`bin/tender`), not a background loop — but it doesn't notify you on its own, and no session
 advances work it wasn't asked to advance. If you want to know whether
 something moved, you ask; the tool never wakes anyone up by itself. This is a
 deliberate omission (see `docs/concept.md`), not a missing feature — it keeps
@@ -182,17 +182,17 @@ no one is working.
 The title (`dateye · DEV`) works anywhere tmux does — it's tmux's own
 `set-titles-string`, which every terminal that shows a tmux title already
 understands. The colour is different: it's iTerm2's own proprietary escape
-code, wrapped for tmux's passthrough. Outside iTerm2, `mdt` detects that and
+code, wrapped for tmux's passthrough. Outside iTerm2, `tender` detects that and
 emits nothing — deliberately. A stray escape sequence in a terminal that
 doesn't understand it prints garbage in the pane, which is worse than no
 colour; silence was the safer failure here, not an error message. If your tab
 never turns colour and you're not on iTerm2, that's expected, not broken.
-`MDT_TAB_COLOUR=0` turns it off regardless of terminal, if you'd rather it
+`TENDER_TAB_COLOUR=0` turns it off regardless of terminal, if you'd rather it
 never tried.
 
 ## `drop` refuses rather than asks
 
-`mdt drop` removes a worktree that can run to several gigabytes and may hold
+`tender drop` removes a worktree that can run to several gigabytes and may hold
 the only copy of something. A yes/no prompt gets answered on reflex, the same
 way every other prompt that session has seen was — so instead of asking,
 `drop` checks three things (uncommitted changes, commits not on any remote —
@@ -208,15 +208,15 @@ the worktree directory and anything not yet committed in it go.
 ## A handover is only as good as the session that writes it — for the half the session writes
 
 That sentence is now only true of `.agents/handoff.md`, the free-text half.
-`mdt restart` never reads it before waiting for it — it sends keystrokes and
+`tender restart` never reads it before waiting for it — it sends keystrokes and
 waits for a file to appear, and hands that file to the successor unexamined.
 What ends up in it is entirely up to the session: a role that follows
 `roles/_base.md`'s "Handing over" section closely leaves its successor a
 usable state; one that summarises the conversation instead, or skips `Not
 checked`, leaves a successor that inherits confidence nobody actually earned.
-`mdt` has no way to tell the difference in that file, and doesn't try to.
+`tender` has no way to tell the difference in that file, and doesn't try to.
 
-The other half, `.agents/state.md` (`lib/state.sh`), `mdt` writes itself,
+The other half, `.agents/state.md` (`lib/state.sh`), `tender` writes itself,
 from git and `gh` — the session never touches it. That makes it honest, not
 complete: it says what the repository and the forge hold (branch, commits,
 uncommitted files, open PR, claim), never whether the work behind them is any
@@ -225,7 +225,7 @@ three commits are right. Reading it first catches a free-text contradiction;
 it cannot catch a free-text lie that happens to agree with the facts.
 
 A wedged session cannot be handed over at all — by definition, it isn't
-answering. `mdt restart` waits `MDT_HANDOFF_TIMEOUT` seconds (default 60),
+answering. `tender restart` waits `TENDER_HANDOFF_TIMEOUT` seconds (default 60),
 then aborts rather than guessing: no restart happens, and the session is told
 so, because a lost handover is exactly what this command exists to prevent.
 `--fresh` is the honest way past that: it replaces the process without
@@ -235,14 +235,14 @@ that silently lost its place is worse than one that stops and says so.
 
 ## A project named `init`, `status`, `attach`, `list`, `drop`, `restart`, `doctor`, `claims` or `claim-release` is unreachable
 
-`bin/mdt`'s argument parsing matches the first word against the nine
+`bin/tender`'s argument parsing matches the first word against the nine
 subcommand names before it ever considers "everything else is `<repo>
 <role>`". A repository whose directory is actually named `list` (say) can
-never be reached as `mdt list <role>` — that always runs `cmd_list "<role>"`
-instead, and `mdt list list` looks like a `list` filtered to a repo called
-`list`, not a request to start a role there. The failure isn't loud: `mdt
-list developer` runs `mdt list` filtered to a repository named `developer`
-and answers `mdt: .../developer is not a git repository` if none exists,
+never be reached as `tender list <role>` — that always runs `cmd_list "<role>"`
+instead, and `tender list list` looks like a `list` filtered to a repo called
+`list`, not a request to start a role there. The failure isn't loud: `tender
+list developer` runs `tender list` filtered to a repository named `developer`
+and answers `tender: .../developer is not a git repository` if none exists,
 which reads like a typo rather than a name collision. Name a project one of
 the nine subcommands and every subcommand-shaped invocation of it is gone;
 rename the directory (the nine names are otherwise unremarkable) rather than
@@ -251,9 +251,9 @@ working around this.
 ## `none` marks a worktree nobody should work in
 
 `roles/none.md` isn't wired up any differently from the three real roles —
-`mdt <repo> none [suffix]` creates (or resumes) a worktree exactly the way
-`mdt <repo> developer` does, just with `.agents/ROLE` set to `none` and a role
+`tender <repo> none [suffix]` creates (or resumes) a worktree exactly the way
+`tender <repo> developer` does, just with `.agents/ROLE` set to `none` and a role
 file that tells whatever reads it not to work there. Use it for a worktree
 that has to exist for some other reason — an old clone, a scratch area, a
 restore test — and would otherwise look like an idle `developer` worktree in
-`mdt list`.
+`tender list`.

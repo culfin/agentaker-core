@@ -59,7 +59,7 @@ NOTICE_TXT=$(cat NOTICE)
 contains "says ten files" "Ten files under \`agents/\` are verbatim copies" "$NOTICE_TXT"
 lacks "drops the old 'five files' claim" "Five files under \`agents/\`" "$NOTICE_TXT"
 
-echo "examples/content-site.AGENTS.md: exists and satisfies mdt-lint's required sections"
+echo "examples/content-site.AGENTS.md: exists and satisfies tender-lint's required sections"
 EX="examples/content-site.AGENTS.md"
 [ -f "$EX" ] && check "file exists" "0" "0" || check "file exists" "0" "1"
 EXAMPLE=$(cat "$EX")
@@ -84,8 +84,8 @@ echo "examples/content-site.AGENTS.md: draws the social-media flow boundary hone
 contains "says the flow covers what's in git" "content calendar, a drafted post, a campaign text" "$EXAMPLE"
 contains "says the flow stops at the platform's own editor" "there is no PR there for this flow to route through" "$EXAMPLE"
 
-echo "bin/mdt-lint: accepts the repository with the new agents and the new example"
-out=$(bin/mdt-lint . 2>&1); check "repository including the new files is consistent" "0" "$?"
+echo "bin/tender-lint: accepts the repository with the new agents and the new example"
+out=$(bin/tender-lint . 2>&1); check "repository including the new files is consistent" "0" "$?"
 contains "confirms it actually checked something" "repository is consistent" "$out"
 
 summary

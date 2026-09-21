@@ -1,11 +1,11 @@
 {
-  "name": "mandate",
+  "name": "treetender",
   "owner": { "name": "culfin" },
   "plugins": [
     {
-      "name": "mandate",
+      "name": "treetender",
       "source": ".",
-      "description": "Loads a worktree's role at session start. Optional — the mdt command does this for any coding agent."
+      "description": "Loads a worktree's role at session start. Optional — the tender command does this for any coding agent."
     }
   ]
 }

@@ -1,30 +1,30 @@
 #!/usr/bin/env bash
-# The `mdt init` subcommand and its helpers.
+# The `tender init` subcommand and its helpers.
 #
-# Sourced by bin/mdt on demand rather than always: init runs once per project
+# Sourced by bin/tender on demand rather than always: init runs once per project
 # and never during normal work, so the three everyday subcommands do not pay to
 # parse it.
 #
-# Needs from bin/mdt:  die(), usage(), cmd_start(), PROJECTS_DIR
+# Needs from bin/tender:  die(), usage(), cmd_start(), PROJECTS_DIR
 # Provides to it:      DRY_RUN, set for the subshell that creates the worktrees
 #                      so cmd_start() prepares them without launching anything
 #
 # ROLES_DIR is deliberately absent: cmd_start() reads it, and cmd_start() stays
-# in bin/mdt where it is already in scope.
+# in bin/tender where it is already in scope.
 #
-# lib/init_flags.sh, sourced by bin/mdt immediately before this file, holds
+# lib/init_flags.sh, sourced by bin/tender immediately before this file, holds
 # argument parsing, --help text and the exit-code contract (issue #3) — see
 # its own header. This file stays about what the four steps actually do;
 # that one is about how a caller (interactive or a flag-driven GUI) reaches
 # them.
 
-# `mdt init` shows every step instead of hiding it: each action is proposed and
+# `tender init` shows every step instead of hiding it: each action is proposed and
 # confirmed separately, so someone who watched it run can redo it by hand.
 
 ask() {
-  # Prompt unless MDT_YES is set; echo the (possibly default) answer.
+  # Prompt unless TENDER_YES is set; echo the (possibly default) answer.
   local prompt=$1 default=${2:-y} reply
-  if [ -n "${MDT_YES:-}" ]; then printf '%s' "$default"; return 0; fi
+  if [ -n "${TENDER_YES:-}" ]; then printf '%s' "$default"; return 0; fi
   printf '  %s [%s] ' "$prompt" "$default" >&2
   read -r reply || reply=""
   printf '%s' "${reply:-$default}"
@@ -63,13 +63,13 @@ cmd_init() {
   local dir="$PROJECTS_DIR/$repo"
   [ -e "$dir/.git" ] || die "$dir is not a git repository"
 
-  # --yes is the flag-driven equivalent of MDT_YES: it answers the four
+  # --yes is the flag-driven equivalent of TENDER_YES: it answers the four
   # confirmations the same way, but — unlike the env var, which the
   # interactive path (and today's tests) already rely on — it also turns on
   # the boundary guard below. A `local` here is enough: ask() sees it through
   # bash's dynamic scoping without leaking back into the caller's shell.
-  local MDT_YES=${MDT_YES:-}
-  [ "$INIT_YES" -eq 1 ] && MDT_YES=1
+  local TENDER_YES=${TENDER_YES:-}
+  [ "$INIT_YES" -eq 1 ] && TENDER_YES=1
 
   local did_something=0
 
@@ -167,7 +167,7 @@ $tests_body
     # optional — a CONTEXT.md domain glossary, with a "flagged ambiguities"
     # section for words that meant two things and how that got resolved.
     # See docs/adding-a-project.md, "Optional: a domain glossary". Not
-    # required — mdt-lint never asks for one.
+    # required — tender-lint never asks for one.
 
 ## Roles
 
@@ -189,7 +189,7 @@ EOF
   # --- labels ---------------------------------------------------------------
   if [ "$INIT_SKIP_LABELS" -eq 1 ]; then
     printf '\n  skipped: labels (--no-labels)\n'
-  elif [ -z "${MDT_NO_NETWORK:-}" ] && [ "$(ask 'Create the three labels on the remote? (y/n)' y)" = "y" ]; then
+  elif [ -z "${TENDER_NO_NETWORK:-}" ] && [ "$(ask 'Create the three labels on the remote? (y/n)' y)" = "y" ]; then
     local label_out
     label_out=$(
       cd "$dir" || exit 1
@@ -224,7 +224,7 @@ EOF
   # lock, since a release reaches real users and cannot be undone like a merge.
   if [ "$INIT_SKIP_ENVIRONMENT" -eq 1 ]; then
     printf '\n  skipped: production environment (--no-environment)\n'
-  elif [ -z "${MDT_NO_NETWORK:-}" ]; then
+  elif [ -z "${TENDER_NO_NETWORK:-}" ]; then
     printf '\nThe production boundary needs a lock: a protected environment makes the\n'
     printf 'job wait for you in the browser, whoever triggered it.\n'
     if [ "$(ask 'Create or update a protected "production" environment? (y/n)' y)" = "y" ]; then
@@ -268,7 +268,7 @@ EOF
         printf '  worktree: %s-%s\n' "$repo" "$role"
         [ "$wt_existed" -eq 0 ] && did_something=1
       else
-        printf '  could not create the %s worktree — run `mdt %s %s` to see why\n' "$role" "$repo" "$role"
+        printf '  could not create the %s worktree — run `tender %s %s` to see why\n' "$role" "$repo" "$role"
       fi
     done
   fi
@@ -294,7 +294,7 @@ Done. Next:
      cannot be asked for a review. See docs/setup.md.
   4. Give the reviewer its own account: docs/setup.md
   5. Put 'ready' on an issue:   gh issue edit <N> --add-label ready
-  6. Start working:             mdt $repo developer
+  6. Start working:             tender $repo developer
 EOF
 
   [ "$did_something" -eq 1 ] && exit 0

@@ -2,7 +2,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 . tests/lib.sh
-LINT="$PWD/bin/mdt-lint"
+LINT="$PWD/bin/tender-lint"
 
 echo "lint: this repository"
 out=$("$LINT" . 2>&1); check "repository is consistent" "0" "$?"
@@ -58,7 +58,7 @@ touch "$TMP2/roles/_base.md"
 printf 'x\n' > "$TMP2/lib/init.sh"
 yes '# padding' | head -451 >> "$TMP2/lib/init.sh"
 out=$("$LINT" "$TMP2" 2>&1); check "oversized lib/init.sh fails" "1" "$?"
-contains "names lib/init.sh, not just bin/mdt" "lib/init.sh is" "$out"
+contains "names lib/init.sh, not just bin/tender" "lib/init.sh is" "$out"
 
 echo "lint: single-account mode documentation is required in each role file"
 printf 'trunk: main\n\nreviewer: example-reviewer\n\n## Test commands\nx\n\n## Production boundary\nnone\n' > "$TMP/examples/a.AGENTS.md"

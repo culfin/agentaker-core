@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Argument parsing, help text and the exit-code contract for `mdt init` —
-# split out of lib/init.sh to keep it under the 450-line ceiling bin/mdt-lint
-# enforces (see bin/mdt-lint's own comment on the list this file joins, and
-# lib/tabs.sh's header for the same reasoning applied to bin/mdt itself).
+# Argument parsing, help text and the exit-code contract for `tender init` —
+# split out of lib/init.sh to keep it under the 450-line ceiling bin/tender-lint
+# enforces (see bin/tender-lint's own comment on the list this file joins, and
+# lib/tabs.sh's header for the same reasoning applied to bin/tender itself).
 #
 # Why this exists (issue #3): a graphical wizard can propose the same values
 # detect_stack()/suggest_tests() propose, and confirm the same four steps a
@@ -11,11 +11,11 @@
 # flags, and turns "something went wrong" into an exit code specific enough
 # that the caller never has to parse stderr prose to react correctly.
 #
-# Sourced by bin/mdt on demand, immediately before lib/init.sh, only for
-# `mdt init` — see lib/init.sh's own header for why that whole subcommand is
+# Sourced by bin/tender on demand, immediately before lib/init.sh, only for
+# `tender init` — see lib/init.sh's own header for why that whole subcommand is
 # on-demand rather than eager.
 #
-# Needs from bin/mdt:     die()
+# Needs from bin/tender:     die()
 # Provides to lib/init.sh: init_parse_args() (sets the INIT_* globals below),
 #                          init_help(), refuse_step()
 
@@ -35,16 +35,16 @@ INIT_STEP_NAMES=(AGENTS.md labels environment worktrees)
 # stderr, still knows which of the four steps to blame.
 refuse_step() {
   local step=$1 reason=$2
-  printf 'mdt init: refused at step %d (%s) — %s\n' \
+  printf 'tender init: refused at step %d (%s) — %s\n' \
     "$step" "${INIT_STEP_NAMES[$((step - 1))]}" "$reason" >&2
   exit $((20 + step))
 }
 
 init_help() {
   cat <<'EOF'
-Usage: mdt init <repo> [flags]
+Usage: tender init <repo> [flags]
 
-Runs the same four steps as interactive `mdt init <repo>` — write AGENTS.md,
+Runs the same four steps as interactive `tender init <repo>` — write AGENTS.md,
 create the three labels, lock the production boundary, create the three role
 worktrees — but takes what each step proposes as a flag instead of asking,
 so a caller that cannot answer a prompt (a GUI on the other end of a pipe)
@@ -122,7 +122,7 @@ init_parse_args() {
       --no-environment)  INIT_SKIP_ENVIRONMENT=1; shift ;;
       --no-worktrees)    INIT_SKIP_WORKTREES=1; shift ;;
       --) shift ;;
-      -*) die "unknown flag '$1' for init — see 'mdt init --help'" 2 ;;
+      -*) die "unknown flag '$1' for init — see 'tender init --help'" 2 ;;
       *)
         [ -z "$INIT_REPO" ] || die "unexpected argument '$1' — repo is already '$INIT_REPO'" 2
         INIT_REPO=$1; shift ;;

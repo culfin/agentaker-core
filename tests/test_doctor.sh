@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# `mdt doctor` actually executes whatever launch_command() resolves to — the
+# `tender doctor` actually executes whatever launch_command() resolves to — the
 # one command in this whole tool with real, external side effects. Every
 # invocation below runs with PATH pinned to a stub directory plus /usr/bin
 # and /bin, deliberately excluding wherever a real coding agent happens to
 # live on this machine (this development machine has a real `claude` on
-# PATH, being Claude Code itself) — a bug that made `mdt doctor` reach past
+# PATH, being Claude Code itself) — a bug that made `tender doctor` reach past
 # its stubs would otherwise try to start a real nested session instead of
 # failing a test.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 . tests/lib.sh
-MDT="$PWD/bin/mdt"
+TENDER="$PWD/bin/tender"
 make_sandbox
 trap 'rm -rf "$SANDBOX"' EXIT
 
@@ -22,10 +22,10 @@ TOOLS="$SANDBOX/tools"
 
 cat > "$STUB/okstub" <<'STUBEOF'
 #!/usr/bin/env bash
-# Reads its context argument and immediately prints the doctor marker mdt
+# Reads its context argument and immediately prints the doctor marker tender
 # looks for — stands in for a tool that received its role and said so.
 cat "$1" >/dev/null
-printf 'MDT-DOCTOR-OK\n'
+printf 'TENDER-DOCTOR-OK\n'
 STUBEOF
 chmod +x "$STUB/okstub"
 
@@ -53,25 +53,25 @@ notinstalled  no-such-binary {context}   unverified
 EOF
 
 echo "doctor: unknown tool refuses rather than guessing"
-out=$(MDT_TOOLS_FILE="$TOOLS" PATH="$SAFE_PATH" "$MDT" doctor nosuchtool 2>&1)
+out=$(TENDER_TOOLS_FILE="$TOOLS" PATH="$SAFE_PATH" "$TENDER" doctor nosuchtool 2>&1)
 check "exits 1" "1" "$?"
 contains "names the unknown tool" "nosuchtool" "$out"
 contains "points at the docs" "docs/tools.md" "$out"
 
 echo "doctor: a tool that answers reports the role arrived"
-out=$(MDT_TOOLS_FILE="$TOOLS" PATH="$SAFE_PATH" "$MDT" doctor okgtool 2>&1)
+out=$(TENDER_TOOLS_FILE="$TOOLS" PATH="$SAFE_PATH" "$TENDER" doctor okgtool 2>&1)
 check "exits 0" "0" "$?"
 contains "reports the tool by name" "okgtool" "$out"
 contains "confirms the marker arrived" "role arrived" "$out"
 
 echo "doctor: a tool that starts but stays silent is not reported as working"
-out=$(MDT_TOOLS_FILE="$TOOLS" PATH="$SAFE_PATH" MDT_DOCTOR_TIMEOUT=3 "$MDT" doctor silenttool 2>&1)
+out=$(TENDER_TOOLS_FILE="$TOOLS" PATH="$SAFE_PATH" TENDER_DOCTOR_TIMEOUT=3 "$TENDER" doctor silenttool 2>&1)
 check "exits 1" "1" "$?"
 lacks "does not falsely claim the role arrived" "role arrived" "$out"
 
 echo "doctor: a tool that never answers is killed, not waited for forever"
 START=$(date +%s)
-out=$(MDT_TOOLS_FILE="$TOOLS" PATH="$SAFE_PATH" MDT_DOCTOR_TIMEOUT=1 "$MDT" doctor hangtool 2>&1)
+out=$(TENDER_TOOLS_FILE="$TOOLS" PATH="$SAFE_PATH" TENDER_DOCTOR_TIMEOUT=1 "$TENDER" doctor hangtool 2>&1)
 rc=$?
 END=$(date +%s)
 check "exits 1" "1" "$rc"
@@ -79,18 +79,18 @@ contains "says it gave up waiting" "no response in 1s" "$out"
 check "did not block anywhere near the default 15s timeout" "yes" "$([ "$((END - START))" -lt 10 ] && echo yes || echo no)"
 
 echo "doctor: a tool not on PATH is reported as such, never silently skipped"
-out=$(MDT_TOOLS_FILE="$TOOLS" PATH="$SAFE_PATH" "$MDT" doctor notinstalled 2>&1)
+out=$(TENDER_TOOLS_FILE="$TOOLS" PATH="$SAFE_PATH" "$TENDER" doctor notinstalled 2>&1)
 check "exits 1" "1" "$?"
 contains "says it is not installed" "not installed" "$out"
 
 echo "doctor: never touches a real project"
 BEFORE=$(find "$SANDBOX/demo" -maxdepth 1 | sort)
-MDT_TOOLS_FILE="$TOOLS" PATH="$SAFE_PATH" "$MDT" doctor okgtool >/dev/null 2>&1
+TENDER_TOOLS_FILE="$TOOLS" PATH="$SAFE_PATH" "$TENDER" doctor okgtool >/dev/null 2>&1
 AFTER=$(find "$SANDBOX/demo" -maxdepth 1 | sort)
 check "the project directory tree is unchanged" "$BEFORE" "$AFTER"
 
 echo "doctor: without an argument, checks every known tool"
-out=$(MDT_TOOLS_FILE="$TOOLS" PATH="$SAFE_PATH" MDT_DOCTOR_TIMEOUT=1 "$MDT" doctor 2>&1)
+out=$(TENDER_TOOLS_FILE="$TOOLS" PATH="$SAFE_PATH" TENDER_DOCTOR_TIMEOUT=1 "$TENDER" doctor 2>&1)
 contains "includes the built-in claude" "claude:" "$out"
 contains "includes the built-in codex" "codex:" "$out"
 contains "includes a tools-file entry" "okgtool:" "$out"

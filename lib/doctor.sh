@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
-# `mdt doctor` — the hand-check that verified Claude Code on 2026-09-20
+# `tender doctor` — the hand-check that verified Claude Code on 2026-09-20
 # (docs/tools.md), as a command anyone can run against their own tool: start
 # it with a throwaway context asking it to name itself, and report whether
 # the answer arrived.
 #
-# Sourced by bin/mdt on demand, the same as lib/init.sh and lib/manage.sh:
-# `doctor` is not on the everyday `mdt <repo> <role>` path.
+# Sourced by bin/tender on demand, the same as lib/init.sh and lib/manage.sh:
+# `doctor` is not on the everyday `tender <repo> <role>` path.
 #
-# Needs from bin/mdt: die(), launch_command(), TOOL
+# Needs from bin/tender: die(), launch_command(), TOOL
 # Needs from lib/tools.sh (already sourced unconditionally): tools_known_names()
 # Provides to it:     cmd_doctor()
 
-DOCTOR_MARKER='MDT-DOCTOR-OK'
+DOCTOR_MARKER='TENDER-DOCTOR-OK'
 
 # Runs $3.. with stdin closed and its combined output captured to $2, for at
 # most $1 seconds. Whole-second polling — the same style wait_for_handoff()
 # in lib/manage.sh uses, where the timeout is a safety margin, not a
 # precision instrument, and no fractional-second `sleep` that isn't portable
-# to every `sleep(1)` mdt already has to run under. Returns the command's own
+# to every `sleep(1)` tender already has to run under. Returns the command's own
 # exit status, or 124 (the same code GNU timeout(1) uses) once it has to be
 # killed rather than waited for.
 run_with_timeout() {
@@ -50,7 +50,7 @@ run_with_timeout() {
 # probing without a TTY or a way to ask a question, not a bug in the tool;
 # see docs/tools.md.
 doctor_probe() {
-  local tool=$1 timeout=${MDT_DOCTOR_TIMEOUT:-15}
+  local tool=$1 timeout=${TENDER_DOCTOR_TIMEOUT:-15}
   local tmp
   tmp=$(mktemp -d) || { printf '  could not create a scratch directory\n'; return 1; }
   # shellcheck disable=SC2064  # $tmp is fixed now, on purpose — not
@@ -59,7 +59,7 @@ doctor_probe() {
 
   local ctx="$tmp/context.md"
   cat > "$ctx" <<EOF
-# mandate doctor check
+# treetender doctor check
 
 This is a throwaway diagnostic context, not a real project — nothing you do
 here is kept or seen by anyone. Before waiting for anything else, print
@@ -72,7 +72,7 @@ EOF
   TOOL=$tool
   LAUNCH_CMD=()
   # shellcheck disable=SC2034  # reset before the call, same as cmd_start()
-  # in bin/mdt — launch_command() always overwrites it, this just keeps a
+  # in bin/tender — launch_command() always overwrites it, this just keeps a
   # stale value from a previous doctor_probe() call in this same loop from
   # ever being visible if that ever changed.
   TOOL_STATUS=verified
@@ -105,9 +105,9 @@ EOF
   return 1
 }
 
-# `mdt doctor` (no argument): every tool mdt currently knows how to start —
-# the built-ins plus the tools file. `mdt doctor <tool>`: only that one, and
-# it has to be a name mdt actually knows, or this says so and stops, the same
+# `tender doctor` (no argument): every tool tender currently knows how to start —
+# the built-ins plus the tools file. `tender doctor <tool>`: only that one, and
+# it has to be a name tender actually knows, or this says so and stops, the same
 # as launch_command() itself would at real launch time.
 cmd_doctor() {
   local requested=${1:-}

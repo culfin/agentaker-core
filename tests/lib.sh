@@ -32,7 +32,7 @@ if [ -z "$TMUX_TMPDIR" ] || [ ! -d "$TMUX_TMPDIR" ]; then
 fi
 
 if command -v tmux >/dev/null 2>&1; then
-  __probe="mdt-isolation-probe-$$"
+  __probe="tender-isolation-probe-$$"
   if tmux new-session -d -s "$__probe" 2>/dev/null; then
     __sock=$(tmux display-message -p -t "$__probe" '#{socket_path}' 2>/dev/null)
     tmux kill-session -t "$__probe" 2>/dev/null
@@ -90,17 +90,17 @@ summary() {
 
 # A throwaway projects directory holding one throwaway git repo.
 #
-# MDT_TOOLS_FILE points at a path that never exists unless a test creates it:
+# TENDER_TOOLS_FILE points at a path that never exists unless a test creates it:
 # without this, "no tools file" tests would silently read whatever a
 # developer happens to have at the real default
-# (${XDG_CONFIG_HOME:-$HOME/.config}/mandate/tools) — hermetic either way,
+# (${XDG_CONFIG_HOME:-$HOME/.config}/treetender/tools) — hermetic either way,
 # but only on purpose if it's pinned here rather than left to whatever the
 # host happens to have.
 make_sandbox() {
   SANDBOX=$(mktemp -d)
-  export MDT_PROJECTS_DIR="$SANDBOX"
-  export MDT_DRY_RUN=1
-  export MDT_TOOLS_FILE="$SANDBOX/no-such-tools-file"
+  export TENDER_PROJECTS_DIR="$SANDBOX"
+  export TENDER_DRY_RUN=1
+  export TENDER_TOOLS_FILE="$SANDBOX/no-such-tools-file"
   git init -q -b main "$SANDBOX/demo"
   git -C "$SANDBOX/demo" -c user.email=t@e -c user.name=t commit -q --allow-empty -m init
 }
