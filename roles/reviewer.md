@@ -111,7 +111,7 @@ message text, never `--force`, the zsh refspec needs braces):
 
 ```bash
 sha=$(printf 'claim %s' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-      | git commit-tree "$(git hash-object -t tree /dev/null)")
+      | git commit-tree "$(git hash-object -w -t tree /dev/null)")
 if git push origin "${sha}:refs/claims/pr-<N>" 2>/dev/null; then
   gh pr edit <N> --add-assignee @me   # display only, may fail
 else

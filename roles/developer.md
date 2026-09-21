@@ -28,7 +28,7 @@ will never see a ref while glancing at the issue in a browser:
 
 ```bash
 sha=$(printf 'claim %s' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-      | git commit-tree "$(git hash-object -t tree /dev/null)")
+      | git commit-tree "$(git hash-object -w -t tree /dev/null)")
 if git push origin "${sha}:refs/claims/issue-<N>" 2>/dev/null; then
   gh issue edit <N> --add-assignee @me   # display only, may fail
 else
