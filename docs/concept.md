@@ -25,10 +25,14 @@ project, not the role. If roles were tied to a technology, every new language
 would need a new role, and the actual process — how a developer behaves —
 would be duplicated once per stack.
 
-Splitting the two also fixes the collision problem for free: `mdt` gives each
-role its own git worktree, so a developer, a reviewer and a maintainer have
-three separate working directories on three separate branches, at the same
-time, without touching each other's files.
+Splitting the two also fixes *file* collisions for free: `mdt` gives each role
+its own git worktree, so a developer, a reviewer and a maintainer have three
+separate working directories on three separate branches, at the same time,
+without touching each other's files. It does nothing for two sessions in the
+*same* role — two developers still read the same issue list and can reach for
+the same issue, because a worktree separates roles from each other, not a
+role from itself. That collision is a work-assignment problem, not a
+filesystem one; see `docs/flow.md` for what closes it.
 
 ## The three layers
 
