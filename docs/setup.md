@@ -22,57 +22,15 @@ it works wherever you link it from — move `~/.mandate` later and the
 link still finds it, as long as the link itself isn't moved somewhere that no
 longer points at it.
 
-## 2. Give the reviewer its own account
+This is everything you need to run in **single-account mode**, the default:
+every role runs under your own token, and review works through the draft
+state plus one label instead of GitHub's native approval — see
+`roles/reviewer.md` and `docs/flow.md` for how. There is no second-account
+step required before you can prove the flow works end to end; if you want
+the separation a forge enforces rather than one the role files merely ask
+for, that's the last section below, and it's optional.
 
-This is what makes reviews work. A forge refuses to let an author approve their
-own pull request:
-
-    $ gh pr review 42 --approve
-    failed to create review: Can not approve your own pull request
-
-The break happens earlier than that message suggests, and quietly: `gh pr
-edit <N> --add-reviewer <your own login>` — the command `roles/developer.md`
-uses to ask for review — exits 0 and prints the PR URL as if it worked, but
-does not add you as a requested reviewer (confirmed against the API:
-`requested_reviewers` stays empty). Only `--approve` and `--request-changes`
-fail loudly; the request itself just silently does nothing. So without a
-second account, the reviewer's queue (`is:open draft:false
-review-requested:@me`) never has anything in it to begin with — the loud
-failure above is what you'd hit if you tried to review anyway, by PR number,
-skipping the queue.
-
-Since your sessions share your token, the reviewer needs a second account. One
-is enough — `developer` and `maintainer` do nothing that gets blocked.
-
-1. Create an account for it. A `+` alias works: `you+reviewer@example.com`.
-2. Give it write access to the repositories it reviews.
-3. Create a fine-grained token: **Pull requests** read and write, **Contents**
-   read, **Issues** read and write.
-4. Store it in the OS keychain — never in a settings file:
-
-       # macOS
-       security add-generic-password -s mandate-reviewer -a "$USER" -w '<token>'
-       # Linux (libsecret)
-       secret-tool store --label="mandate reviewer" service mandate-reviewer
-
-   `mdt` reads it back with `security find-generic-password -s
-   mandate-reviewer -w` (or the `secret-tool lookup` equivalent) — the
-   exact commands are in `read_reviewer_token()` in `bin/mdt`, if you want to
-   check by hand.
-
-5. Put that account's login in each project's `AGENTS.md`:
-
-       reviewer: your-reviewer-login
-
-   Without it the developer has no one to ask for a review.
-
-`mdt <repo> reviewer` reads the token and sets `GH_TOKEN` for that session
-only. If it is missing, `mdt` says so and starts anyway — you find out at the
-first approval, not at session start:
-
-    mdt: no reviewer token found — approvals will fail. See docs/setup.md
-
-## 3. Lock the production boundary
+## 2. Lock the production boundary
 
 `mdt init` offers to do this; here it is by hand.
 
@@ -109,7 +67,7 @@ protection rule"`) and leaves a bare environment behind with no rule attached.
 doing it by hand hits the same `422` for the same reason, so if you see it,
 the fix is the plan or the repo's visibility, not the recipe.
 
-## 4. Set up a project
+## 3. Set up a project
 
 `<repo>` below is resolved under `MDT_PROJECTS_DIR` (default `~/Projekte`) —
 set it first if your repositories live somewhere else, or `init` fails with
@@ -121,13 +79,13 @@ set it first if your repositories live somewhere else, or `init` fails with
 See [adding-a-project.md](adding-a-project.md) for what it does and how to do
 it by hand.
 
-## 5. Choose your coding agent
+## 4. Choose your coding agent
 
     export MDT_TOOL=claude      # default
 
 See [tools.md](tools.md) for what is supported and what is untested.
 
-## 6. Tell your tabs apart
+## 5. Tell your tabs apart
 
 Several sessions across several projects means several terminal tabs, and by
 default they all say the same thing. `mdt` sets the tab title itself, scoped
@@ -151,7 +109,7 @@ off, still keeping the title:
 
     export MDT_TAB_COLOUR=0
 
-## 7. Replacing a session without losing its place
+## 6. Replacing a session without losing its place
 
 A session sometimes has to go — a tool update, a role file that changed, one
 that's wedged. Killing it loses where it had got to; reloading the whole
@@ -176,3 +134,72 @@ N × `MDT_HANDOFF_TIMEOUT` if every one of them is wedged and times out
 waiting for a handover — six sessions at the 60s default is up to six
 minutes, and that line is what tells you before it starts, not partway
 through.
+
+## 7. If you want the separation enforced: a second account
+
+Everything above runs in **single-account mode**: `roles/reviewer.md` and
+`docs/flow.md` cover how review works there, through the draft state and one
+label rather than GitHub's native approval. This section is optional — the
+upgrade to **two-account mode**, for anyone who wants a forge to enforce the
+separation between developer and reviewer instead of relying on the role
+files asking for it. Nothing before this point requires it.
+
+A forge refuses to let an author approve their own pull request, under a
+single account or several:
+
+    $ gh pr review 42 --approve
+    failed to create review: Can not approve your own pull request
+
+Under a single shared account that refusal has no way around it, which is why
+single-account mode uses the `approved` label and the draft state in its
+place — see `roles/reviewer.md`. A second account is what removes the wall
+instead of working around it: give the reviewer a login of its own, and
+`--approve` succeeds on a PR that account did not author.
+
+The break happens earlier than that message suggests, and quietly, regardless
+of how many accounts are involved: `gh pr edit <N> --add-reviewer <your own
+login>` — the command `roles/developer.md` uses to ask for review once you're
+on two-account mode — exits 0 and prints the PR URL as if it worked, but does
+not add you as a requested reviewer (confirmed against the API:
+`requested_reviewers` stays empty). Only `--approve` and `--request-changes`
+fail loudly; the request itself just silently does nothing. So without a
+second account, the reviewer's queue (`is:open draft:false
+review-requested:@me`) never has anything in it to begin with — the loud
+failure above is what you'd hit if you tried to review anyway, by PR number,
+skipping the queue. This is exactly why single-account mode does not use
+`--add-reviewer` or that queue at all.
+
+If you want GitHub's native review states back, the reviewer needs a second
+account. One is enough — `developer` and `maintainer` do nothing that gets
+blocked even on a shared one.
+
+1. Create an account for it. A `+` alias works: `you+reviewer@example.com`.
+2. Give it write access to the repositories it reviews.
+3. Create a fine-grained token: **Pull requests** read and write, **Contents**
+   read, **Issues** read and write.
+4. Store it in the OS keychain — never in a settings file:
+
+       # macOS
+       security add-generic-password -s mandate-reviewer -a "$USER" -w '<token>'
+       # Linux (libsecret)
+       secret-tool store --label="mandate reviewer" service mandate-reviewer
+
+   `mdt` reads it back with `security find-generic-password -s
+   mandate-reviewer -w` (or the `secret-tool lookup` equivalent) — the
+   exact commands are in `read_reviewer_token()` in `bin/mdt`, if you want to
+   check by hand.
+
+5. Put that account's login in each project's `AGENTS.md`:
+
+       reviewer: your-reviewer-login
+
+   This is also the mode switch: `roles/reviewer.md` treats a login here
+   that differs from a session's own as two-account mode, and single-account
+   mode otherwise — leave it blank, or matching your own login, to stay on
+   single-account mode.
+
+`mdt <repo> reviewer` reads the token and sets `GH_TOKEN` for that session
+only. If it is missing, `mdt` says so and starts anyway — you find out at the
+first approval, not at session start:
+
+    mdt: no reviewer token found — approvals will fail. See docs/setup.md

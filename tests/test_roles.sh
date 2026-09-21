@@ -9,6 +9,7 @@ cd "$(dirname "$0")/.."
 
 DEV=$(cat roles/developer.md)
 REV=$(cat roles/reviewer.md)
+MAINT=$(cat roles/maintainer.md)
 BASE=$(cat roles/_base.md)
 FLOW=$(cat docs/flow.md)
 LIMITS=$(cat docs/limits.md)
@@ -88,5 +89,42 @@ contains "says there is no timeout" "no timeout" "$LIMITS"
 echo "docs: concept.md no longer claims the worktree split fixes same-role collisions"
 lacks "drops the unqualified 'for free' collision claim" "fixes the collision problem for free" "$CONCEPT"
 contains "points to flow.md for the same-role case" "docs/flow.md" "$CONCEPT"
+
+echo "roles: reviewer detects its mode from AGENTS.md against the session's own login"
+contains "names the AGENTS.md field" "reviewer:\` in \`AGENTS.md\`" "$REV"
+contains "shows the command that gets a session's own login" "gh api user --jq .login" "$REV"
+
+echo "roles: reviewer's single-account queue excludes already-approved PRs"
+contains "finds work by the approved label, not a review request" 'gh pr list --search "is:open draft:false -label:approved"' "$REV"
+
+echo "roles: reviewer's single-account verdict uses the label and draft state, not --approve"
+contains "clears with --add-label approved" "gh pr edit <N> --add-label approved" "$REV"
+contains "sends back with --undo" "gh pr ready <N> --undo" "$REV"
+contains "documents --comment as the only working verdict command" "state=COMMENTED" "$REV"
+
+echo "roles: reviewer is warned --add-reviewer is silently ineffective on its own account"
+contains "names the empty reviewRequests result" "\`reviewRequests\` stays empty" "$REV"
+
+echo "roles: developer's single-account inbox distinguishes not-ready-yet from sent-back"
+contains "filters own draft PRs that already carry a review" 'gh pr list --search "is:open draft:true" --author @me --json number,title,reviews' "$DEV"
+
+echo "roles: developer is warned against requesting review from itself"
+contains "names the empty reviewRequests result" "leaves \`reviewRequests\` empty" "$DEV"
+
+echo "roles: maintainer's single-account queue reads the approved label, not review:approved"
+contains "finds work by the approved label" 'gh pr list --search "is:open draft:false label:approved"' "$MAINT"
+contains "explains the label stands in for the locked native state" "label stands in for it instead" "$MAINT"
+
+echo "docs: flow.md's diagrams and states cover both operating modes"
+contains "names the mode-detection command" "gh api user --jq .login" "$FLOW"
+contains "single-account diagram searches by the approved label" 'gh pr list --search "is:open draft:false -label:approved"' "$FLOW"
+contains "label vocabulary scopes approved to single-account mode" "single-account mode only" "$FLOW"
+
+echo "docs: flow.md explains approved replaces an unreachable state rather than duplicating one"
+contains "makes the duplication-vs-replacement distinction" "does not exist here at all" "$FLOW"
+
+echo "docs: limits.md is honest that single-account separation is agreed, not enforced"
+contains "says a self-approval is physically impossible only with two accounts" "physically impossible" "$LIMITS"
+contains "says a label proves a command ran, not who ran it" "proves a review command ran, not who ran it" "$LIMITS"
 
 summary

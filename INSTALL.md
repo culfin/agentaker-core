@@ -36,10 +36,19 @@ git --version
 gh --version && gh auth status
 tmux -V
 mdt --help
+command -v "${MDT_TOOL:-claude}"
 ```
 
 If any of the first three is missing, say which and how to install it on their
 platform, then stop until it is there. Do not install those yourself.
+
+The last line checks the coding agent itself, not just `mdt` — `MDT_TOOL`
+(default `claude`) names the binary `mdt` actually launches a session with.
+Skip this check and everything else in this file can go fine, right up to
+the first `mdt <repo> <role>`, which then opens an empty tmux window with
+nothing running in it — that reads as a bug in `mdt`, not a missing tool. If
+it's absent, say which command `MDT_TOOL` names and point at `docs/tools.md`
+for what's supported, then stop the same way as above.
 
 If `mdt` itself is not found, that's expected — the rest of this file assumes
 it exists, but nothing installs it first. Propose the README's quickstart:
@@ -112,30 +121,17 @@ no way to take the values you established in Phase 3. So write `AGENTS.md`
 yourself instead: show the human the finished file using your Phase 3 findings
 (trunk, test commands, production boundary), then write it. Afterwards, run
 `mdt init <repo>` anyway — it detects the file already exists, leaves it alone,
-and still does the rest (labels, worktrees) that Phase 6 needs in place.
+and still does the rest (labels, worktrees) that Phase 5 needs in place.
 
-The `reviewer:` field stays empty for now — Phase 5 explains why.
+The `reviewer:` field stays empty. Empty means **single-account mode** — the
+default this tool now sets up. Everything through Phase 6 runs on it, with no
+second account, no browser step, and no token to create; `roles/reviewer.md`
+and `docs/flow.md` cover how review works without one. Leave the field
+blank here — the optional upgrade after Phase 6 covers filling it in, for
+anyone who wants the separation a forge can enforce instead of one the role
+files merely ask for.
 
-### Phase 5 — The reviewer account
-
-Explain this plainly, because it is the step people skip:
-
-> A forge will not let an author approve their own pull request. Every session
-> runs under your token, so the reviewer needs a second account. Without it the
-> reviewer role cannot approve anything, and the loop stops after the first PR.
-
-Then point them at `docs/setup.md` step 2 and **stop**. They must do this in a
-browser: create the account, give it write access, create a fine-grained token,
-store it in the OS keychain. You do not do any of it.
-
-When they tell you it is done, ask for the account's login and put it in
-`AGENTS.md`:
-
-```
-reviewer: their-reviewer-login
-```
-
-### Phase 6 — Labels
+### Phase 5 — Labels
 
 Two labels, in their repository:
 
@@ -149,7 +145,7 @@ anything here. Explain what they are: directories, not processes. They
 persist, they cost only disk, and a session is whoever is sitting in one at
 the time. Nothing is running in them yet.
 
-### Phase 7 — Prove it works
+### Phase 6 — Prove it works
 
 Have them put `ready` on one real issue, then start a single developer session:
 
@@ -171,11 +167,44 @@ default). To come back later: `mdt attach <repo>`.
 until there is work for them — starting all three now means three agents with
 nothing to do.
 
-### Phase 8 — Hand over
+### If you want the separation enforced: a second account
 
-Summarise in five lines: what was written, what they still owe (the reviewer
-account, if Phase 5 is unfinished), and the three commands they will use daily —
-`mdt <repo> <role>`, `mdt attach <repo>`, `mdt status <owner>`.
+Everything above runs in single-account mode, where the separation between
+developer and reviewer is agreed in the role files, not enforced by GitHub —
+see `docs/limits.md` for exactly what that does and doesn't buy you. This step
+is what upgrades it to enforced: a second account the forge itself refuses to
+let approve its own pull request.
+
+Offer it, don't push it — this is not something to talk them into before
+they've seen the tool run once:
+
+> A forge won't let an author approve their own pull request. Right now every
+> session runs under your token, so review is one account judging its own
+> work, backed only by the role files. A second account for the reviewer
+> makes GitHub itself refuse a self-approval — you don't have to want that,
+> but if you do, here's the step.
+
+If they want it, point them at `docs/setup.md`, "If you want the separation
+enforced: a second account", and **stop**. They must
+do this in a browser: create the account, give it write access, create a
+fine-grained token, store it in the OS keychain. You do not do any of it.
+
+When they tell you it is done, ask for the account's login and put it in
+`AGENTS.md`:
+
+```
+reviewer: their-reviewer-login
+```
+
+That switches every role file from single-account mode to two-account mode —
+`roles/reviewer.md` has the detection.
+
+### Phase 7 — Hand over
+
+Summarise in five lines: what was written, what they still owe (the second
+account, if the previous section was declined or left for later), and the
+three commands they will use daily — `mdt <repo> <role>`, `mdt attach
+<repo>`, `mdt status <owner>`.
 
 Point at `docs/limits.md` and name the two limits that bite first: one
 maintainer per repository, and memory rather than disk as the real ceiling on

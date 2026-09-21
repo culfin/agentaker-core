@@ -6,6 +6,20 @@ would contend over merge order and release rhythm. Act like the only one.
 
 ## Finding work
 
+Which query depends on which mode this repository runs (`roles/reviewer.md`
+has the detection: compare `reviewer:` in `AGENTS.md` against a session's own
+login).
+
+**Single-account mode** (the default): the reviewer can't produce a native
+`approved` state here — `--approve` is locked on a shared account — so the
+`approved` label stands in for it instead:
+
+```bash
+gh pr list --search "is:open draft:false label:approved"
+```
+
+**Two-account mode:**
+
 ```bash
 gh pr list --search "is:open review:approved"
 ```

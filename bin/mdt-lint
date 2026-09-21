@@ -68,6 +68,16 @@ fi
 
 [ -f "$ROOT/roles/_base.md" ] || problem "roles/_base.md is missing"
 
+# Single-account mode is the default operating mode (docs/flow.md) — a role
+# file that loses its mention of it silently reverts a reader to two-account
+# mode by omission, the same failure class as the guard rails above.
+for role in reviewer developer maintainer; do
+  f="$ROOT/roles/$role.md"
+  if [ -f "$f" ] && ! grep -qi 'single-account mode' "$f"; then
+    problem "roles/$role.md: lost its single-account mode documentation"
+  fi
+done
+
 # bin/mdt is deliberately few files. The ceiling guards readability, not a
 # budget — if a file approaches it, the question is which block has become its
 # own concern, the way `init` did (lib/init.sh) and tab/colour handling did

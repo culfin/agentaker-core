@@ -17,8 +17,9 @@ so a green `tests/run.sh` and `bin/mdt-lint` alone isn't green CI.
 `bin/mdt-lint` isn't a check of your working copy — it checks that examples
 don't name a role or subagent this repository doesn't ship, that every
 `examples/*.AGENTS.md` has the sections the flow depends on (`trunk:`,
-`reviewer:`, `## Test commands`, `## Production boundary`), and that nothing
-under `roles/` names a specific vendor. `shellcheck` isn't repository-specific
+`reviewer:`, `## Test commands`, `## Production boundary`), that each role
+file still documents single-account mode, and that nothing under `roles/`
+names a specific vendor. `shellcheck` isn't repository-specific
 at all — it's the standard shell linter, pointed at every script this project
 ships.
 

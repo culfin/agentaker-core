@@ -1,5 +1,50 @@
 # Flow
 
+This tool runs in one of two modes, and the flow below differs in the review
+step depending on which. Check `reviewer:` in `AGENTS.md` against the login
+a session runs under (`gh api user --jq .login`): blank, or the same login,
+is **single-account mode** — the default, and the first diagram below. A
+different login is **two-account mode** — the second diagram, and an upgrade
+you opt into, not a requirement to start.
+
+## Single-account mode (the default)
+
+```
+human       puts `ready` on an issue                      ← the only starting point
+   |
+developer   gh issue list --label ready --search no:assignee
+            gh pr create --draft   …work…   gh pr ready <N>
+                 |
+reviewer    gh pr list --search "is:open draft:false -label:approved"
+            gh pr review <N> --comment --body "…"
+            gh pr edit <N> --add-label approved     -> maintainer
+            gh pr ready <N> --undo                  -> back to developer
+                 |
+developer   fixes, then gh pr ready <N>   (re-ask)
+                 |
+maintainer  gh pr list --search "is:open draft:false label:approved"
+            merge -> tag -> ship up to the production boundary
+```
+
+### The four states this mode moves through
+
+1. **Draft** — the developer opens the PR immediately, before the work is
+   finished, so it is visible from the start. `gh pr ready <N>` clears draft
+   status once it's ready for a review.
+2. **Not draft, no verdict** — waiting for review. This is the state the
+   reviewer's queue is built from: `gh pr list --search "is:open draft:false
+   -label:approved"`.
+3. **Back to draft** — `gh pr ready <N> --undo`, paired with a `--comment`
+   review that explains why. Native `changes_requested` is unreachable on a
+   PR reviewed by its own author (see "Why there is no `reviewed` label"
+   below), so draft status carries what it would have meant instead. The PR
+   stays here until the developer re-asks with `gh pr ready <N>`.
+4. **Not draft, `approved` label** — `gh pr edit <N> --add-label approved`.
+   This is what the maintainer's queue is built from: `gh pr list --search
+   "is:open draft:false label:approved"`.
+
+## Two-account mode (an upgrade, not the default)
+
 ```
 human       puts `ready` on an issue                      ← the only starting point
    |
@@ -17,7 +62,7 @@ maintainer  gh pr list --search "is:open review:approved"
             merge -> tag -> ship up to the production boundary
 ```
 
-## The four GitHub states the flow moves through
+### The four GitHub states this mode moves through
 
 1. **Draft** — the developer opens the PR immediately, before the work is
    finished, so it is visible from the start. `gh pr ready <N>` clears draft
@@ -33,6 +78,9 @@ maintainer  gh pr list --search "is:open review:approved"
    review:approved"`.
 
 ## The round trip, and why it needed a fix
+
+This section is two-account-mode history: it is about `--add-reviewer`, which
+single-account mode does not use for its round trip at all — see above.
 
 The first draft of this flow had the developer re-request review with `gh pr
 review --request-review`. That flag does not exist — `gh pr review` only
@@ -58,28 +106,31 @@ reviewer's queue in both directions. The PR only returns to the queue when the
 developer re-requests, i.e. runs that same command again after fixing
 whatever the review flagged.
 
-## The two labels
+## The label vocabulary
 
 | Label | Sits on | Set by | Means |
 |---|---|---|---|
 | `ready` | Issue | **only a human** | may be picked up |
 | `needs-decision` | PR or issue | anyone | waiting on a human decision |
+| `approved` | PR | reviewer, **single-account mode only** | cleared for the maintainer |
 
-That's the entire label vocabulary. Draft status, the review request, and
+The first two exist in both modes. Draft status, the review request, and
 `review:approved` / `review:changes_requested` are all native GitHub states,
-already visible in `gh pr list`, and none of them need maintaining by hand.
+already visible in `gh pr list`, and none of them need maintaining by hand —
+in two-account mode that covers the whole loop, and the `approved` label
+plays no part at all.
 
-## Why there is no `reviewed` label
+## Why there is no `reviewed` label — and why `approved` is not that label
 
 The obvious alternative design tracks review outcome with labels:
-`needs-review`, `reviewed`, `changes-requested`. This tool doesn't, because
-GitHub already carries that state natively, and a label duplicating it can
-drift from the truth (nobody removes it, or two labels end up applied at
-once).
+`needs-review`, `reviewed`, `changes-requested`. This tool doesn't, in
+two-account mode, because GitHub already carries that state natively, and a
+label duplicating it can drift from the truth (nobody removes it, or two
+labels end up applied at once).
 
 The concrete fact that makes the native state usable at all is the same one
-that makes the reviewer's own account necessary. Measured directly, on a PR
-authored by the account attempting to review it:
+that makes the reviewer's own account necessary in that mode. Measured
+directly, on a PR authored by the account attempting to review it:
 
     $ gh pr review 42 --approve
     failed to create review: Can not approve your own pull request
@@ -90,7 +141,20 @@ no native "approved" or "changes requested" state to search on for anything a
 single account authored — and would have had to fake both with labels, which
 is exactly the fragility this design avoids. The reviewer's separate account
 (`docs/setup.md`) is what lets the flow run on GitHub's real review state
-instead.
+instead — in two-account mode.
+
+Single-account mode does not have that second account, so it does not have
+that native state either — `--approve` is locked on a shared account exactly
+as shown above, confirmed again directly, and so is `--request-changes`
+(`Can not request changes on your own pull request`). This is the difference
+that matters: the `reviewed`/`needs-review`/`changes-requested` labels this
+section argues against would have **duplicated** a GitHub state that already
+existed, and could silently drift from it. `approved` **replaces** a state
+that does not exist here at all — there is nothing for it to drift from,
+because there is nothing native underneath it to disagree with. Adding a
+label back in looks like the reversal this section just argued against; it
+is the opposite move, made necessary by the same account constraint that
+makes it safe.
 
 ## Multiple agents in the same role
 

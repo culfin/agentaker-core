@@ -173,8 +173,10 @@ cp examples/python.AGENTS.md myproject/AGENTS.md   # or nextjs, astro, rust-taur
 Then edit four things:
 
 - `trunk:` — your actual default branch.
-- `reviewer:` — the GitHub login of the reviewer account (`docs/setup.md`
-  step 2). Leave it blank and the developer has no one to request review from.
+- `reviewer:` — leave it blank for single-account mode, the default (see
+  `roles/reviewer.md`), or the GitHub login of a second account
+  (`docs/setup.md`, "If you want the separation enforced: a second account")
+  for two-account mode.
 - `## Test commands` — what the reviewer and CI actually run.
 - **`## Production boundary`** — the one line an agent must never cross
   without an explicit human instruction: a deploy command, a publish command,
@@ -293,11 +295,16 @@ without `.md`: `developer`, `reviewer`, `maintainer`, `none`. A typo here is
 the most common cause.
 
 **Reviewer cannot approve.**
-Either it's using the wrong account (the review author's own account can
-never approve its own PR — this is enforced by GitHub itself), or the
-keychain entry is missing, in which case `mdt` already warned you at session
-start: `mdt: no reviewer token found — approvals will fail`. See
-`docs/setup.md` step 2.
+Check `reviewer:` in `AGENTS.md` first. Blank, or your own login, means
+single-account mode, where `--approve` is never supposed to work — GitHub
+refuses it on your own PR regardless of account count, and this project uses
+the `approved` label and the draft state instead; see `roles/reviewer.md`.
+A different login means two-account mode, and the failure is either the
+wrong account (the review author's own account can never approve its own
+PR — this is enforced by GitHub itself) or a missing keychain entry, in
+which case `mdt` already warned you at session start: `mdt: no reviewer
+token found — approvals will fail`. See `docs/setup.md`, "If you want the
+separation enforced: a second account".
 
 **`git worktree add` refuses.**
 ```

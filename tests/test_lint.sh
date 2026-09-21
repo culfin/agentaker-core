@@ -60,10 +60,22 @@ yes '# padding' | head -451 >> "$TMP2/lib/init.sh"
 out=$("$LINT" "$TMP2" 2>&1); check "oversized lib/init.sh fails" "1" "$?"
 contains "names lib/init.sh, not just bin/mdt" "lib/init.sh is" "$out"
 
+echo "lint: single-account mode documentation is required in each role file"
+printf 'trunk: main\n\nreviewer: example-reviewer\n\n## Test commands\nx\n\n## Production boundary\nnone\n' > "$TMP/examples/a.AGENTS.md"
+printf '# x\nPropose, never assume\nNever create credentials\nNever commit without asking\nNever invent a value\n' > "$TMP/INSTALL.md"
+
+printf '# developer\nNo mention of the default mode here.\n' > "$TMP/roles/developer.md"
+out=$("$LINT" "$TMP" 2>&1); check "missing single-account mode fails" "1" "$?"
+contains "names the file missing it" "roles/developer.md" "$out"
+contains "explains what was lost" "single-account mode documentation" "$out"
+
+printf '# developer\nDetects single-account mode from AGENTS.md.\n' > "$TMP/roles/developer.md"
+out=$("$LINT" "$TMP" 2>&1); check "restored mention passes" "0" "$?"
+
 echo "lint: INSTALL.md guard rails"
-# roles/developer.md still holds the vendor-naming text left by the "vendor
-# names in roles" case above; restore it so this block tests only INSTALL.md.
-: > "$TMP/roles/developer.md"
+# roles/developer.md still holds the "restored mention" text left by the
+# single-account-mode case above, which is harmless prose here — leave it,
+# so this block tests only INSTALL.md rather than resetting an unrelated file.
 printf '# x\nPropose, never assume\nNever create credentials\nNever commit without asking\nNever invent a value\n' > "$TMP/INSTALL.md"
 printf 'trunk: main\n\nreviewer: example-reviewer\n\n## Test commands\nx\n\n## Production boundary\nnone\n' > "$TMP/examples/a.AGENTS.md"
 out=$("$LINT" "$TMP" 2>&1); check "intact INSTALL.md passes" "0" "$?"

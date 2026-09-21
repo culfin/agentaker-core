@@ -82,11 +82,24 @@ Worth repeating here because it's a limit, not just a design note: the
 permissions in `docs/roles.md` are self-imposed. A role's GitHub token is
 capable of more than its role file allows; nothing outside the session stops
 it from doing so except the coding agent choosing to follow the role file. One
-exception is the reviewer's own account, which makes GitHub itself refuse
-self-approval — see `docs/flow.md` for the measurement. The other is the
-production boundary, if you've locked it as `docs/setup.md` describes — see
-below for why it's the only other one. Don't rely on a role boundary anywhere
-a real access-control guarantee is needed.
+exception is the reviewer's own account **in two-account mode**, which makes
+GitHub itself refuse self-approval — see `docs/flow.md` for the measurement.
+The other is the production boundary, if you've locked it as `docs/setup.md`
+describes — see below for why it's the only other one. Don't rely on a role
+boundary anywhere a real access-control guarantee is needed.
+
+**Single-account mode — the default — has neither of those exceptions for
+review.** The separation between developer and reviewer there is agreed, not
+enforced: nothing on GitHub's side stops a developer session from running the
+reviewer's own commands, `gh pr edit <N> --add-label approved` included, on
+its own PR. With two accounts a self-approval is physically impossible, no
+matter what a session decides to do; with one, it's a role file a session
+could ignore, the same as every other boundary in `docs/roles.md`'s "agreed"
+column. There is no green checkmark in the browser confirming a second party
+looked — an `approved` label proves a review command ran, not who ran it.
+That's the price of not requiring a second account before the flow can be
+proven even once; see `docs/setup.md`, "If you want the separation enforced:
+a second account", for the upgrade that removes it.
 
 ## The claim ref locks task selection, not the work after it
 

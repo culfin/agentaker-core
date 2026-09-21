@@ -65,7 +65,21 @@ yourself" rule under another name: `ready` is the human's release to start
 work at all; the assignee is the agent's own report that it has started. They
 run in opposite directions, and only one of them is reserved for a human.
 
-Check whether something came back to you:
+Check whether something came back to you. Which query depends on which mode
+this repository runs (`roles/reviewer.md` has the detection: compare
+`reviewer:` in `AGENTS.md` against your own login).
+
+**Single-account mode** (the default): a PR only returns to draft once it has
+been ready, so a PR that is draft again *and* carries a review is what a
+rejection looks like — a PR simply not marked ready yet is draft with no
+review on it at all:
+
+```bash
+gh pr list --search "is:open draft:true" --author @me --json number,title,reviews \
+  --jq '.[] | select(.reviews | length > 0) | "\(.number)  \(.title)"'
+```
+
+**Two-account mode:**
 
 ```bash
 gh pr list --search "is:open review:changes_requested" --author @me
@@ -83,21 +97,44 @@ A PR stays in that state until you re-request review, so this is your inbox.
    ```
 2. Implement test-first. The test commands are in this project's `AGENTS.md`.
 3. Run them. Show the output. Only then say it works.
-4. Mark it ready and ask for review:
+4. Mark it ready and ask for review. Which command depends on the mode
+   (`roles/reviewer.md`):
+
+   **Single-account mode:**
+   ```bash
+   gh pr ready <N>
+   ```
+   The reviewer's queue there is built from `draft:false`, not from a review
+   request, so there is nothing further to run — and nothing further *would*
+   run: `gh pr edit <N> --add-reviewer <your own login>` exits 0 and prints
+   the PR URL as if it worked, but leaves `reviewRequests` empty, confirmed
+   directly against this account. A request that looks sent and never
+   arrives is worse than no request at all, so don't send it.
+
+   **Two-account mode:**
    ```bash
    gh pr ready <N>
    gh pr edit <N> --add-reviewer <the reviewer login named in AGENTS.md>
    ```
 
-When a review requests changes: read the comment, fix it, run the tests again,
-then ask for another look with the same command:
+When a review sends the PR back: read the comment, fix it, run the tests
+again, then ask for another look.
+
+**Single-account mode:** the same command that asked the first time — there
+is no review-request state here to re-trigger:
+
+```bash
+gh pr ready <N>
+```
+
+**Two-account mode:**
 
 ```bash
 gh pr edit <N> --add-reviewer <the reviewer login named in AGENTS.md>
 ```
 
-`--add-reviewer` both requests and *re*-requests — it is the one command for the
-first ask and every later one.
+`--add-reviewer` both requests and *re*-requests — it is the one command for
+the first ask and every later one, in two-account mode.
 
 Giving up on an issue before it's done? Release the claim, ref first, or it
 stays taken forever and no other session can ever see it as available again —

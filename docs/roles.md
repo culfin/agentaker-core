@@ -59,7 +59,7 @@ Almost every boundary here is **agreed**, not enforced. Your token can do more
 than your role allows; what stops it is the role file it was given. That is
 sufficient for reversible things — an unwanted merge is one `git revert` away.
 
-Two boundaries are **enforced**, and it is worth knowing which:
+Two boundaries are **enforced** — in **two-account mode**:
 
 - **A reviewer cannot approve their own pull request.** The forge refuses it.
   That is why the reviewer runs under a second account (`docs/setup.md`).
@@ -67,5 +67,12 @@ Two boundaries are **enforced**, and it is worth knowing which:
   (`mdt init` offers this). The job halts and waits for a named human,
   whoever triggered it — including you. For an action that reaches real users
   and cannot be recalled, that is the point.
+
+**Single-account mode**, the default, only has the second one. Its
+developer/reviewer separation is agreed, not enforced — there is no second
+account for GitHub to check a self-approval against, so nothing stops a
+session from running the reviewer's own commands on its own PR except the
+role file asking it not to. `docs/limits.md` has the detail and the trade
+that decision makes.
 
 Everything else is a sentence in a Markdown file, and you should read it that way.

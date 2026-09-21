@@ -2,19 +2,107 @@
 
 You check other people's work. You do not implement it.
 
-You run under a **separate hosting account** — see `docs/setup.md`. That is what
-makes approval possible: forges refuse to let an author approve their own pull
-request.
+## Which mode this repository runs
 
-## Finding work
+Check `reviewer:` in `AGENTS.md` against the login your own session runs
+under (`gh api user --jq .login`). Blank, or the same login: **single-account
+mode** — the default, and the first section below. A different login:
+**two-account mode** — you were given a separate hosting account, see the
+second section.
+
+## Single-account mode (the default)
+
+A forge refuses self-approval whatever account structure is in front of it —
+under one shared account you hit exactly the wall the PR's own author would.
+Measured directly against a throwaway repository (2026-09-21):
+
+| Command | Result |
+|---|---|
+| `gh pr review --approve` | `Can not approve your own pull request` |
+| `gh pr review --request-changes` | `Can not request changes on your own pull request` |
+| `gh pr review --comment` | **works** — creates a review with `state=COMMENTED` |
+
+So `--approve` and `--request-changes` are both unreachable here, and
+GitHub's native `review:approved` / `review:changes_requested` never get set
+on a PR nobody but its own author could review. In their place, the draft
+state carries the verdict, and one label — `approved` — carries the part
+draft state can't:
+
+| State | Looks like |
+|---|---|
+| in progress | draft, no verdict yet |
+| waiting for review | not draft, no `approved` label |
+| sent back | **back to draft** (`gh pr ready <N> --undo`) + a review comment |
+| cleared | not draft, `approved` label |
+
+`docs/flow.md` has the full reasoning for why this label is not the
+"no state labels" rule reversed: that rule is about a label duplicating a
+GitHub state that already exists. Here the state (`approved`) does not
+exist — `--approve` being locked makes it unreachable — so the label
+replaces it instead of doubling it.
+
+### Finding work
+
+```bash
+gh pr list --search "is:open draft:false -label:approved"
+```
+
+### Recording your verdict
+
+`--comment` is the only review command that actually lands on your own
+account — confirmed above. Use it to say what you found, then move the PR
+with the draft state and the label, since neither `--approve` nor
+`--request-changes` will:
+
+```bash
+gh pr review <N> --comment --body "**[reviewer]** …"
+```
+
+Cleared:
+
+```bash
+gh pr edit <N> --add-label approved
+```
+
+Sent back:
+
+```bash
+gh pr ready <N> --undo
+```
+
+**Do not** reach for `gh pr edit <N> --add-reviewer <login>` here, even to
+hand the PR back to yourself or a co-reviewer. Measured directly against a
+PR authored by the same account: it exits 0 and prints the PR URL as if it
+worked, but `reviewRequests` stays empty and `review-requested:@me` finds
+nothing — a request that looks sent and never arrives, silently. The draft
+state and the `approved` label are the only things that actually move a PR
+in this mode.
+
+## Two-account mode (an upgrade, not the default)
+
+You run under a **separate hosting account** — see `docs/setup.md`. That is
+what makes native approval possible: a forge refuses to let an author
+approve their own pull request, and a second account is what makes you not
+the author.
+
+### Finding work
 
 ```bash
 gh pr list --search "is:open draft:false review-requested:@me no:assignee"
 ```
 
 GitHub clears the request when you submit a review, so a PR leaves your queue
-whether you approve it or request changes — and returns only when the developer
-asks again.
+whether you approve it or request changes — and returns only when the
+developer asks again.
+
+### Recording your verdict
+
+```bash
+gh pr review <N> --approve --body "**[reviewer]** …"
+gh pr review <N> --request-changes --body "**[reviewer]** …"
+```
+
+## Claiming (both modes)
 
 Claim it before you start, the same way the developer claims an issue — a git
 ref is the lock, the assignee only the display a human sees in the browser.
@@ -65,12 +153,8 @@ A change can be clean and still wrong, or correct and unmaintainable. Say
 which axis a finding belongs to; don't let a clean diff excuse the wrong
 behaviour, or a correct fix excuse writing nobody can maintain.
 
-Decide once, with everything you found — not spread over three rounds:
-
-```bash
-gh pr review <N> --approve --body "**[reviewer]** …"
-gh pr review <N> --request-changes --body "**[reviewer]** …"
-```
+Decide once, with everything you found — not spread over three rounds. Use
+the verdict commands for whichever mode you're in, above.
 
 Mark findings by weight: blocking, suggestion, nit. Say what to change *and why*.
 
