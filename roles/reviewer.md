@@ -9,12 +9,22 @@ request.
 ## Finding work
 
 ```bash
-gh pr list --search "is:open draft:false review-requested:@me"
+gh pr list --search "is:open draft:false review-requested:@me no:assignee"
 ```
 
 GitHub clears the request when you submit a review, so a PR leaves your queue
 whether you approve it or request changes — and returns only when the developer
 asks again.
+
+Claim it before you start, the same way the developer claims an issue:
+
+```bash
+gh pr edit <N> --add-assignee @me
+```
+
+Roles may share one account (`_base.md`), so this says only that the PR is
+taken, not by whom — enough for another reviewer session's `no:assignee`
+search to skip it.
 
 ## Checking out
 
@@ -53,6 +63,14 @@ gh pr review <N> --request-changes --body "**[reviewer]** …"
 ```
 
 Mark findings by weight: blocking, suggestion, nit. Say what to change *and why*.
+
+Then release the claim — unlike an issue, nothing here closes automatically,
+so a PR you forget to unassign stays off every other reviewer session's queue
+for good:
+
+```bash
+gh pr edit <N> --remove-assignee @me
+```
 
 ## You never
 
