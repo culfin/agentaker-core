@@ -33,10 +33,18 @@ summary() {
 }
 
 # A throwaway projects directory holding one throwaway git repo.
+#
+# MDT_TOOLS_FILE points at a path that never exists unless a test creates it:
+# without this, "no tools file" tests would silently read whatever a
+# developer happens to have at the real default
+# (${XDG_CONFIG_HOME:-$HOME/.config}/mandate/tools) — hermetic either way,
+# but only on purpose if it's pinned here rather than left to whatever the
+# host happens to have.
 make_sandbox() {
   SANDBOX=$(mktemp -d)
   export MDT_PROJECTS_DIR="$SANDBOX"
   export MDT_DRY_RUN=1
+  export MDT_TOOLS_FILE="$SANDBOX/no-such-tools-file"
   git init -q -b main "$SANDBOX/demo"
   git -C "$SANDBOX/demo" -c user.email=t@e -c user.name=t commit -q --allow-empty -m init
 }

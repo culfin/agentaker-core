@@ -83,7 +83,11 @@ it by hand.
 
     export MDT_TOOL=claude      # default
 
-See [tools.md](tools.md) for what is supported and what is untested.
+Claude Code and Codex CLI are built in; anything else goes in a tools file
+(`~/.config/mandate/tools`) instead of a code change — see
+[tools.md](tools.md) for the format, what's verified versus untested, and
+`mdt doctor` for checking a tool actually works before you rely on it
+unattended.
 
 ## 5. Tell your tabs apart
 

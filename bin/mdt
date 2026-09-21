@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # mdt — give each AI coding session a fixed role and its own git worktree.
 #
-# Vendor knowledge lives in exactly one place in this file: launch_command().
-# Everything else is git, gh and tmux.
+# Vendor knowledge lives in exactly one function, launch_command() —
+# lib/tools.sh now, not this file (see its header) — plus the tools table it
+# reads before falling back to its built-in two. Everything else here is
+# git, gh and tmux.
 set -uo pipefail
 
 # Resolve this script's own location, following symlinks. `ln -s ~/tool/bin/mdt
@@ -39,6 +41,11 @@ die() { printf 'mdt: %s\n' "$1" >&2; exit "${2:-1}"; }
 # shellcheck source=lib/tabs.sh
 . "$MDT_HOME/lib/tabs.sh" || die "cannot load $MDT_HOME/lib/tabs.sh"
 
+# launch_command() runs on the same hot path — see lib/tools.sh's own header
+# for why it, too, is sourced unconditionally rather than on demand.
+# shellcheck source=lib/tools.sh
+. "$MDT_HOME/lib/tools.sh" || die "cannot load $MDT_HOME/lib/tools.sh"
+
 usage() {
   cat <<'EOF'
 Usage:
@@ -51,6 +58,8 @@ Usage:
   mdt restart <repo> <name>     hand over, replace the process, resume
   mdt restart <repo> <name> --fresh   replace without asking for a handover
   mdt restart --all             restart every running session
+  mdt doctor [tool]             start a tool with a throwaway context and
+                                 check whether its role arrived
 
 Roles: developer, reviewer, maintainer
 
@@ -60,7 +69,12 @@ Environment:
                      word, not a typo; set this if yours live elsewhere)
   MDT_ROLES_DIR      where the role files live (default: <install>/roles)
   MDT_TOOL           which coding agent to launch (default: claude)
-                     see launch_command() in bin/mdt for the supported list
+                     see docs/tools.md for the supported list, and how to
+                     add one without editing this file
+  MDT_TOOLS_FILE     the tools table (default: $XDG_CONFIG_HOME or
+                     ~/.config)/mandate/tools) — see docs/tools.md
+  MDT_DOCTOR_TIMEOUT   seconds `mdt doctor` waits for a tool to answer
+                     before giving up on it (default: 15)
   MDT_OWNER          default GitHub owner for `mdt status`
   MDT_REVIEWER       login of the reviewer account, for `mdt status`
   MDT_TAB_COLOUR     iTerm2 tab colour by role (default: on, 0 to disable)
@@ -73,41 +87,6 @@ Environment:
   MDT_DRY_RUN        print what `mdt <repo> <role>` would launch instead
                      of launching it (any non-empty value)
 EOF
-}
-
-# --- the one vendor-aware function -------------------------------------------
-# Sets the global array LAUNCH_CMD to the argv that starts $TOOL with $1 (the
-# assembled role file) as its system prompt. Returns 1 when the tool is unknown.
-#
-# A global rather than a printed list, for two reasons: `mapfile` does not exist
-# in bash 3.2, which is still /bin/bash on macOS, and a multi-line prompt would
-# shred any line-based protocol anyway.
-#
-# Adding a tool means adding one branch here and one row in docs/tools.md —
-# nothing else in this repository changes.
-launch_command() {
-  local ctx=$1 tool=${TOOL:-claude}
-  # Set alongside LAUNCH_CMD so the caller can say out loud that a path was
-  # never run. A wrong flag here fails silently in the worst way: the session
-  # starts, looks fine, and simply has no role -- and the docs table saying
-  # "unverified" is not in front of anyone at that moment.
-  TOOL_STATUS=verified
-  case "$tool" in
-    claude)
-      # Verified 2026-09-20 against Claude Code.
-      LAUNCH_CMD=(claude --append-system-prompt-file "$ctx")
-      ;;
-    codex)
-      # UNVERIFIED — codex was not installed when this was written.
-      # If this is wrong, fix it here and say so in docs/tools.md.
-      TOOL_STATUS=unverified
-      LAUNCH_CMD=(codex --prompt-file "$ctx")
-      ;;
-    *)
-      LAUNCH_CMD=()
-      return 1
-      ;;
-  esac
 }
 
 # --- assembling the role ------------------------------------------------------
@@ -367,6 +346,12 @@ case "${1:-}" in
     # shellcheck source=lib/state.sh
     . "$MDT_HOME/lib/state.sh" || die "cannot load $MDT_HOME/lib/state.sh"
     cmd_restart "$@"
+    ;;
+  doctor)
+    shift
+    # shellcheck source=lib/doctor.sh
+    . "$MDT_HOME/lib/doctor.sh" || die "cannot load $MDT_HOME/lib/doctor.sh"
+    cmd_doctor "$@"
     ;;
   *)         [ $# -ge 2 ] || { usage; exit 2; }; cmd_start "$@" ;;
 esac

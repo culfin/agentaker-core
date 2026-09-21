@@ -112,12 +112,13 @@ applied to. See [docs/concept.md](docs/concept.md).
 
 ## Works with any coding agent
 
-Only one function in `bin/mdt` — `launch_command()` — knows about a specific
-coding agent. Everything else (worktrees, roles, the GitHub flow, `AGENTS.md`)
-is vendor-neutral. Claude Code is verified; other tools range from unverified
-to "paste this file in yourself." See [docs/tools.md](docs/tools.md) for
-exactly which is which — it does not imply parity where none has been
-checked.
+Only one function — `launch_command()` in `lib/tools.sh` — knows about a
+specific coding agent. Everything else (worktrees, roles, the GitHub flow,
+`AGENTS.md`) is vendor-neutral. Adding a tool is a line in a config file, not
+a code change or a release — `mdt doctor <tool>` checks it actually works.
+Claude Code is verified; other tools range from unverified to "paste this
+file in yourself." See [docs/tools.md](docs/tools.md) for exactly which is
+which — it does not imply parity where none has been checked.
 
 ## What this deliberately is not
 

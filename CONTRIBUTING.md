@@ -5,7 +5,7 @@
 ```bash
 bash tests/run.sh      # every tests/test_*.sh file, no framework — prints "passed: N failed: N" per file
 bin/mdt-lint .          # checks the repository stays internally consistent
-shellcheck -S warning bin/mdt lib/init.sh lib/manage.sh lib/tabs.sh bin/mdt-lint hooks/load_role.sh
+shellcheck -S warning bin/mdt lib/init.sh lib/manage.sh lib/tabs.sh lib/state.sh lib/tools.sh lib/doctor.sh bin/mdt-lint hooks/load_role.sh
 ```
 
 (The assertion count isn't stated here on purpose — it only ever goes stale by
@@ -48,11 +48,21 @@ explicitly documented as Claude Code's file format (`agents/README.md`).
 
 ## Adding a coding agent
 
-One branch in `launch_command()` in `bin/mdt`, one row in `docs/tools.md`.
-Nothing else in the repository changes — that's the design, see
-`docs/concept.md`. In your PR, say which version of the tool you tested
-against and mark the row **verified**; don't leave a claim in `docs/tools.md`
-that you didn't check.
+Add a line to your tools file (`${XDG_CONFIG_HOME:-$HOME/.config}/mandate/tools`,
+or `$MDT_TOOLS_FILE`) — no PR needed, no code change, no release to wait for.
+See `docs/tools.md` for the format and the two-point contract a tool has to
+meet, and run `mdt doctor <tool>` to check it actually works before you rely
+on it unattended.
+
+The built-in two (`claude`, `codex` — `launch_command()` in `lib/tools.sh`)
+exist so the zero-config path stays zero-config; they are not the extension
+point any more. A PR adding a third built-in branch will be asked to become a
+`docs/tools.md` row plus a tools-file line in your own config instead — that
+is the whole reason issue #2 moved this out of `bin/mdt` in the first place.
+If you do have a genuine reason to widen the built-in table (not just "I
+don't want a config file"), say which version of the tool you tested against
+and mark the row **verified**; don't leave a claim in `docs/tools.md` that you
+didn't check.
 
 ## Adding an example
 
@@ -62,18 +72,21 @@ and `## Production boundary` at minimum (`bin/mdt-lint` checks this), and any
 role or subagent it names under `## Roles` / `## Subagents` must exist in this
 repository.
 
-## `bin/mdt`, `lib/init.sh`, `lib/manage.sh` and `lib/tabs.sh` stay under 450 lines each
+## Every script under `bin/` and `lib/` stays under 450 lines
 
 `bin/mdt` holds the three everyday subcommands; `lib/init.sh` holds `init`,
 which runs once per project; `lib/manage.sh` holds `list`, `drop` and
 `restart`; `lib/tabs.sh` holds the tab-legibility helpers (role tag, iTerm2
 colour, the pane wrapper) that `bin/mdt` and `lib/manage.sh` both call on
-every session start or restart — split out of `bin/mdt` once it neared the
-ceiling, not for on-demand loading like the other two (see the header comment
-in `lib/tabs.sh`). All four stay under 450 lines — `bin/mdt-lint` checks all
-four. The ceiling guards readability, not a budget: when a file approaches
-it, ask which block has become its own concern rather than raising the
-number.
+every session start or restart; `lib/tools.sh` holds the tools-file parser
+and `launch_command()` itself, for the same reason as `lib/tabs.sh` — both
+are on the hot path, so `bin/mdt` sources them unconditionally rather than
+on demand (see either file's own header); `lib/doctor.sh` holds `mdt doctor`,
+sourced on demand like `lib/init.sh`. `bin/mdt-lint` checks all of them —
+see the loop near the end of `bin/mdt-lint` for the current list, which is
+also what to extend when a new file joins them. The ceiling guards
+readability, not a budget: when a file approaches it, ask which block has
+become its own concern rather than raising the number.
 
 ## Subagents under `agents/` are frozen copies
 

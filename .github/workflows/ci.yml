@@ -34,4 +34,4 @@ jobs:
       - name: Shellcheck
         run: |
           sudo apt-get update -qq && sudo apt-get install -y shellcheck
-          shellcheck -S warning bin/mdt lib/init.sh lib/manage.sh lib/tabs.sh lib/state.sh bin/mdt-lint hooks/load_role.sh
+          shellcheck -S warning bin/mdt lib/init.sh lib/manage.sh lib/tabs.sh lib/state.sh lib/tools.sh lib/doctor.sh bin/mdt-lint hooks/load_role.sh

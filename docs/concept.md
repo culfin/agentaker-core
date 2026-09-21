@@ -81,14 +81,17 @@ This is why adding a new project costs a file with about twenty lines
 (`AGENTS.md`) rather than a new role: the process doesn't change, only what
 the process is applied to.
 
-## Why roles are vendor-neutral, and where the one `case` statement lives
+## Why roles are vendor-neutral, and where the one vendor-aware function lives
 
 The role files are Markdown. `.agents/ROLE` is one word in a text file. The
 flow runs entirely over `git` and `gh`. None of that names a coding agent.
 
 The one place a coding agent's name appears in the whole tool is
-`launch_command()` in `bin/mdt` — a single `case` statement that knows how to
-hand the assembled role text to whichever tool `MDT_TOOL` names:
+`launch_command()` in `lib/tools.sh` — it knows how to hand the assembled
+role text to whichever tool `MDT_TOOL` names, first by checking a config file
+(`${XDG_CONFIG_HOME:-$HOME/.config}/mandate/tools`, or `$MDT_TOOLS_FILE`) for
+a line naming that tool, then falling back to a two-branch `case` for the
+built-in pair:
 
 ```bash
 case "$tool" in
@@ -98,9 +101,12 @@ case "$tool" in
 esac
 ```
 
-Adding a tool means adding one branch here and one row in `docs/tools.md`.
-Nothing else in the repository changes — not a role file, not `AGENTS.md`, not
-the flow. See `docs/tools.md` for which of these branches is actually verified.
+Adding a tool means adding a line to that config file — no PR, no release.
+Nothing else in the repository changes — not a role file, not `AGENTS.md`,
+not the flow, not this function. See `docs/tools.md` for the file format,
+the two-point contract a tool has to meet, `mdt doctor` (which checks a tool
+actually honours it), and which of the two built-in branches is actually
+verified.
 
 ## Roles versus subagents
 
