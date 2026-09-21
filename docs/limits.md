@@ -35,6 +35,14 @@ gives two worktrees, `dateye-developer` and `dateye-developer-a11y`, each with
 its own branch, each addressable independently. Use this for parallel,
 unrelated work — not for two sessions on the same issue.
 
+**And nothing caps how many.** Renovate solved the equivalent problem in 2019
+with `prConcurrentLimit`: unbounded automation does not overwhelm the machine,
+it overwhelms the human who has to read the results. `mandate` has no such
+knob, deliberately — with three roles and one session each there is nothing to
+cap, and an option with no effect still has to be documented, tested and
+explained. The reasoning, the triggers that would make it real, and what to
+check before building it are in issue #1.
+
 ## Disk: a Rust/Tauri worktree is large, and it's `target/`
 
 Measured on one project (DATEYE, Rust + Tauri) on the development machine: a
