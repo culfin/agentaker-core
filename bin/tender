@@ -166,6 +166,18 @@ remember_credential() {
     || printf 'tender: could not record the credential label for %s — a restart would start it without one\n' "$1" >&2
 }
 
+# A start from a terminal ends attached to the session, as it always has.
+# A start from a program with no terminal (the desktop app) cannot attach —
+# `tmux attach` would fail with "not a terminal" and turn a start that
+# worked into exit status 1. It says where the session is instead.
+attach_if_terminal() {
+  if [ -t 0 ] && [ -t 1 ]; then
+    tmux attach -t "$1"
+  else
+    printf 'started in tmux session %s — attach with: tender attach %s\n' "$1" "$2"
+  fi
+}
+
 cmd_start() {
   local repo=$1 role=$2 suffix=${3:-}
   local repo_dir="$PROJECTS_DIR/$repo"
@@ -262,7 +274,7 @@ cmd_start() {
     fi && remember_credential "$wt"
     tmux set-option -t "$session" set-titles on
     tmux set-option -t "$session" set-titles-string '#{s/^tender-//:#S} · #W'
-    tmux attach -t "$session"
+    attach_if_terminal "$session" "$repo"
   else
     # Detached first, not the direct attach new-session offers without -d: the
     # title has to be set session-scoped before anyone looks at the tab, and
@@ -274,7 +286,7 @@ cmd_start() {
     fi && remember_credential "$wt"
     tmux set-option -t "$session" set-titles on
     tmux set-option -t "$session" set-titles-string '#{s/^tender-//:#S} · #W'
-    tmux attach -t "$session"
+    attach_if_terminal "$session" "$repo"
   fi
 }
 

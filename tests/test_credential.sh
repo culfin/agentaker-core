@@ -313,7 +313,12 @@ EOF
   TENDER_TOOLS_FILE="$TOOLS" TENDER_TOOL=agentstub TENDER_CREDENTIAL=work \
     STUB_SERVICE="treetender-cred-work" STUB_ACCOUNT=TESTVAR STUB_VALUE="$SECRET_VALUE" \
     PATH="$SAFE_PATH" TENDER_DRY_RUN= "$TENDER" demo developer </dev/null >"$STUB/start.out" 2>"$STUB/start.err"
+  start_rc=$?
   wait_for "$STUB/env-snapshot.txt"
+  # No terminal here, as for the desktop app: the start must still count as
+  # one that worked, not fail on `tmux attach` after the session is up.
+  check "a start without a terminal exits 0 (new session)" "0" "$start_rc"
+  contains "... and says how to attach instead" "attach with: tender attach demo" "$(cat "$STUB/start.out")"
 
   check "the value DID arrive in the agent's environment (positive control)" "$SECRET_VALUE" "$(cat "$STUB/env-snapshot.txt" 2>/dev/null)"
   lacks "the agent's own live argv never carries the value" "$SECRET_VALUE" "$(cat "$STUB/argv-snapshot.txt" 2>/dev/null)"
@@ -369,6 +374,7 @@ EOF
   TENDER_TOOLS_FILE="$TOOLS" TENDER_TOOL=agentstub TENDER_CREDENTIAL=work \
     STUB_SERVICE="treetender-cred-work" STUB_ACCOUNT=TESTVAR STUB_VALUE="$SECRET_VALUE" \
     PATH="$SAFE_PATH" TENDER_DRY_RUN= "$TENDER" demo developer </dev/null >/dev/null 2>&1
+  check "a start without a terminal exits 0 (window in an existing session)" "0" "$?"
   # Waits for the refusal itself — only once it is on screen does "still
   # there" say anything; checked any earlier, it would pass on a pane that
   # simply had not got that far yet.
