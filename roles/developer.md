@@ -96,6 +96,10 @@ A PR stays in that state until you re-request review, so this is your inbox.
    Opened by: developer"
    ```
 2. Implement test-first. The test commands are in this project's `AGENTS.md`.
+   Fixing a bug: show the new test failing against the old code before you
+   fix it — a reviewer who can't see that has no way to know the bug was
+   ever real, or that it's actually gone (`roles/reviewer.md` checks for
+   this).
 3. Run them. Show the output. Only then say it works.
 4. Mark it ready and ask for review. Which command depends on the mode
    (`roles/reviewer.md`):

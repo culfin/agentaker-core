@@ -140,7 +140,7 @@ gh pr checkout <N> --branch review/<N>
 3. Call the specialists listed there when the change is in their area.
 4. Read the diff against `_base.md` rule 7: does every line earn its place?
 
-Answer two separate questions, not one blended one — a review that merges
+Answer three separate questions, not one blended one — a review that merges
 them tends to answer whichever is easier:
 
 - **Standards.** Is it written well: does it follow this project's
@@ -148,10 +148,46 @@ them tends to answer whichever is easier:
   catch?
 - **Spec.** Does it do what the issue actually asked, no more and no less —
   including the edge cases the issue implies but doesn't spell out?
+- **Evidence.** Does the diff prove what it claims to prove — see below.
 
-A change can be clean and still wrong, or correct and unmaintainable. Say
-which axis a finding belongs to; don't let a clean diff excuse the wrong
-behaviour, or a correct fix excuse writing nobody can maintain.
+A change can be clean and still wrong, or correct and unmaintainable, or
+correct and unproven. Say which axis a finding belongs to; don't let a clean
+diff excuse the wrong behaviour, a correct fix excuse writing nobody can
+maintain, or a passing test suite excuse a test that could never have failed.
+
+### Evidence
+
+A test run turning green means nothing on its own — it only means something
+if the tests it ran were capable of turning red. Check three things. All
+three are **blocking findings**, not a suggestion and not a nit; a review
+that lets one through as a footnote hasn't actually asked the question.
+
+1. **Weakened evidence.** Did this diff delete a test, skip one, remove an
+   assertion, raise a timeout, or loosen a comparison? A green run after a
+   change like that proves *less* than the run before it, never more. Look
+   at what the diff removed from test files, not only what it added:
+   ```bash
+   git diff <base>..HEAD -- '*test*' | grep '^-' | grep -vE '^---'
+   ```
+   Confirm this actually prints something on a diff you know touched tests
+   before you trust it printing nothing on the one you're reviewing — a
+   command that finds nothing because it's pointed wrong is worse than no
+   command, because it looks like a check that ran.
+2. **New evidence that isn't.** Can every new assertion actually fail? Was
+   that shown — not claimed, shown? `_base.md` rule 1 ("evidence, not
+   assertions") applies to your own read of the diff, not only to the
+   author's PR description. A missing demonstration is itself the blocking
+   finding, not a detail to note in passing.
+3. **A fix with no failing test behind it.** If the change claims to fix a
+   bug, there must be a test that would have failed before the fix and
+   passes after it. Without one, nothing shows the bug is actually gone —
+   and nobody will notice if it comes back.
+
+None of this is licence to block legitimate cleanup. A test may be rewritten,
+folded into another, or deleted outright, as long as the diff says why it no
+longer proves anything. What's required is the reason, not the preservation
+of every line — block the change that weakens evidence silently, not the one
+that explains itself.
 
 Decide once, with everything you found — not spread over three rounds. Use
 the verdict commands for whichever mode you're in, above.

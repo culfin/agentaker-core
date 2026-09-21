@@ -33,7 +33,9 @@ maintainer  gh pr list --search "is:open draft:false label:approved"
    status once it's ready for a review.
 2. **Not draft, no verdict** — waiting for review. This is the state the
    reviewer's queue is built from: `gh pr list --search "is:open draft:false
-   -label:approved"`.
+   -label:approved"`. The review itself answers three questions, not two —
+   standards, spec, and whether the diff's own evidence (its tests) actually
+   proves what it claims; `roles/reviewer.md` has all three.
 3. **Back to draft** — `gh pr ready <N> --undo`, paired with a `--comment`
    review that explains why. Native `changes_requested` is unreachable on a
    PR reviewed by its own author (see "Why there is no `reviewed` label"
