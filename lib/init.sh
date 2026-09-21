@@ -129,7 +129,7 @@ EOF
   fi
 
   # --- labels ---------------------------------------------------------------
-  if [ -z "${MDT_NO_NETWORK:-}" ] && [ "$(ask 'Create the two labels on the remote? (y/n)' y)" = "y" ]; then
+  if [ -z "${MDT_NO_NETWORK:-}" ] && [ "$(ask 'Create the three labels on the remote? (y/n)' y)" = "y" ]; then
     (
       cd "$dir" || exit 1
       if gh label create ready --description "Ready for an agent to pick up" --color 0E8A16 2>/dev/null; then
@@ -141,6 +141,17 @@ EOF
         printf '  label created: needs-decision\n'
       else
         printf '  label needs-decision: already there, or no access\n'
+      fi
+      # Single-account mode has no reachable native approval -- a shared account
+      # cannot `gh pr review --approve` its own PR -- so this label carries the
+      # verdict instead. Measured: without it, `gh pr edit --add-label approved`
+      # fails with "'approved' not found", which would break the default mode
+      # silently on a fresh setup. Two-account mode never uses it; an unused
+      # label costs nothing, a missing one costs the whole flow.
+      if gh label create approved --description "Reviewed and approved (single-account mode)" --color 0052CC 2>/dev/null; then
+        printf '  label created: approved\n'
+      else
+        printf '  label approved: already there, or no access\n'
       fi
     )
   fi

@@ -128,7 +128,7 @@ forge. Full numbers and what they were measured on:
 - [docs/setup.md](docs/setup.md) — install, reviewer account, first project
 - [docs/adding-a-project.md](docs/adding-a-project.md) — the same setup twice, with `mdt init` and by hand, plus troubleshooting
 - [docs/roles.md](docs/roles.md) — permissions, what each role never does, and why they're not enforced
-- [docs/flow.md](docs/flow.md) — the GitHub states, the two labels, the review round trip
+- [docs/flow.md](docs/flow.md) — the GitHub states, the labels, the review round trip
 - [docs/tools.md](docs/tools.md) — which coding agent integration is verified
 - [docs/limits.md](docs/limits.md) — measured numbers, not estimates
 

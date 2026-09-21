@@ -66,6 +66,18 @@ if vendor=$(grep -rliE 'claude|codex|gemini|cursor|copilot|anthropic|openai' "$R
   for f in $vendor; do problem "$(basename "$f"): names a specific tool — roles must stay vendor-neutral"; done
 fi
 
+# A role that reaches for a label nobody creates fails with "'<name>' not found"
+# -- measured 2026-09-21 against a live repository -- and it fails on a fresh
+# setup, where nobody is watching. `approved` shipped exactly this way: the
+# single-account flow used it, `mdt init` created only `ready` and
+# `needs-decision`, and every review passed because reviews read the role file
+# and the installer separately, never against each other.
+for label in $(grep -ohE '\-\-add-label [a-z-]+|label:[a-z-]+' "$ROOT"/roles/*.md 2>/dev/null \
+               | sed -E 's/.*(--add-label |label:)//' | sort -u); do
+  grep -q "gh label create $label" "$ROOT/lib/init.sh" 2>/dev/null \
+    || problem "roles/ uses label '$label', but lib/init.sh never creates it"
+done
+
 [ -f "$ROOT/roles/_base.md" ] || problem "roles/_base.md is missing"
 
 # Single-account mode is the default operating mode (docs/flow.md) — a role

@@ -72,6 +72,19 @@ contains "explains what was lost" "single-account mode documentation" "$out"
 printf '# developer\nDetects single-account mode from AGENTS.md.\n' > "$TMP/roles/developer.md"
 out=$("$LINT" "$TMP" 2>&1); check "restored mention passes" "0" "$?"
 
+echo "lint: a label a role uses must be one init.sh creates"
+mkdir -p "$TMP/lib"
+printf '# developer\nDetects single-account mode from AGENTS.md.\ngh pr edit <N> --add-label approved\n' > "$TMP/roles/developer.md"
+printf 'gh label create ready --description "x"\n' > "$TMP/lib/init.sh"
+out=$("$LINT" "$TMP" 2>&1); check "label without a creator fails" "1" "$?"
+contains "names the orphaned label" "approved" "$out"
+contains "names where it should be created" "lib/init.sh" "$out"
+
+printf 'gh label create ready --description "x"\ngh label create approved --description "x"\n' > "$TMP/lib/init.sh"
+out=$("$LINT" "$TMP" 2>&1); check "created label passes" "0" "$?"
+
+printf '# developer\nDetects single-account mode from AGENTS.md.\n' > "$TMP/roles/developer.md"
+
 echo "lint: INSTALL.md guard rails"
 # roles/developer.md still holds the "restored mention" text left by the
 # single-account-mode case above, which is harmless prose here — leave it,

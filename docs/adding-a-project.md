@@ -66,7 +66,7 @@ next, or see docs/setup.md) actually makes a release wait for you.
 
   Write this file? (y/n) [y]
   written: /Users/you/Projekte/myproject/AGENTS.md — edit the production boundary before you rely on it.
-  Create the two labels on the remote? (y/n) [y]
+  Create the three labels on the remote? (y/n) [y]
   label created: ready
   label created: needs-decision
 
@@ -148,7 +148,7 @@ rather than *edit* it if you declined to write one. If your repository already
 has an `AGENTS.md`, `init` won't touch it, and just reminds you what it must
 name: trunk, reviewer, test commands, production boundary.
 
-At this point you have `AGENTS.md`, two labels, and three worktrees
+At this point you have `AGENTS.md`, three labels, and three worktrees
 (`.worktrees/myproject-developer`, `-reviewer`, `-maintainer`) each carrying
 its own `.agents/ROLE`. **You still have to open `AGENTS.md` and fill in the
 production boundary** — `init` writes a placeholder there, but nothing about
@@ -196,7 +196,7 @@ git commit -m "add AGENTS.md"
 It belongs to the project, not to any one session, and every coding agent —
 not only the ones started through `mdt` — reads it from the checkout.
 
-**3. Create the two labels.**
+**3. Create the three labels.**
 
 ```bash
 gh label create ready --description "Ready for an agent to pick up" --color 0E8A16
