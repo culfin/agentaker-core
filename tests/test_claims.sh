@@ -84,6 +84,21 @@ contains "carries the timestamp" "\"claimed_at\":\"$OLD\"" "$out"
 contains "flags it orphaned, as a JSON boolean" '"orphaned":true' "$out"
 contains "carries the threshold" '"threshold_days":2' "$out"
 
+echo "mdt claims: a claim written as a commit is content, not a failed lookup"
+# Claims written before blobs replaced `git commit-tree` are commits, and they
+# still sit on remotes. The fetch succeeds; only the type is wrong. That must
+# not read as "could not ask" (a network failure it isn't), and it must not
+# fail the whole listing — a UI would discard every good row with it.
+commit_sha=$(printf 'claim 2026-01-01T00:00:00Z' | git -C "$SANDBOX/demo" -c user.name=t -c user.email=t@e \
+  commit-tree "$(git -C "$SANDBOX/demo" hash-object -w -t tree /dev/null)")
+git -C "$SANDBOX/demo" push -q origin "${commit_sha}:refs/claims/issue-legacy"
+out=$("$MDT" claims demo 2>&1); check "a legacy commit claim does not fail the listing" "0" "$?"
+contains "names it as not a claim blob" "not a claim blob" "$out"
+lacks "does not dress it up as a lookup failure" "could not ask" "$out"
+out=$("$MDT" claims demo --json 2>&1)
+contains "carries it in json as an error on that entry" '"error":"not a claim blob: a commit"' "$out"
+git -C "$SANDBOX/demo" push -q origin ":refs/claims/issue-legacy"
+
 echo "mdt claims: AGENTS.md's claim-timeout-days changes the verdict, not just the number shown"
 printf 'trunk: main\nreviewer: x\nclaim-timeout-days: 36500\n' > "$SANDBOX/demo/AGENTS.md"
 out=$(MDT_PROJECTS_DIR="$SANDBOX" "$MDT" claims demo 2>&1)

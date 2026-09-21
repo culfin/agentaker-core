@@ -154,6 +154,25 @@ cmd_claims() {
       continue
     fi
 
+    # The fetch succeeded, so the object is here. If it is not a blob, the
+    # question was answered — the answer is just not a claim. Reporting that
+    # as "could not ask" would read as a network failure, and setting
+    # had_failure would fail the whole listing over one unusable ref. Claims
+    # written before blobs replaced `git commit-tree` are commits, and they
+    # still exist on remotes.
+    local objtype
+    objtype=$(git -C "$repo_dir" cat-file -t "$hash" 2>/dev/null)
+    if [ -n "$objtype" ] && [ "$objtype" != "blob" ]; then
+      if [ "$json" -eq 1 ]; then
+        printf '{"name":"%s","ref":"%s","error":"not a claim blob: a %s"}' \
+          "$(claims_json_escape "$name")" "$(claims_json_escape "$refname")" \
+          "$(claims_json_escape "$objtype")"
+      else
+        printf '%-10s not a claim blob: a %s (an older mandate wrote these as commits)\n' "$name" "$objtype"
+      fi
+      continue
+    fi
+
     local blob claimed_at
     blob=$(git -C "$repo_dir" cat-file blob "$hash" 2>&1)
     if [ $? -ne 0 ]; then
