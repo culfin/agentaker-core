@@ -2,6 +2,22 @@
 
 Give each AI coding session a fixed role and its own git worktree.
 
+```console
+$ mdt acme developer            # opens a tmux window titled "acme · DEV"
+$ mdt acme reviewer             #                            "acme · REV"
+$ mdt acme maintainer           #                            "acme · MNT"
+
+$ mdt list acme
+acme
+  DEV              acme-developer           acme-developer
+  REV              acme-reviewer            acme-reviewer
+  MNT              acme-maintainer          acme-maintainer
+```
+
+Three sessions, three roles, one project. Each has its own worktree and its own
+branch, so they never edit the same file. They hand work to each other through
+GitHub issues and pull requests — not through each other.
+
 ## The problem
 
 Several AI sessions work on one project. Each one gets briefed from scratch —
