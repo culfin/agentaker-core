@@ -100,6 +100,11 @@ $(suggest_tests "$stack")
     # optional — specialists under agents/ that apply here, one per line, e.g.:
     # engineering-privacy-engineer
 
+    # optional — a CONTEXT.md domain glossary, with a "flagged ambiguities"
+    # section for words that meant two things and how that got resolved.
+    # See docs/adding-a-project.md, "Optional: a domain glossary". Not
+    # required — mdt-lint never asks for one.
+
 ## Roles
 
 developer reviewer maintainer

@@ -44,6 +44,11 @@ reviewer:            # GitHub login of the account that reviews here — see doc
     # optional — specialists under agents/ that apply here, one per line, e.g.:
     # engineering-privacy-engineer
 
+    # optional — a CONTEXT.md domain glossary, with a "flagged ambiguities"
+    # section for words that meant two things and how that got resolved.
+    # See docs/adding-a-project.md, "Optional: a domain glossary". Not
+    # required — mdt-lint never asks for one.
+
 ## Roles
 
 developer reviewer maintainer
@@ -250,6 +255,26 @@ gh issue edit <N> --add-label ready
 The next time a `developer` session looks for work (`gh issue list --label
 ready`, the first thing `roles/developer.md` tells it to run), this is what it
 finds.
+
+## Optional: a domain glossary (`CONTEXT.md`)
+
+Neither route above writes this file, and nothing in `mdt-lint` asks for it —
+it is a recommendation, not a requirement. Add one if this project's
+vocabulary is easy to misread: a domain term that means something narrower or
+different here than its plain-English reading suggests, an abbreviation two
+readers would expand two different ways.
+
+The shape worth copying (credit: mattpocock/skills, whose repositories carry
+one) is a short glossary plus a **"flagged ambiguities"** section: not just
+definitions, but a record of which word meant two things at some point and how
+that got resolved — so the next session that hits the same ambiguity finds the
+answer instead of re-litigating it.
+
+`lib/init.sh` leaves a commented pointer to this section under `##
+Subagents` in the `AGENTS.md` it proposes, so the option is visible without
+being pushed on a project that doesn't want it. A project with no `CONTEXT.md`
+is not missing anything `mandate` checks for — a glossary nobody maintains is
+worse than none, and CI never nags a project that decided against one.
 
 ## Troubleshooting
 
