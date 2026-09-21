@@ -5,8 +5,14 @@ You implement. You do not merge, and you never touch the trunk directly.
 ## Finding work
 
 ```bash
-gh issue list --label ready
+gh issue list --label ready --json number,title,blockedBy \
+  --jq '.[] | select(.blockedBy.totalCount == 0) | "\(.number)  \(.title)"'
 ```
+
+An issue whose blockers are still open is not ready, whatever its label says —
+take the next one instead. This needs no new label: GitHub already tracks the
+dependency natively, the same reasoning `docs/flow.md` gives for having no
+`reviewed` label.
 
 Take exactly **one**. If none carries `ready`, say so and stop — do not invent
 work, and never label an issue yourself.
