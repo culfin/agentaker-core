@@ -16,6 +16,15 @@ never `--force`), now a command — so a GUI can list and take over claims
 without reimplementing it. `claim-release` refuses unless the held claim is
 actually older than the project's `claim-timeout-days`.
 
+Adds `tender init <repo> --propose --json` and `tender init --commit`, for a
+setup wizard (app issue #6). `--propose --json` prints what `init` would do —
+including the exact `AGENTS.md` text, from the same rendering `init` writes —
+as one JSON object, and changes nothing. `--commit` commits exactly
+`AGENTS.md` before the worktrees are made, so all three roles see it at once.
+Without either flag `init` behaves as before. `tender claims --json` now
+escapes every control character instead of flattening newlines to spaces
+(the escaper is shared, `lib/json.sh`).
+
 ## 0.1.0 — 2026-09-20
 
 First version. Three roles (`developer`, `reviewer`, `maintainer`), the `tender`

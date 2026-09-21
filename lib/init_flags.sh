@@ -27,7 +27,8 @@
 #            declined; nothing refused
 #   21-24    refused at step N (1=AGENTS.md 2=labels 3=environment
 #            4=worktrees) — today only step 1 can refuse (--yes without
-#            --boundary); 22-24 are reserved, not yet reachable
+#            --boundary, or a --commit git refused); 22-24 are reserved,
+#            not yet reachable
 INIT_STEP_NAMES=(AGENTS.md labels environment worktrees)
 
 # Prints which step refused and why, then exits with that step baked into the
@@ -66,6 +67,20 @@ Confirmations (each defaults to the interactive "yes"):
   --no-environment       skip the protected "production" environment
   --no-worktrees         skip creating the three role worktrees
 
+Setup wizard:
+  --propose --json     print, as one JSON object on stdout, everything init
+                        would do with these values — prerequisites, branch,
+                        trunk, stack, test commands, the exact AGENTS.md text,
+                        labels, environment, worktrees — and change nothing.
+                        --propose requires --json (usage error otherwise).
+                        Where something could not be asked (no gh, offline,
+                        TENDER_NO_NETWORK), the answer is null, never a guess.
+  --commit             after writing AGENTS.md, commit exactly that file on
+                        the branch HEAD is on — before the worktrees are made,
+                        so they contain it. Other changes stay uncommitted.
+                        Never pushes. A refused commit exits 21. A no-op when
+                        AGENTS.md was not written by this run.
+
 Without --yes, this is the same interactive tool it always was — flags just
 pre-fill what it proposes, and it still stops to ask. With --yes and no
 --boundary, `init` refuses rather than writing an AGENTS.md with no boundary
@@ -92,6 +107,9 @@ init_parse_args() {
   INIT_SKIP_LABELS=0
   INIT_SKIP_ENVIRONMENT=0
   INIT_SKIP_WORKTREES=0
+  INIT_PROPOSE=0
+  INIT_JSON=0
+  INIT_COMMIT=0
 
   # shellcheck disable=SC2034  # every INIT_* set below is read by cmd_init()
   # in lib/init.sh after this function returns — not unused, just not read
@@ -121,6 +139,9 @@ init_parse_args() {
       --no-labels)       INIT_SKIP_LABELS=1; shift ;;
       --no-environment)  INIT_SKIP_ENVIRONMENT=1; shift ;;
       --no-worktrees)    INIT_SKIP_WORKTREES=1; shift ;;
+      --propose)         INIT_PROPOSE=1; shift ;;
+      --json)            INIT_JSON=1; shift ;;
+      --commit)          INIT_COMMIT=1; shift ;;
       --) shift ;;
       -*) die "unknown flag '$1' for init — see 'tender init --help'" 2 ;;
       *)
@@ -128,4 +149,10 @@ init_parse_args() {
         INIT_REPO=$1; shift ;;
     esac
   done
+
+  # JSON is only ever the output of a proposal; a proposal has no other form.
+  [ "$INIT_PROPOSE" -eq 0 ] || [ "$INIT_JSON" -eq 1 ] \
+    || die "--propose requires --json — see 'tender init --help'" 2
+  [ "$INIT_JSON" -eq 0 ] || [ "$INIT_PROPOSE" -eq 1 ] \
+    || die "--json only goes with --propose — see 'tender init --help'" 2
 }

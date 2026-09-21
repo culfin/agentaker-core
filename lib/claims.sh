@@ -20,7 +20,7 @@
 # Sourced by bin/tender on demand, the same as lib/manage.sh and lib/doctor.sh:
 # `claims`/`claim-release` are not on the everyday `tender <repo> <role>` path.
 #
-# Needs from bin/tender: die(), PROJECTS_DIR
+# Needs from bin/tender: die(), PROJECTS_DIR, json_escape() (lib/json.sh)
 # Provides to it:     cmd_claims(), cmd_claim_release()
 
 # claim-timeout-days from $1/AGENTS.md, or 2 if the file is silent about it —
@@ -64,18 +64,6 @@ claims_age() {
   fi
 }
 
-# Minimal JSON string escaping for values this file actually produces: ref
-# names, ISO-8601 timestamps and the first line of a git/gh error message.
-# Not a general-purpose encoder — good enough for what can appear here, and
-# newlines are flattened so every record stays one line.
-claims_json_escape() {
-  local s=$1
-  s=${s//\\/\\\\}
-  s=${s//\"/\\\"}
-  s=${s//$'\n'/ }
-  printf '%s' "$s"
-}
-
 # True (rc 0) if $1 (an ISO-8601 UTC timestamp) is older than a claim-
 # timeout-days-$2 threshold — the same string comparison
 # roles/developer.md's claim step runs against its cutoff, not a numeric
@@ -114,7 +102,7 @@ cmd_claims() {
   rc=$?
   if [ "$rc" -ne 0 ]; then
     if [ "$json" -eq 1 ]; then
-      printf '{"error":"could not ask: %s"}\n' "$(claims_json_escape "$(printf '%s' "$ls_out" | head -1)")"
+      printf '{"error":"could not ask: %s"}\n' "$(json_escape "$(printf '%s' "$ls_out" | head -1)")"
     else
       printf 'could not ask: %s\n' "$(printf '%s' "$ls_out" | head -1)"
     fi
@@ -146,8 +134,8 @@ cmd_claims() {
       had_failure=1
       if [ "$json" -eq 1 ]; then
         printf '{"name":"%s","ref":"%s","error":"could not ask: %s"}' \
-          "$(claims_json_escape "$name")" "$(claims_json_escape "$refname")" \
-          "$(claims_json_escape "$(printf '%s' "$err" | head -1)")"
+          "$(json_escape "$name")" "$(json_escape "$refname")" \
+          "$(json_escape "$(printf '%s' "$err" | head -1)")"
       else
         printf '%-10s could not ask: %s\n' "$name" "$(printf '%s' "$err" | head -1)"
       fi
@@ -165,8 +153,8 @@ cmd_claims() {
     if [ -n "$objtype" ] && [ "$objtype" != "blob" ]; then
       if [ "$json" -eq 1 ]; then
         printf '{"name":"%s","ref":"%s","error":"not a claim blob: a %s"}' \
-          "$(claims_json_escape "$name")" "$(claims_json_escape "$refname")" \
-          "$(claims_json_escape "$objtype")"
+          "$(json_escape "$name")" "$(json_escape "$refname")" \
+          "$(json_escape "$objtype")"
       else
         printf '%-10s not a claim blob: a %s (an older treetender wrote these as commits)\n' "$name" "$objtype"
       fi
@@ -179,8 +167,8 @@ cmd_claims() {
       had_failure=1
       if [ "$json" -eq 1 ]; then
         printf '{"name":"%s","ref":"%s","error":"could not ask: %s"}' \
-          "$(claims_json_escape "$name")" "$(claims_json_escape "$refname")" \
-          "$(claims_json_escape "$(printf '%s' "$blob" | head -1)")"
+          "$(json_escape "$name")" "$(json_escape "$refname")" \
+          "$(json_escape "$(printf '%s' "$blob" | head -1)")"
       else
         printf '%-10s could not ask: %s\n' "$name" "$(printf '%s' "$blob" | head -1)"
       fi
@@ -203,8 +191,8 @@ cmd_claims() {
 
     if [ "$json" -eq 1 ]; then
       printf '{"name":"%s","ref":"%s","claimed_at":"%s","age_seconds":%s,"orphaned":%s,"threshold_days":%s}' \
-        "$(claims_json_escape "$name")" "$(claims_json_escape "$refname")" \
-        "$(claims_json_escape "$claimed_at")" "${age_seconds:-null}" \
+        "$(json_escape "$name")" "$(json_escape "$refname")" \
+        "$(json_escape "$claimed_at")" "${age_seconds:-null}" \
         "$([ "$orphaned" -eq 1 ] && printf true || printf false)" "$threshold"
     else
       if [ "$orphaned" -eq 1 ]; then

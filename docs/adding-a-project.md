@@ -21,6 +21,18 @@ production boundary, which is different from not passing `--boundary` at all
 — under `--yes`, omitting it entirely is refused (exit code in the 20s)
 rather than silently producing a project with no declared boundary.
 
+Two more flags exist for such a wizard. `tender init myproject --propose
+--json` prints everything the four steps would do — prerequisites, the branch
+HEAD is on, trunk, detected stack, suggested test commands, the exact
+`AGENTS.md` text, which labels and whether the `production` environment
+already exist, the three worktree paths — as one JSON object, and changes
+nothing. It takes the same value flags, so a wizard can re-ask with the
+user's edits and show the text `init` itself renders; a remote answer that
+could not be had (no `gh`, offline, `TENDER_NO_NETWORK`) is `null`, never a
+guess. `--commit` commits `AGENTS.md` — only that file, on the branch HEAD is
+on, never pushed — right after writing it, so the worktrees are made from a
+commit that already contains it and step 2 below falls away.
+
 ## Route A: `tender init`
 
 ```
@@ -144,7 +156,9 @@ the three worktrees are created from the commit *before* that write — so a
 session started right after `init`, without this step, sits in a worktree
 where `AGENTS.md` simply doesn't exist yet. Route B avoids this by ordering
 commit before worktree creation; Route A's confirm-each-step design doesn't,
-so the step has to be named explicitly instead.)
+so the step has to be named explicitly instead. `tender init --commit` is the
+exception: it commits `AGENTS.md` before the worktrees exist, and the closing
+list drops this step.)
 
 (This transcript is real, run against a throwaway repository — the wording
 matches `cmd_init()` in `lib/init.sh`. `stack: unknown` because the throwaway

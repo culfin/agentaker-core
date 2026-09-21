@@ -56,69 +56,23 @@ suggest_tests() {
   esac
 }
 
-cmd_init() {
-  init_parse_args "$@"
-  local repo=$INIT_REPO
-  [ -n "$repo" ] || { usage; exit 2; }
-  local dir="$PROJECTS_DIR/$repo"
-  [ -e "$dir/.git" ] || die "$dir is not a git repository"
+# The AGENTS.md text `init` proposes, for trunk $1 and detected stack $2, with
+# the INIT_* flag values applied. The one rendering: cmd_init() writes it and
+# `init --propose --json` (lib/init_propose.sh) shows it, so a caller never
+# sees a preview that differs from what init would write. The file on disk is
+# exactly this output plus one trailing newline ($(...) strips it, and both
+# callers add it back).
+init_render_agents_md() {
+  local trunk=$1 stack=$2
+  local reviewer_line="reviewer:            # GitHub login of the account that reviews here — see docs/setup.md"
+  [ -n "$INIT_REVIEWER" ] && reviewer_line="reviewer: $INIT_REVIEWER"
 
-  # --yes is the flag-driven equivalent of TENDER_YES: it answers the four
-  # confirmations the same way, but — unlike the env var, which the
-  # interactive path (and today's tests) already rely on — it also turns on
-  # the boundary guard below. A `local` here is enough: ask() sees it through
-  # bash's dynamic scoping without leaking back into the caller's shell.
-  local TENDER_YES=${TENDER_YES:-}
-  [ "$INIT_YES" -eq 1 ] && TENDER_YES=1
+  local tests_body; tests_body=$(suggest_tests "$stack")
+  [ "${#INIT_TESTS[@]}" -gt 0 ] && tests_body=$(printf '%s\n' "${INIT_TESTS[@]}")
 
-  local did_something=0
-
-  local ver
-  printf 'Checking what we need:\n'
-  for bin in git gh tmux; do
-    if command -v "$bin" >/dev/null 2>&1; then
-      case "$bin" in
-        tmux) ver=$(tmux -V 2>&1) ;;
-        *)    ver=$("$bin" --version 2>&1 | head -1) ;;
-      esac
-      printf '  ok   %s (%s)\n' "$bin" "$ver"
-    else
-      printf '  MISSING %s — install it first\n' "$bin"
-    fi
-  done
-
-  local trunk; trunk=$(git -C "$dir" symbolic-ref --short HEAD 2>/dev/null || echo main)
-  [ -n "$INIT_TRUNK" ] && trunk=$INIT_TRUNK
-  local stack; stack=$(detect_stack "$dir")
-  printf '\nProject: %s\n  trunk:  %s\n  stack:  %s\n' "$dir" "$trunk" "${stack:-unknown}"
-
-  # --- AGENTS.md ------------------------------------------------------------
-  if [ "$INIT_SKIP_AGENTS" -eq 1 ]; then
-    printf '\n  skipped: AGENTS.md (--no-agents-md)\n'
-  elif [ -f "$dir/AGENTS.md" ]; then
-    printf '\n  %s already has an AGENTS.md — leaving it alone.\n' "$repo"
-    printf '  Make sure it names: trunk, reviewer, test commands, production boundary.\n'
-  else
-    # The one flag this whole feature exists to be careful with (issue #3,
-    # "Careful with"): --boundary '' (deliberately none) and --boundary never
-    # appearing at all are different things, and only init_parse_args() can
-    # still tell them apart at this point — INIT_BOUNDARY alone can't, since
-    # both leave it empty. Under --yes there is no human left to notice a
-    # placeholder standing in for a boundary nobody chose, so a caller that
-    # forgot the flag is refused here rather than getting a silent default.
-    if [ "$INIT_YES" -eq 1 ] && [ "$INIT_BOUNDARY_GIVEN" -eq 0 ]; then
-      refuse_step 1 "no --boundary given — pass one ('git push origin main:production', say) or --boundary '' for deliberately none"
-    fi
-
-    local reviewer_line="reviewer:            # GitHub login of the account that reviews here — see docs/setup.md"
-    [ -n "$INIT_REVIEWER" ] && reviewer_line="reviewer: $INIT_REVIEWER"
-
-    local tests_body; tests_body=$(suggest_tests "$stack")
-    [ "${#INIT_TESTS[@]}" -gt 0 ] && tests_body=$(printf '%s\n' "${INIT_TESTS[@]}")
-
-    local boundary_block
-    if [ "$INIT_BOUNDARY_GIVEN" -eq 1 ] && [ -n "$INIT_BOUNDARY" ]; then
-      boundary_block=$(cat <<BOUND
+  local boundary_block
+  if [ "$INIT_BOUNDARY_GIVEN" -eq 1 ] && [ -n "$INIT_BOUNDARY" ]; then
+    boundary_block=$(cat <<BOUND
     $INIT_BOUNDARY
 
 This line is a boundary agents are asked to respect, not one they are forced
@@ -126,10 +80,10 @@ to observe — only a protected environment (offered next, or see
 docs/setup.md) actually makes a release wait for you.
 BOUND
 )
-    elif [ "$INIT_BOUNDARY_GIVEN" -eq 1 ]; then
-      boundary_block='(intentionally left blank — no production boundary was declared for this project)'
-    else
-      boundary_block=$(cat <<BOUND
+  elif [ "$INIT_BOUNDARY_GIVEN" -eq 1 ]; then
+    boundary_block='(intentionally left blank — no production boundary was declared for this project)'
+  else
+    boundary_block=$(cat <<BOUND
 The one line an agent must never cross on its own. Examples:
 
     git push origin main:production
@@ -140,10 +94,9 @@ not one they are forced to observe — only a protected environment (offered
 next, or see docs/setup.md) actually makes a release wait for you.
 BOUND
 )
-    fi
+  fi
 
-    printf '\nProposed AGENTS.md:\n\n'
-    local draft; draft=$(cat <<EOF
+  cat <<EOF
 # Agents in this project
 
 trunk: $trunk
@@ -177,12 +130,99 @@ developer reviewer maintainer
 
 $boundary_block
 EOF
-)
+}
+
+# The trunk init uses for $1: --trunk if given, else the branch HEAD is on,
+# else main. One place, so `--propose` reports the value init would write.
+init_trunk() {
+  if [ -n "$INIT_TRUNK" ]; then printf '%s' "$INIT_TRUNK"; return 0; fi
+  git -C "$1" symbolic-ref --short HEAD 2>/dev/null || printf 'main'
+}
+
+# `--commit`: commit exactly AGENTS.md in $1, on whatever branch HEAD is on,
+# so the worktrees created next already contain it. The pathspec after `--`
+# makes it a `git commit --only`: whatever else the user has staged stays
+# staged and out of this commit. Never pushes, never switches branches.
+# A refused commit (no identity, a pre-commit hook, ...) refuses step 1 —
+# AGENTS.md stays written, and is taken back out of the index so the user's
+# staging area looks as it did before.
+init_commit_agents_md() {
+  local dir=$1 err
+  if err=$(git -C "$dir" add -- AGENTS.md 2>&1) \
+     && err=$(git -C "$dir" commit -q -m "Add AGENTS.md (tender init)" -- AGENTS.md 2>&1); then
+    printf '  committed: AGENTS.md on %s\n' \
+      "$(git -C "$dir" symbolic-ref --short HEAD 2>/dev/null || printf 'a detached HEAD')"
+    return 0
+  fi
+  git -C "$dir" reset -q -- AGENTS.md >/dev/null 2>&1
+  refuse_step 1 "could not commit AGENTS.md (it is written, not committed): $(printf '%s' "$err" | grep -v '^[[:space:]]*$' | head -1)"
+}
+
+cmd_init() {
+  init_parse_args "$@"
+  local repo=$INIT_REPO
+  [ -n "$repo" ] || { usage; exit 2; }
+  local dir="$PROJECTS_DIR/$repo"
+  [ -e "$dir/.git" ] || die "$dir is not a git repository"
+
+  # --propose --json describes all four steps and changes nothing
+  # (lib/init_propose.sh); it returns before any of them runs.
+  if [ "$INIT_PROPOSE" -eq 1 ]; then init_propose "$repo" "$dir"; exit 0; fi
+
+  # --yes is the flag-driven equivalent of TENDER_YES: it answers the four
+  # confirmations the same way, but — unlike the env var, which the
+  # interactive path (and today's tests) already rely on — it also turns on
+  # the boundary guard below. A `local` here is enough: ask() sees it through
+  # bash's dynamic scoping without leaking back into the caller's shell.
+  local TENDER_YES=${TENDER_YES:-}
+  [ "$INIT_YES" -eq 1 ] && TENDER_YES=1
+
+  local did_something=0 committed=0
+
+  local ver
+  printf 'Checking what we need:\n'
+  for bin in git gh tmux; do
+    if command -v "$bin" >/dev/null 2>&1; then
+      case "$bin" in
+        tmux) ver=$(tmux -V 2>&1) ;;
+        *)    ver=$("$bin" --version 2>&1 | head -1) ;;
+      esac
+      printf '  ok   %s (%s)\n' "$bin" "$ver"
+    else
+      printf '  MISSING %s — install it first\n' "$bin"
+    fi
+  done
+
+  local trunk; trunk=$(init_trunk "$dir")
+  local stack; stack=$(detect_stack "$dir")
+  printf '\nProject: %s\n  trunk:  %s\n  stack:  %s\n' "$dir" "$trunk" "${stack:-unknown}"
+
+  # --- AGENTS.md ------------------------------------------------------------
+  if [ "$INIT_SKIP_AGENTS" -eq 1 ]; then
+    printf '\n  skipped: AGENTS.md (--no-agents-md)\n'
+  elif [ -f "$dir/AGENTS.md" ]; then
+    printf '\n  %s already has an AGENTS.md — leaving it alone.\n' "$repo"
+    printf '  Make sure it names: trunk, reviewer, test commands, production boundary.\n'
+  else
+    # The one flag this whole feature exists to be careful with (issue #3,
+    # "Careful with"): --boundary '' (deliberately none) and --boundary never
+    # appearing at all are different things, and only init_parse_args() can
+    # still tell them apart at this point — INIT_BOUNDARY alone can't, since
+    # both leave it empty. Under --yes there is no human left to notice a
+    # placeholder standing in for a boundary nobody chose, so a caller that
+    # forgot the flag is refused here rather than getting a silent default.
+    if [ "$INIT_YES" -eq 1 ] && [ "$INIT_BOUNDARY_GIVEN" -eq 0 ]; then
+      refuse_step 1 "no --boundary given — pass one ('git push origin main:production', say) or --boundary '' for deliberately none"
+    fi
+
+    printf '\nProposed AGENTS.md:\n\n'
+    local draft; draft=$(init_render_agents_md "$trunk" "$stack")
     printf '%s\n\n' "$draft"
     if [ "$(ask 'Write this file? (y/n)' y)" = "y" ]; then
       printf '%s\n' "$draft" > "$dir/AGENTS.md"
       printf '  written: %s/AGENTS.md — edit the production boundary before you rely on it.\n' "$dir"
       did_something=1
+      if [ "$INIT_COMMIT" -eq 1 ]; then init_commit_agents_md "$dir"; committed=1; fi
     fi
   fi
 
@@ -280,22 +320,34 @@ EOF
     first_step="Create $dir/AGENTS.md — run this again, or copy one from examples/."
   fi
 
-  cat <<EOF
-
-Done. Next:
-  1. $first_step
-  2. Commit AGENTS.md, then update the worktrees just created — they were
+  # With --commit the commit-and-pull step already happened: the worktrees
+  # were made from the commit that holds AGENTS.md. Numbering follows.
+  local commit_step=""
+  [ "$committed" -eq 0 ] && commit_step=$(cat <<EOF
+Commit AGENTS.md, then update the worktrees just created — they were
      made from the commit before this one, so none of them can see it yet:
        git -C $dir add AGENTS.md && git -C $dir commit -m "add AGENTS.md"
        git -C $dir/.worktrees/$repo-developer  pull $dir $trunk
        git -C $dir/.worktrees/$repo-reviewer   pull $dir $trunk
        git -C $dir/.worktrees/$repo-maintainer pull $dir $trunk
-  3. Put the reviewer account's login in AGENTS.md — without it the reviewer
-     cannot be asked for a review. See docs/setup.md.
-  4. Give the reviewer its own account: docs/setup.md
-  5. Put 'ready' on an issue:   gh issue edit <N> --add-label ready
-  6. Start working:             tender $repo developer
 EOF
+)
+
+  printf '\nDone. Next:\n'
+  local n=0 step
+  for step in \
+    "$first_step" \
+    "$commit_step" \
+    "Put the reviewer account's login in AGENTS.md — without it the reviewer
+     cannot be asked for a review. See docs/setup.md." \
+    "Give the reviewer its own account: docs/setup.md" \
+    "Put 'ready' on an issue:   gh issue edit <N> --add-label ready" \
+    "Start working:             tender $repo developer"
+  do
+    [ -n "$step" ] || continue
+    n=$((n + 1))
+    printf '  %d. %s\n' "$n" "$step"
+  done
 
   [ "$did_something" -eq 1 ] && exit 0
   exit 3

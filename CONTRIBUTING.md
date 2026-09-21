@@ -5,7 +5,7 @@
 ```bash
 bash tests/run.sh      # every tests/test_*.sh file, no framework — prints "passed: N failed: N" per file
 bin/tender-lint .          # checks the repository stays internally consistent
-shellcheck -S warning bin/tender lib/init.sh lib/init_flags.sh lib/manage.sh lib/tabs.sh lib/state.sh lib/tools.sh lib/doctor.sh lib/claims.sh lib/credential.sh bin/tender-lint hooks/load_role.sh
+shellcheck -S warning bin/tender lib/init.sh lib/init_flags.sh lib/init_propose.sh lib/json.sh lib/manage.sh lib/tabs.sh lib/state.sh lib/tools.sh lib/doctor.sh lib/claims.sh lib/credential.sh bin/tender-lint hooks/load_role.sh
 ```
 
 (The assertion count isn't stated here on purpose — it only ever goes stale by
@@ -78,7 +78,10 @@ repository.
 which runs once per project, and `lib/init_flags.sh` beside it holds `init`'s
 argument parsing, `--help` text and exit-code contract (issue #3) — split out
 once `init`'s flag surface made `lib/init.sh` itself the file approaching the
-ceiling; `lib/manage.sh` holds `list`, `drop` and
+ceiling; `lib/init_propose.sh` holds `init --propose --json`, the read-only
+description of those steps a setup wizard shows (app issue #6), apart because
+it must never write; `lib/json.sh` holds the one JSON string escaper that
+file and `lib/claims.sh` share; `lib/manage.sh` holds `list`, `drop` and
 `restart`; `lib/tabs.sh` holds the tab-legibility helpers (role tag, iTerm2
 colour, the pane wrapper) that `bin/tender` and `lib/manage.sh` both call on
 every session start or restart; `lib/tools.sh` holds the tools-file parser

@@ -385,6 +385,10 @@ case "${1:-}" in
     . "$TENDER_HOME/lib/init_flags.sh" || die "cannot load $TENDER_HOME/lib/init_flags.sh"
     # shellcheck source=lib/init.sh
     . "$TENDER_HOME/lib/init.sh" || die "cannot load $TENDER_HOME/lib/init.sh"
+    # shellcheck source=lib/json.sh
+    . "$TENDER_HOME/lib/json.sh" || die "cannot load $TENDER_HOME/lib/json.sh"
+    # shellcheck source=lib/init_propose.sh
+    . "$TENDER_HOME/lib/init_propose.sh" || die "cannot load $TENDER_HOME/lib/init_propose.sh"
     cmd_init "$@"
     ;;
   status)    shift; cmd_status "$@" ;;
@@ -417,12 +421,16 @@ case "${1:-}" in
     ;;
   claims)
     shift
+    # shellcheck source=lib/json.sh
+    . "$TENDER_HOME/lib/json.sh" || die "cannot load $TENDER_HOME/lib/json.sh"
     # shellcheck source=lib/claims.sh
     . "$TENDER_HOME/lib/claims.sh" || die "cannot load $TENDER_HOME/lib/claims.sh"
     cmd_claims "$@"
     ;;
   claim-release)
     shift
+    # shellcheck source=lib/json.sh
+    . "$TENDER_HOME/lib/json.sh" || die "cannot load $TENDER_HOME/lib/json.sh"
     # shellcheck source=lib/claims.sh
     . "$TENDER_HOME/lib/claims.sh" || die "cannot load $TENDER_HOME/lib/claims.sh"
     cmd_claim_release "$@"
