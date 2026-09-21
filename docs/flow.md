@@ -103,21 +103,44 @@ reach for the same PR. `docs/concept.md` explains why the worktree split
 doesn't touch this: it keeps roles from colliding on files, not a role from
 colliding with itself.
 
-The fix reuses the GitHub assignee for state rather than identity.
-`roles/_base.md` established that roles may share one account, so `--assignee
-@me` cannot tell two developer sessions apart — but it doesn't need to. It only
-needs to say an issue or PR is *taken*, which the next session's `no:assignee`
-search then excludes. So the developer assigns itself an issue before opening
-the draft PR, and the reviewer assigns itself a PR before starting the review.
+The GitHub assignee alone can't fix this: two `--assignee @me` calls seconds
+apart both succeed, because the assignee field is a signal, not a lock —
+whoever reads `no:assignee` second still sees the issue as free until the
+first call lands, and the collision surfaces only later, after both sessions
+have already done the work.
 
-The claim is a signal, not a lock, so two sessions can still land on the same
-issue seconds apart. If a second draft PR for the same issue turns up anyway,
-the **lower PR number wins**: the other session closes its PR, removes its
-assignment, and takes the next issue instead — no lock, no timestamp, the
-collision becomes visible rather than silently duplicated work.
+The fix is a git ref instead. Pushing a new ref is a single operation the
+forge serializes on its own server: of two simultaneous pushes to the same
+new `refs/claims/...` ref, exactly one can ever win, and the forge decides —
+no client-side timing, no assumption about who asked first, nothing for a
+later reconciliation step to untangle. Measured against a disposable
+repository (2026-09-21, `scripts/burst-claim.sh`), not assumed:
+
+| Measurement | Result |
+|---|---|
+| 10 runs × 3 concurrent pushes to the same new ref | always exactly 1 winner, 0 deviations |
+| 1 run × 5 concurrent pushes | 1 winner, 4 rejected |
+| Delete the ref, claim again | works |
+| Push against an already-held ref | rejected, ref unchanged |
+| Duration | claim 1.4s · release 1.3s · look up 0.8s |
+
+So the developer pushes a claim ref for the issue before opening the draft
+PR, and the reviewer pushes one for the PR before starting the review —
+`roles/developer.md` and `roles/reviewer.md` have the exact commands and the
+three ways this goes wrong in practice (checking the push's exit code rather
+than its message text, never `--force`, and a zsh refspec quoting trap).
+Because the ref is what now decides, the old reconciliation rule — the lower
+of two duplicate PR numbers wins — no longer applies: two sessions can no
+longer both start the same issue, so there is nothing left for a PR-number
+tiebreak to resolve.
+
+The GitHub assignee stays anyway, but only as a display: it's the one of the
+two a human sees glancing at the issue or PR in a browser, where a ref is
+invisible. It remains the cheap prefilter the `no:assignee` search runs
+against — unchanged — while the ref is what actually decides.
 
 A claim that's never released is worse than no claim at all: it hides the
-issue or PR from every other session forever. A developer who abandons an
-issue releases it; a reviewer releases a PR the moment its review is
-submitted, since — unlike an issue closing a PR — nothing here does that step
-automatically.
+issue or PR from every other session forever, and there is no timeout to fall
+back on. A developer who abandons an issue releases it; a reviewer releases a
+PR the moment its review is submitted, since — unlike an issue closing a PR —
+nothing here does that step automatically.

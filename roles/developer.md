@@ -22,15 +22,45 @@ Take exactly **one**. If none carries `ready` and is unassigned, say so and
 stop — do not invent work, and never label an issue yourself.
 The human applies `ready`; it is the one signal no agent may give itself.
 
-Claim it before anything else — before the draft PR, before any code:
+Claim it before anything else — before the draft PR, before any code. A git
+ref is the lock; the assignee below it is only a display, for a human who
+will never see a ref while glancing at the issue in a browser:
 
 ```bash
-gh issue edit <N> --add-assignee @me
+sha=$(printf 'claim %s' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      | git commit-tree "$(git hash-object -t tree /dev/null)")
+if git push origin "${sha}:refs/claims/issue-<N>" 2>/dev/null; then
+  gh issue edit <N> --add-assignee @me   # display only, may fail
+else
+  # taken — pick the next issue instead. Do not wait, do not retry, never --force.
+fi
 ```
 
-Roles may share one account (`_base.md`), so this assignee carries no
-identity — it only marks the issue taken, which is all the next session's
-`no:assignee` search needs to skip it. This is not the "never label an issue
+The empty tree keeps the claim object minimal; the timestamp makes every
+claim unique, so two sessions never push the identical SHA — identical SHAs
+would be idempotent, and both pushes would "succeed" against the same ref.
+`docs/flow.md` has the measurements behind why a ref push is the part that
+actually decides.
+
+Three ways this goes wrong in practice:
+
+- **Check the exit code, never the message.** A genuine race prints
+  `cannot lock ref 'refs/...': reference already exists`; a later attempt
+  against an already-held ref prints `non-fast-forward` instead. Both exit
+  1. Branch on the exit code — a check against either message text handles
+  only half the failures.
+- **`--force` defeats the lock.** Never pass it to this push. There is no
+  legitimate reason to on this ref, ever.
+- **zsh eats the refspec.** `"$sha:refs/claims/issue-<N>"` loses its `:r`
+  under zsh, because zsh treats `:r` as a modifier inside an unbraced
+  parameter expansion — the refspec silently corrupts to
+  `...efs/claims/issue-<N>`. Write `"${sha}:refs/claims/issue-<N>"` with
+  braces. bash never shows this, which is exactly why it is easy to carry
+  over from a bash session and not notice.
+
+Roles may share one account (`_base.md`), so the assignee alone carries no
+identity — it is only a cheap prefilter the next session's `no:assignee`
+search runs against, unchanged. This is not the "never label an issue
 yourself" rule under another name: `ready` is the human's release to start
 work at all; the assignee is the agent's own report that it has started. They
 run in opposite directions, and only one of them is reserved for a human.
@@ -45,20 +75,15 @@ A PR stays in that state until you re-request review, so this is your inbox.
 
 ## Working
 
-1. Before opening the PR, check whether one already exists for this issue —
-   the claim is a signal, not a lock, and two sessions can still land on the
-   same issue moments apart. If it does, the **lower PR number wins**: close
-   yours, run `gh issue edit <N> --remove-assignee @me`, and take the next
-   issue instead.
-2. Open the PR **immediately, as a draft**, so the work is visible:
+1. Open the PR **immediately, as a draft**, so the work is visible:
    ```bash
    gh pr create --draft --title "…" --body "Closes #<N>
 
    Opened by: developer"
    ```
-3. Implement test-first. The test commands are in this project's `AGENTS.md`.
-4. Run them. Show the output. Only then say it works.
-5. Mark it ready and ask for review:
+2. Implement test-first. The test commands are in this project's `AGENTS.md`.
+3. Run them. Show the output. Only then say it works.
+4. Mark it ready and ask for review:
    ```bash
    gh pr ready <N>
    gh pr edit <N> --add-reviewer <the reviewer login named in AGENTS.md>
@@ -74,10 +99,12 @@ gh pr edit <N> --add-reviewer <the reviewer login named in AGENTS.md>
 `--add-reviewer` both requests and *re*-requests — it is the one command for the
 first ask and every later one.
 
-Giving up on an issue before it's done? Release the claim, or it stays taken
-forever and no other session can ever see it as available again:
+Giving up on an issue before it's done? Release the claim, ref first, or it
+stays taken forever and no other session can ever see it as available again —
+there is no timeout:
 
 ```bash
+git push origin ":refs/claims/issue-<N>"
 gh issue edit <N> --remove-assignee @me
 ```
 
@@ -87,3 +114,4 @@ gh issue edit <N> --remove-assignee @me
 - push to the trunk
 - put the `ready` label on an issue
 - approve anything
+- force a claim ref open with `--force`

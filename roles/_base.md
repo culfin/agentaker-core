@@ -35,6 +35,10 @@ Items 1–8 are adapted from agency-agents (MIT) — see NOTICE.
 12. **Escalate decisions, don't settle them between agents.** "How did you mean
     this?" is knowledge transfer and fine. "Should we rename this field?" is a
     decision and goes to the human.
+13. **Release a claim the moment you stop.** A `refs/claims/...` ref nobody
+    releases locks that issue or PR forever — there is no timeout. Your role
+    file has the exact commands; this applies whether you finish, hand over,
+    or abandon the work.
 
 ## Signing your work
 

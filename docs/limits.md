@@ -88,6 +88,28 @@ production boundary, if you've locked it as `docs/setup.md` describes — see
 below for why it's the only other one. Don't rely on a role boundary anywhere
 a real access-control guarantee is needed.
 
+## The claim ref locks task selection, not the work after it
+
+`refs/claims/issue-<N>` and `refs/claims/pr-<N>` (`docs/flow.md` has the
+measurements, `roles/developer.md` and `roles/reviewer.md` the commands) stop
+two sessions from *starting* the same issue or PR at the same moment. That is
+all they stop. Once a session holds the ref, nothing checks on it again: a
+session that crashes, is killed, or simply stops responding keeps its claim
+exactly as pushed. There is no lease, no heartbeat, and no timeout to fall
+back on — the ref does not know the difference between a session still
+working and one that is gone.
+
+An issue or PR stuck this way needs a manual release from any clone with push
+access, the same command the holding session would have run:
+
+```bash
+git push origin ":refs/claims/issue-<N>"   # or pr-<N>
+```
+
+Nothing currently notices a stale claim on its own — the same "no polling"
+limit further down applies here too. Whoever notices the issue or PR has gone
+quiet has to run the release by hand.
+
 ## Why only one thing is locked
 
 Branch protection was considered and rejected. Agents run under your own
