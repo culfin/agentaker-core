@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Argument parsing, help text and the exit-code contract for `tender init` —
-# split out of lib/init.sh to keep it under the 450-line ceiling bin/tender-lint
-# enforces (see bin/tender-lint's own comment on the list this file joins, and
-# lib/tabs.sh's header for the same reasoning applied to bin/tender itself).
+# Argument parsing, help text and the exit-code contract for `atk init` —
+# split out of lib/init.sh to keep it under the 450-line ceiling bin/atk-lint
+# enforces (see bin/atk-lint's own comment on the list this file joins, and
+# lib/tabs.sh's header for the same reasoning applied to bin/atk itself).
 #
 # Why this exists (issue #3): a graphical wizard can propose the same values
 # detect_stack()/suggest_tests() propose, and confirm the same four steps a
@@ -11,11 +11,11 @@
 # flags, and turns "something went wrong" into an exit code specific enough
 # that the caller never has to parse stderr prose to react correctly.
 #
-# Sourced by bin/tender on demand, immediately before lib/init.sh, only for
-# `tender init` — see lib/init.sh's own header for why that whole subcommand is
+# Sourced by bin/atk on demand, immediately before lib/init.sh, only for
+# `atk init` — see lib/init.sh's own header for why that whole subcommand is
 # on-demand rather than eager.
 #
-# Needs from bin/tender:     die()
+# Needs from bin/atk:     die()
 # Provides to lib/init.sh: init_parse_args() (sets the INIT_* globals below),
 #                          init_help(), refuse_step()
 
@@ -36,16 +36,16 @@ INIT_STEP_NAMES=(AGENTS.md labels environment worktrees)
 # stderr, still knows which of the four steps to blame.
 refuse_step() {
   local step=$1 reason=$2
-  printf 'tender init: refused at step %d (%s) — %s\n' \
+  printf 'atk init: refused at step %d (%s) — %s\n' \
     "$step" "${INIT_STEP_NAMES[$((step - 1))]}" "$reason" >&2
   exit $((20 + step))
 }
 
 init_help() {
   cat <<'EOF'
-Usage: tender init <repo> [flags]
+Usage: atk init <repo> [flags]
 
-Runs the same four steps as interactive `tender init <repo>` — write AGENTS.md,
+Runs the same four steps as interactive `atk init <repo>` — write AGENTS.md,
 create the three labels, lock the production boundary, create the three role
 worktrees — but takes what each step proposes as a flag instead of asking,
 so a caller that cannot answer a prompt (a GUI on the other end of a pipe)
@@ -76,7 +76,7 @@ Setup wizard:
                         labels, environment, worktrees — and change nothing.
                         --propose requires --json (usage error otherwise).
                         Where something could not be asked (no gh, offline,
-                        TENDER_NO_NETWORK), the answer is null, never a guess.
+                        ATK_NO_NETWORK), the answer is null, never a guess.
   --commit             after writing AGENTS.md, commit exactly that file on
                         the branch HEAD is on — before the worktrees are made,
                         so they contain it. Other changes stay uncommitted.
@@ -150,7 +150,7 @@ init_parse_args() {
       --json)            INIT_JSON=1; shift ;;
       --commit)          INIT_COMMIT=1; shift ;;
       --) shift ;;
-      -*) die "unknown flag '$1' for init — see 'tender init --help'" 2 ;;
+      -*) die "unknown flag '$1' for init — see 'atk init --help'" 2 ;;
       *)
         [ -z "$INIT_REPO" ] || die "unexpected argument '$1' — repo is already '$INIT_REPO'" 2
         INIT_REPO=$1; shift ;;
@@ -177,7 +177,7 @@ init_parse_args() {
 
   # JSON is only ever the output of a proposal; a proposal has no other form.
   [ "$INIT_PROPOSE" -eq 0 ] || [ "$INIT_JSON" -eq 1 ] \
-    || die "--propose requires --json — see 'tender init --help'" 2
+    || die "--propose requires --json — see 'atk init --help'" 2
   [ "$INIT_JSON" -eq 0 ] || [ "$INIT_PROPOSE" -eq 1 ] \
-    || die "--json only goes with --propose — see 'tender init --help'" 2
+    || die "--json only goes with --propose — see 'atk init --help'" 2
 }

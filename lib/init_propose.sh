@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# `tender init <repo> --propose --json` — everything init would do, as one JSON
+# `atk init <repo> --propose --json` — everything init would do, as one JSON
 # object, and nothing done.
 #
 # Why this exists (app issue #6): the desktop app's setup wizard shows the
@@ -12,13 +12,13 @@
 #
 # No side effects of any kind: no file written, no label or environment
 # created, no worktree, no commit. Read-only `git` and read-only `gh` only.
-# Where a remote answer could not be had — no gh, TENDER_NO_NETWORK, offline,
+# Where a remote answer could not be had — no gh, ATK_NO_NETWORK, offline,
 # no access — the field is null. Never a guess: "not there" and "could not
 # ask" lead a wizard to different screens.
 #
-# Sourced by bin/tender on demand with lib/init.sh, for `tender init` only.
+# Sourced by bin/atk on demand with lib/init.sh, for `atk init` only.
 #
-# Needs from bin/tender:   PROJECTS_DIR
+# Needs from bin/atk:   PROJECTS_DIR
 # Needs from lib/init.sh:  detect_stack(), suggest_tests(), init_trunk(),
 #                          init_render_agents_md(), init_agents_md_in_head(),
 #                          and the INIT_* globals
@@ -49,7 +49,7 @@ EOF
 # True if a gh call from $1 may be tried at all — the same condition under
 # which init runs its labels and environment steps, plus gh actually existing.
 init_can_ask_gh() {
-  [ -z "${TENDER_NO_NETWORK:-}" ] && command -v gh >/dev/null 2>&1
+  [ -z "${ATK_NO_NETWORK:-}" ] && command -v gh >/dev/null 2>&1
 }
 
 # Which of the three labels already exist, as a JSON array; null when the
@@ -90,7 +90,7 @@ init_propose() {
   local branch trunk stack agents_path agents_exists agents_committed content bin
   local prereq="" role wt worktrees="" wt_exists
 
-  # A relative TENDER_PROJECTS_DIR would make every path below relative to
+  # A relative ATK_PROJECTS_DIR would make every path below relative to
   # wherever the caller happened to be; the app needs them absolute.
   case "$dir" in /*) : ;; *) dir="$PWD/$dir" ;; esac
 

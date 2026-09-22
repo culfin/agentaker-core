@@ -3,17 +3,17 @@
 This is the page the tool lives or dies by. If setup is a black box, the
 person who needs to debug it — you, at 11pm, wondering why a session doesn't
 know it's a reviewer — can't. So this walks one project from nothing to a
-running session **twice**: once with `tender init`, once entirely by hand. Both
-routes end at the same three files. If you ever need to fix something `tender
+running session **twice**: once with `atk init`, once entirely by hand. Both
+routes end at the same three files. If you ever need to fix something `atk
 init` did, the by-hand section is what it did, spelled out.
 
 Throughout, `myproject` stands for whatever your repository is called, cloned
-under `TENDER_PROJECTS_DIR` (default `~/Projekte/myproject`).
+under `ATK_PROJECTS_DIR` (default `~/Projekte/myproject`).
 
 This walkthrough is the interactive route — a human answering four
 confirmations on a terminal, which is still how everyone runs `init` today.
-A caller that cannot answer a prompt (a setup wizard driving `tender` from a
-GUI, say) uses the same four steps through flags instead: `tender init --help`
+A caller that cannot answer a prompt (a setup wizard driving `atk` from a
+GUI, say) uses the same four steps through flags instead: `atk init --help`
 lists them — `--trunk`, `--reviewer`, `--tests`, `--boundary`, `--yes`, and a
 `--no-*` per step. The one worth reading closely before scripting against it
 is `--boundary`: passing `--boundary ''` states a project deliberately has no
@@ -21,14 +21,14 @@ production boundary, which is different from not passing `--boundary` at all
 — under `--yes`, omitting it entirely is refused (exit code in the 20s)
 rather than silently producing a project with no declared boundary.
 
-Two more flags exist for such a wizard. `tender init myproject --propose
+Two more flags exist for such a wizard. `atk init myproject --propose
 --json` prints everything the four steps would do — prerequisites, the branch
 HEAD is on, trunk, detected stack, suggested test commands, the exact
 `AGENTS.md` text, which labels and whether the `production` environment
 already exist, the three worktree paths — as one JSON object, and changes
 nothing. It takes the same value flags, so a wizard can re-ask with the
 user's edits and show the text `init` itself renders; a remote answer that
-could not be had (no `gh`, offline, `TENDER_NO_NETWORK`) is `null`, never a
+could not be had (no `gh`, offline, `ATK_NO_NETWORK`) is `null`, never a
 guess. `--commit` commits `AGENTS.md` — only that file, on the branch HEAD is
 on, never pushed — right after writing it, so the worktrees are made from a
 commit that already contains it and step 2 below falls away (unless some
@@ -40,10 +40,10 @@ Every value flag must be one line of plain text — a newline, tab or other
 control character is a usage error, since it would forge lines in
 `AGENTS.md`.
 
-## Route A: `tender init`
+## Route A: `atk init`
 
 ```
-$ tender init myproject
+$ atk init myproject
 Checking what we need:
   ok   git (git version 2.54.0 (Apple Git-157))
   ok   gh (gh version 2.100.0 (2026-09-03))
@@ -79,7 +79,7 @@ claim-timeout-days: 2  # days before an unreleased claim counts as orphaned and 
     # optional — a CONTEXT.md domain glossary, with a "flagged ambiguities"
     # section for words that meant two things and how that got resolved.
     # See docs/adding-a-project.md, "Optional: a domain glossary". Not
-    # required — tender-lint never asks for one.
+    # required — atk-lint never asks for one.
 
 ## Roles
 
@@ -134,7 +134,7 @@ the environment.)
 create labels on. Against a repository with no configured remote — as in the
 throwaway repository this walkthrough was actually run against — the same two
 lines instead read `label ready: already there, or no access` and likewise for
-`needs-decision`; `tender init` treats "the label already exists" and "I
+`needs-decision`; `atk init` treats "the label already exists" and "I
 couldn't create it" the same way on purpose, since either way there's nothing
 more for it to do, and tells you to check by hand if that surprises you.)
 
@@ -155,16 +155,16 @@ Done. Next:
      cannot be asked for a review. See docs/setup.md.
   4. Give the reviewer its own account: docs/setup.md
   5. Put 'ready' on an issue:   gh issue edit <N> --add-label ready
-  6. Start working:             tender myproject developer
+  6. Start working:             atk myproject developer
 ```
 
-(Step 2 is easy to skip because nothing before it fails loudly if you do: `tender
+(Step 2 is easy to skip because nothing before it fails loudly if you do: `atk
 init` writes `AGENTS.md` to the top-level checkout but never commits it, and
 the three worktrees are created from the commit *before* that write — so a
 session started right after `init`, without this step, sits in a worktree
 where `AGENTS.md` simply doesn't exist yet. Route B avoids this by ordering
 commit before worktree creation; Route A's confirm-each-step design doesn't,
-so the step has to be named explicitly instead. `tender init --commit` is the
+so the step has to be named explicitly instead. `atk init --commit` is the
 exception: it commits `AGENTS.md` before the worktrees exist, and the closing
 list drops this step.)
 
@@ -193,7 +193,7 @@ for which boundaries in this tool are agreed and which are enforced.
 
 ## Route B: entirely by hand
 
-Everything Route A did, as individual commands. Useful when `tender init` isn't
+Everything Route A did, as individual commands. Useful when `atk init` isn't
 available, when you want to see exactly what changed, or when you're
 troubleshooting a project `init` already touched.
 
@@ -242,7 +242,7 @@ git commit -m "add AGENTS.md"
 ```
 
 It belongs to the project, not to any one session, and every coding agent —
-not only the ones started through `tender` — reads it from the checkout.
+not only the ones started through `atk` — reads it from the checkout.
 
 **3. Create the three labels.**
 
@@ -259,7 +259,7 @@ Optional, for issues that ask for a report instead of a change
 gh label create scout --description "Answer with a report, not a change" --color 5319E7
 ```
 
-**4. Create the three worktrees, one per role.** `tender <repo> <role>` does
+**4. Create the three worktrees, one per role.** `atk <repo> <role>` does
 this the moment it's asked to start a role that doesn't have a worktree yet —
 so this step and "start a session" are the same command; there's no separate
 worktree-creation step to run by hand. What it does, if you want to replicate
@@ -270,29 +270,29 @@ cd ~/Projekte/myproject
 git worktree add .worktrees/myproject-developer -b myproject-developer
 mkdir -p .worktrees/myproject-developer/.agents
 echo developer > .worktrees/myproject-developer/.agents/ROLE
-cat ~/.treetender/roles/_base.md ~/.treetender/roles/developer.md > .worktrees/myproject-developer/.agents/context.md
+cat ~/.agentaker/roles/_base.md ~/.agentaker/roles/developer.md > .worktrees/myproject-developer/.agents/context.md
 echo '.agents/' >> .git/info/exclude
 ```
 
-`roles/` lives in the `treetender` installation (`~/.treetender`, per `docs/setup.md`
-step 1), not in the project checkout — adjust the path if you linked `tender`
+`roles/` lives in the `agentaker` installation (`~/.agentaker`, per `docs/setup.md`
+step 1), not in the project checkout — adjust the path if you linked `atk`
 somewhere else. `.git/info/exclude` is this checkout's own, run from its
 top level: git does not support a per-worktree exclude file, so this is also
 where the worktree's own `.agents/` gets excluded — see `docs/concept.md`.
 
-Repeat for `reviewer` and `maintainer`. (`tender` does the `_base.md` + role
+Repeat for `reviewer` and `maintainer`. (`atk` does the `_base.md` + role
 concatenation with a blank line between the two files, not a bare `cat`; the
 difference doesn't matter for reading it, only for exact byte output.)
 
 **5. Start a session and confirm it knows its role.**
 
 ```bash
-tender myproject developer
+atk myproject developer
 ```
 
 This resolves to the worktree from step 4 (creating it first if step 4 was
 skipped), writes `.agents/ROLE` and `.agents/context.md` if they're missing or
-stale, and launches your coding agent (`$TENDER_TOOL`, default `claude`) with
+stale, and launches your coding agent (`$ATK_TOOL`, default `claude`) with
 that file as its system prompt — `claude --append-system-prompt-file
 <worktree>/.agents/context.md` for Claude Code; see `docs/tools.md` for other
 tools. Once it opens, ask it directly:
@@ -316,7 +316,7 @@ finds.
 
 ## Optional: a domain glossary (`CONTEXT.md`)
 
-Neither route above writes this file, and nothing in `tender-lint` asks for it —
+Neither route above writes this file, and nothing in `atk-lint` asks for it —
 it is a recommendation, not a requirement. Add one if this project's
 vocabulary is easy to misread: a domain term that means something narrower or
 different here than its plain-English reading suggests, an abbreviation two
@@ -331,7 +331,7 @@ answer instead of re-litigating it.
 `lib/init.sh` leaves a commented pointer to this section under `##
 Subagents` in the `AGENTS.md` it proposes, so the option is visible without
 being pushed on a project that doesn't want it. A project with no `CONTEXT.md`
-is not missing anything `treetender` checks for — a glossary nobody maintains is
+is not missing anything `agentaker` checks for — a glossary nobody maintains is
 worse than none, and CI never nags a project that decided against one.
 
 ## Troubleshooting
@@ -339,12 +339,12 @@ worse than none, and CI never nags a project that decided against one.
 **Session does not know its role.**
 Check, in order: does `.agents/ROLE` exist in that worktree, and does it
 contain a role name? Does `cat .agents/context.md` actually show the base
-rules plus the role text — not an old or empty file? Is `TENDER_TOOL` set to
-the tool you're actually running (`echo $TENDER_TOOL`)? If all three check out
+rules plus the role text — not an old or empty file? Is `ATK_TOOL` set to
+the tool you're actually running (`echo $ATK_TOOL`)? If all three check out
 but the session still doesn't know, the coding agent may not support the flag
 `launch_command()` used for it — see `docs/tools.md`.
 
-**`tender: no role file for '<name>'`**
+**`atk: no role file for '<name>'`**
 The word written to `.agents/ROLE` (or passed as the role argument) has no
 matching file in `roles/`. Role names are exactly the filenames in `roles/`
 without `.md`: `developer`, `reviewer`, `maintainer`, `none`. A typo here is
@@ -358,7 +358,7 @@ the `approved` label and the draft state instead; see `roles/reviewer.md`.
 A different login means two-account mode, and the failure is either the
 wrong account (the review author's own account can never approve its own
 PR — this is enforced by GitHub itself) or a missing keychain entry, in
-which case `tender` already warned you at session start: `tender: no reviewer
+which case `atk` already warned you at session start: `atk: no reviewer
 token found — approvals will fail`. See `docs/setup.md`, "If you want the
 separation enforced: a second account".
 
@@ -376,15 +376,15 @@ over merge order), not something git enforces — see `docs/limits.md`.
 **The agent ignores `AGENTS.md`.**
 Some coding agents only read `AGENTS.md` when no tool-specific file
 (`CLAUDE.md`, `GEMINI.md`, …) already exists in the repository — that's a
-property of the reading tool, not of `treetender`. If your project has one
+property of the reading tool, not of `agentaker`. If your project has one
 of those files, add a line to it pointing at `AGENTS.md` so the project
 knowledge isn't silently shadowed.
 
-**`tender list developer` (or `attach`/`drop`/`init`/`restart`/`status`/`doctor`/
+**`atk list developer` (or `attach`/`drop`/`init`/`restart`/`status`/`doctor`/
 `claims`/`claim-release`) says `.../developer is not a git repository`.**
-A project literally named one of `tender`'s nine subcommands can't be reached
-through the shape that names it — `bin/tender` matches the first word against
-those nine before it ever falls back to `<repo> <role>`, so `tender list
+A project literally named one of `atk`'s nine subcommands can't be reached
+through the shape that names it — `bin/atk` matches the first word against
+those nine before it ever falls back to `<repo> <role>`, so `atk list
 developer` runs `list` filtered to a repo called `developer`, not "start
 `developer` in the repo called `list`". See `docs/limits.md` for the full
 explanation; the fix is renaming the project, not the command.

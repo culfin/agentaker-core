@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# `tender status` — the board: where work is waiting, across one owner's
+# `atk status` — the board: where work is waiting, across one owner's
 # repositories. Its questions are defined here once, and both renderings ask
 # them through the same engine: the text board below, and the JSON board
-# (`tender status --json`, lib/status_json.sh). A JSON board that asked
+# (`atk status --json`, lib/status_json.sh). A JSON board that asked
 # differently would be a second truth.
 #
-# Moved out of bin/tender when the JSON board (app issue #10) made the
-# searches a shared engine and bin/tender reached its 450-line ceiling.
-# Sourced by bin/tender on demand, for `status` only.
+# Moved out of bin/atk when the JSON board (app issue #10) made the
+# searches a shared engine and bin/atk reached its 450-line ceiling.
+# Sourced by bin/atk on demand, for `status` only.
 #
-# Needs from bin/tender: die(), REVIEWER; throttle_status_section()
+# Needs from bin/atk: die(), REVIEWER; throttle_status_section()
 #   (lib/throttle.sh)
 # Provides to it:     cmd_status(); to lib/status_json.sh: status_q_*(),
 #   status_cmd(), status_section(), STATUS_SEC_*, STATUS_FAILED
@@ -214,8 +214,8 @@ status_text() {
 }
 
 cmd_status() {
-  local owner=${1:-${TENDER_OWNER:-}} native
-  [ -n "$owner" ] || die "give an owner: tender status <owner>  (or set TENDER_OWNER)"
+  local owner=${1:-${ATK_OWNER:-}} native
+  [ -n "$owner" ] || die "give an owner: atk status <owner>  (or set ATK_OWNER)"
 
   STATUS_FAILED=0
 
@@ -228,7 +228,7 @@ cmd_status() {
   status_q_review "$owner"
   status_text "waiting for review" "$(status_cmd)"
   [ -n "$REVIEWER" ] \
-    || printf '  (approximate — set TENDER_REVIEWER to your reviewer login for the exact queue)\n'
+    || printf '  (approximate — set ATK_REVIEWER to your reviewer login for the exact queue)\n'
 
   status_q_approved "$owner"
   native=$(status_cmd)

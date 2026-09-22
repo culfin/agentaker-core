@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# `tender claims` / `tender claim-release` — the claim mechanism `roles/developer.md`
+# `atk claims` / `atk claim-release` — the claim mechanism `roles/developer.md`
 # (and, for PRs, `roles/reviewer.md`) writes out as prose, as a command. A GUI
 # that wants to show or take over a claim would otherwise have to reimplement:
 # which refs exist, how to read the timestamp out of the blob, what this
@@ -17,10 +17,10 @@
 # loses its `:r` under zsh — bash never shows this, so it is easy to carry
 # over unnoticed).
 #
-# Sourced by bin/tender on demand, the same as lib/manage.sh and lib/doctor.sh:
-# `claims`/`claim-release` are not on the everyday `tender <repo> <role>` path.
+# Sourced by bin/atk on demand, the same as lib/manage.sh and lib/doctor.sh:
+# `claims`/`claim-release` are not on the everyday `atk <repo> <role>` path.
 #
-# Needs from bin/tender: die(), PROJECTS_DIR, json_escape() (lib/json.sh)
+# Needs from bin/atk: die(), PROJECTS_DIR, json_escape() (lib/json.sh)
 # Provides to it:     cmd_claims(), cmd_claim_release()
 
 # claim-timeout-days from $1/AGENTS.md, or 2 if the file is silent about it —
@@ -75,7 +75,7 @@ claims_is_orphaned() {
   [ -n "$claimed_at" ] && [ "$claimed_at" \< "$cutoff" ]
 }
 
-# `tender claims <repo> [--json]` — list every refs/claims/* ref on the repo's
+# `atk claims <repo> [--json]` — list every refs/claims/* ref on the repo's
 # remote: name, when it was claimed, how long ago, and whether it's past the
 # project's threshold. Never fails the whole listing over one bad ref (a
 # fetch or cat-file that can't be reached becomes "could not ask" on that
@@ -90,7 +90,7 @@ cmd_claims() {
       *) repo=$arg ;;
     esac
   done
-  [ -n "$repo" ] || die "give a repo: tender claims <repo> [--json]"
+  [ -n "$repo" ] || die "give a repo: atk claims <repo> [--json]"
 
   local repo_dir="$PROJECTS_DIR/$repo"
   [ -e "$repo_dir/.git" ] || die "$repo_dir is not a git repository"
@@ -156,7 +156,7 @@ cmd_claims() {
           "$(json_escape "$name")" "$(json_escape "$refname")" \
           "$(json_escape "$objtype")"
       else
-        printf '%-10s not a claim blob: a %s (an older treetender wrote these as commits)\n' "$name" "$objtype"
+        printf '%-10s not a claim blob: a %s (an older agentaker wrote these as commits)\n' "$name" "$objtype"
       fi
       continue
     fi
@@ -210,7 +210,7 @@ CLAIMSOUT
   return "$had_failure"
 }
 
-# `tender claim-release <repo> <N|issue-N|pr-N>` — release an orphaned claim and
+# `atk claim-release <repo> <N|issue-N|pr-N>` — release an orphaned claim and
 # immediately reclaim it, exactly the takeover `roles/developer.md` (issues)
 # and `roles/reviewer.md` (PRs) perform when a claim attempt loses to one
 # that's older than the threshold: two ordinary pushes, never `--force`, plus
@@ -221,7 +221,7 @@ CLAIMSOUT
 cmd_claim_release() {
   local repo=${1:-} claim=${2:-}
   [ -n "$repo" ] && [ -n "$claim" ] \
-    || die "usage: tender claim-release <repo> <N|issue-N|pr-N>"
+    || die "usage: atk claim-release <repo> <N|issue-N|pr-N>"
 
   local repo_dir="$PROJECTS_DIR/$repo"
   [ -e "$repo_dir/.git" ] || die "$repo_dir is not a git repository"
@@ -279,12 +279,12 @@ cmd_claim_release() {
 
   local reclaim_err
   if ! reclaim_err=$(git -C "$repo_dir" push origin "${sha}:${refname}" 2>&1); then
-    printf 'tender: released %s but could not reclaim it (%s) — someone else may hold it now; see `tender claims %s`\n' \
+    printf 'atk: released %s but could not reclaim it (%s) — someone else may hold it now; see `atk claims %s`\n' \
       "$name" "$(printf '%s' "$reclaim_err" | head -1)" "$repo" >&2
     return 1
   fi
 
-  local comment="**[tender claim-release]** Took over a claim from $claimed_at (older than ${threshold}d)."
+  local comment="**[atk claim-release]** Took over a claim from $claimed_at (older than ${threshold}d)."
   local comment_err
   if [ "$kind" = issue ]; then
     comment_err=$(cd "$repo_dir" && gh issue comment "$num" --body "$comment" 2>&1)
@@ -292,7 +292,7 @@ cmd_claim_release() {
     comment_err=$(cd "$repo_dir" && gh pr comment "$num" --body "$comment" 2>&1)
   fi
   if [ $? -ne 0 ]; then
-    printf 'tender: reclaimed %s, but could not post the takeover comment: %s\n' \
+    printf 'atk: reclaimed %s, but could not post the takeover comment: %s\n' \
       "$name" "$(printf '%s' "$comment_err" | head -1)" >&2
   fi
 

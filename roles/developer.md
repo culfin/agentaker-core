@@ -178,7 +178,7 @@ A PR stays in that state until you re-request review, so this is your inbox.
    full=no
    repo=
    if [ -n "$cap" ]; then
-     # The worktree's directory is <repo>-developer[-<suffix>]: tender named
+     # The worktree's directory is <repo>-developer[-<suffix>]: atk named
      # it once and it never changes — unlike the branch, which moves on with
      # every issue and is detached mid-rebase.
      wt_name=$(basename "$(git rev-parse --show-toplevel)")
@@ -276,7 +276,7 @@ claim, someone took it over, and releasing now would delete *their* claim;
 release nothing. Left unreleased, the issue stays hidden from every other
 session: its assignee keeps it out of the `no:assignee` search, so it never
 even reaches the age-based takeover. A human frees it with the same two
-commands, naming the login instead of `@me` — `tender claim-release` does not,
+commands, naming the login instead of `@me` — `atk claim-release` does not,
 since it re-claims rather than frees:
 
 ```bash
@@ -301,19 +301,19 @@ decides the issue, not one PR — unlike the PR-level question in `_base.md`,
 That is a **pause, not a hand-back**: keep the claim and the branch — this
 worktree's one branch belongs to this one issue. If no draft PR is open for it
 yet, open it first (**Working**, steps 1–3): it is what carries the pause
-through a `tender restart`, whose facts name the issue a PR closes. Then push,
+through a `atk restart`, whose facts name the issue a PR closes. Then push,
 ask, and hold the issue:
 
 ```bash
 git push
 gh issue comment <N> --body "Before building this: <the question, and why it changes the work>
 
-The developer session keeps this issue and waits. When it is answered: remove \`needs-decision\` and tell that session in its window (\`tender attach <repo>\`) — nothing wakes it by itself. To give the issue to another session instead: \`git push origin :refs/claims/issue-<N>\` and \`gh issue edit <N> --remove-assignee <login>\`."
+The developer session keeps this issue and waits. When it is answered: remove \`needs-decision\` and tell that session in its window (\`atk attach <repo>\`) — nothing wakes it by itself. To give the issue to another session instead: \`git push origin :refs/claims/issue-<N>\` and \`gh issue edit <N> --remove-assignee <login>\`."
 gh issue edit <N> --add-label needs-decision
 ```
 
 Take no other issue in this worktree, and say plainly in the session that it
-waits for the human. Nothing wakes a waiting session — `tender` does not poll
+waits for the human. Nothing wakes a waiting session — `atk` does not poll
 (`docs/limits.md`); the human tells you. When told, look before carrying on:
 `gh issue view <N> --json state,labels,comments` — an issue closed, or still
 on hold, or answered with "don't build it", or relabelled `scout`, changes

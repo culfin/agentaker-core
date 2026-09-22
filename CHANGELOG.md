@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+Renamed from treetender (`tender`) to agentaker (`atk`), owner's decision, as
+with the previous rename. `treetender`/`tender` → `agentaker`/`atk` throughout:
+env vars `TENDER_*` → `ATK_*`, config dir `~/.config/treetender/` →
+`~/.config/agentaker/`, keychain services `treetender-*` → `agentaker-*`. No
+`tender` alias — nobody else runs it yet.
+
 `tender status <owner> --json [--since <time>]` prints the board as one JSON
 object (app issue #10, "what happened since you were away"): `waiting_on_you`,
 `approved`, `waiting_for_review`, `ready`, and with `--since` also `merged`.

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# `tender status` through its shared engine (lib/status.sh): the text board,
-# and `tender status --json [--since <time>]` (lib/status_json.sh).
+# `atk status` through its shared engine (lib/status.sh): the text board,
+# and `atk status --json [--since <time>]` (lib/status_json.sh).
 set -uo pipefail
 cd "$(dirname "$0")/.."
 . tests/lib.sh
-TENDER="$PWD/bin/tender"
+ATK="$PWD/bin/atk"
 make_sandbox
 STUB=$(mktemp -d)
 trap 'rm -rf "$SANDBOX" "$STUB"' EXIT
@@ -53,12 +53,12 @@ printf '%s' "$data" | jq -r "$q"
 exit 0
 STUBEOF
 chmod +x "$STUB/gh"
-run() { PATH="$STUB:$PATH" "$TENDER" "$@"; }
+run() { PATH="$STUB:$PATH" "$ATK" "$@"; }
 # The value of jq expression $1 over JSON $2, compact.
 jqc() { printf '%s' "$2" | jq -c "$1" 2>&1; }
 
-echo "tender status: the text board, exactly"
-# The whole output and every gh argument, pinned. Against bin/tender at
+echo "atk status: the text board, exactly"
+# The whole output and every gh argument, pinned. Against bin/atk at
 # 89824dd (before the shared engine) the output differs in exactly what the
 # review of app issue #10 asked for — a PR on hold under "waiting on you", a
 # label-cleared PR under "approved" (once) and not under "waiting for
@@ -71,7 +71,7 @@ ready to pick up:
 waiting for review:
   acme#3  review me
   acme#12  a question on it
-  (approximate — set TENDER_REVIEWER to your reviewer login for the exact queue)
+  (approximate — set ATK_REVIEWER to your reviewer login for the exact queue)
 approved, waiting for merge:
   acme#5  approved one
   acme#6  cleared by label
@@ -258,10 +258,10 @@ EXPECTED_CALLS_EXACT=$(cat <<'EOF'
 EOF
 )
 : > "$GH_CALLS"
-out=$(TENDER_REVIEWER= run status someowner 2>&1); rc_a=$?
+out=$(ATK_REVIEWER= run status someowner 2>&1); rc_a=$?
 calls_a=$(cat "$GH_CALLS")
 : > "$GH_CALLS"
-out_b=$(TENDER_REVIEWER=rev run status someowner 2>&1); rc_b=$?
+out_b=$(ATK_REVIEWER=rev run status someowner 2>&1); rc_b=$?
 calls_b=$(cat "$GH_CALLS")
 check "approximate queue: the whole board" "$EXPECTED_APPROX" "$out"
 check "reviewer login: the whole board" "$EXPECTED_EXACT" "$out_b"
@@ -272,13 +272,13 @@ contains "waiting on you lists a PR on hold" "web#8  a PR on hold" "$out"
 lacks "a label-cleared PR is not waiting for review" "$(printf 'waiting for review:\n  acme#3  review me\n  acme#6')" "$out"
 contains "a PR with a question stays in the review queue" "acme#12  a question on it" "$out"
 check "a PR both approved and labelled is listed once" "1" "$(printf '%s\n' "$out" | grep -c 'acme#5  approved one')"
-out=$(FAIL_ON='*' TENDER_REVIEWER= run status someowner 2>/dev/null); rc=$?
+out=$(FAIL_ON='*' ATK_REVIEWER= run status someowner 2>/dev/null); rc=$?
 check "a failed query exits 1" "1" "$rc"
 contains "and says what gh said, first line" "could not ask: HTTP 502: bad gateway" "$out"
 
-echo "tender status --json: the board"
+echo "atk status --json: the board"
 : > "$GH_CALLS"
-json=$(TENDER_REVIEWER= run status someowner --json); rc=$?
+json=$(ATK_REVIEWER= run status someowner --json); rc=$?
 check "exits 0 when every section was asked" "0" "$rc"
 check "is one valid JSON object" '"object"' "$(jqc type "$json")"
 check "carries the owner" '"someowner"' "$(jqc .owner "$json")"
@@ -304,15 +304,15 @@ lacks "without --since, nothing about merges" "<--merged-at>" "$calls"
 check "every question asks for 100 results" "5" "$(grep -A1 -x '<--limit>' "$GH_CALLS" | grep -c -x '<100>')"
 
 : > "$GH_CALLS"
-json=$(TENDER_REVIEWER=somereviewer run status someowner --json)
-contains "with TENDER_REVIEWER, the review queue is that login's" \
+json=$(ATK_REVIEWER=somereviewer run status someowner --json)
+contains "with ATK_REVIEWER, the review queue is that login's" \
   "$(printf '<--review-requested>\n<somereviewer>')" "$(cat "$GH_CALLS")"
 check "and it leaves label-cleared PRs out as well" "[3,12]" "$(jqc '[.waiting_for_review.items[].number]' "$json")"
 
-echo "tender status --json --since: gh's own date filters"
+echo "atk status --json --since: gh's own date filters"
 : > "$GH_CALLS"
 T=2026-09-22T08:00:00Z
-json=$(TENDER_REVIEWER= run status someowner --json --since "$T"); rc=$?
+json=$(ATK_REVIEWER= run status someowner --json --since "$T"); rc=$?
 check "exits 0" "0" "$rc"
 check "since is echoed" "\"$T\"" "$(jqc .since "$json")"
 check "every open-work question carries --updated >=T" "5" \
@@ -325,7 +325,7 @@ check "merged: its items carry merged_at" '["web#9 2026-09-22T10:00:00Z"]' \
 run status someowner --json --since="$T" >/dev/null
 check "--since=T works as well" "6" "$(grep -c -x "<>=$T>" "$GH_CALLS")"
 
-echo "tender status --json --since: what is normalised, what is refused"
+echo "atk status --json --since: what is normalised, what is refused"
 for good in "2026-09-22T08:00:00.000Z" "2026-09-22T08:00:00.5Z" "2026-09-22T08:00:00+00:00" \
             "2026-09-22T08:00:00.123+00:00"; do
   : > "$GH_CALLS"
@@ -346,7 +346,7 @@ contains "the refusal says what it expects" "is not an ISO-8601 UTC time" "$out"
 out=$(run status someowner --json --since 2026-02-30T00:00:00Z 2>&1)
 contains "the refusal names the value it refused" "--since '2026-02-30T00:00:00Z' is not" "$out"
 
-echo "tender status: usage errors"
+echo "atk status: usage errors"
 out=$(run status someowner --json --since 2>&1); check "--since without a value exits 2" "2" "$?"
 : > "$GH_CALLS"
 out=$(run status someowner --since "$T" 2>&1); check "--since without --json exits 2" "2" "$?"
@@ -356,17 +356,17 @@ out=$(run status someowner --jsno 2>&1); check "an unknown option exits 2" "2" "
 out=$(run status --help); check "status --help exits 0" "0" "$?"
 contains "status --help says --since is an approximation" "approximates" "$out"
 contains "status --help names the truncation flag" '"truncated": true' "$out"
-out=$(TENDER_OWNER= run status --json 2>&1); check "--json with no owner exits 1" "1" "$?"
+out=$(ATK_OWNER= run status --json 2>&1); check "--json with no owner exits 1" "1" "$?"
 contains "and asks for one" "give an owner" "$out"
-json=$(TENDER_OWNER=envowner run status --json)
-check "--json takes the owner from TENDER_OWNER" '"envowner"' "$(jqc .owner "$json")"
+json=$(ATK_OWNER=envowner run status --json)
+check "--json takes the owner from ATK_OWNER" '"envowner"' "$(jqc .owner "$json")"
 
-echo "tender status --json: a section that could not be asked"
+echo "atk status --json: a section that could not be asked"
 for pair in "waiting_on_you:*--label needs-decision*" "approved:*--review approved*" \
             "approved:*--label approved*" "waiting_for_review:*--review none*" \
             "ready:*--label ready*" "merged:*--merged-at*"; do
   key=${pair%%:*} glob=${pair#*:}
-  json=$(FAIL_ON=$glob TENDER_REVIEWER= run status someowner --json --since "$T" 2>/dev/null); rc=$?
+  json=$(FAIL_ON=$glob ATK_REVIEWER= run status someowner --json --since "$T" 2>/dev/null); rc=$?
   check "$key ($glob fails): exit 1" "1" "$rc"
   check "$key ($glob fails): still valid JSON" '"object"' "$(jqc type "$json")"
   check "$key ($glob fails): ok false, gh's first line, no items" \
@@ -375,7 +375,7 @@ for pair in "waiting_on_you:*--label needs-decision*" "approved:*--review approv
     "$(jqc "[to_entries[] | select(.value | type == \"object\") | select(.key != \"$key\") | .value.ok] | map(select(.)) | length" "$json")"
 done
 
-echo "tender status: output that is not records"
+echo "atk status: output that is not records"
 export GH_RAW="  demo#1  a row in some other shape"
 json=$(run status someowner --json); rc=$?
 check "--json: exits 1" "1" "$rc"
@@ -394,7 +394,7 @@ json=$(run status someowner --json)
 check "3 announced, none sent: not ok" "false" "$(jqc .approved.ok "$json")"
 unset GH_RAW
 
-echo "tender status: a section at the limit says it may be cut"
+echo "atk status: a section at the limit says it may be cut"
 # 100 results come back — the limit — and the held filter keeps 99 of them:
 # the cut is judged on what gh returned, not on what survived the filter.
 GH_DATA=$(jq -nc '[range(100) | {repository:{name:"acme"}, number:(.+1), title:"t\(.)", url:"u", updatedAt:"d", author:{login:"a"}, isPullRequest:false, closedAt:"d", labels:(if . == 0 then [{name:"needs-decision"}] else [] end)}]')
@@ -416,7 +416,7 @@ out=$(run status someowner 2>&1)
 contains "text: all 100 filtered out still says it may be cut" "$(printf 'ready to pick up:\n  (none among the first 100 — there may be more)')" "$out"
 unset GH_DATA
 
-echo "tender status --json: titles that JSON has to escape"
+echo "atk status --json: titles that JSON has to escape"
 GH_DATA='[{"repository":{"name":"acme"},"number":11,"title":"say \"hi\" \\ or\nnot\tnow","url":"https://x/11","updatedAt":"2026-09-22T09:00:00Z","isPullRequest":false,"labels":[{"name":"ready"}],"author":{"login":"a"},"closedAt":"2026-09-22T09:00:00Z"}]'
 export GH_DATA
 json=$(run status someowner --json --since "$T"); rc=$?

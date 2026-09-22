@@ -32,7 +32,7 @@ if [ -z "$TMUX_TMPDIR" ] || [ ! -d "$TMUX_TMPDIR" ]; then
 fi
 
 if command -v tmux >/dev/null 2>&1; then
-  __probe="tender-isolation-probe-$$"
+  __probe="atk-isolation-probe-$$"
   if tmux new-session -d -s "$__probe" 2>/dev/null; then
     __sock=$(tmux display-message -p -t "$__probe" '#{socket_path}' 2>/dev/null)
     tmux kill-session -t "$__probe" 2>/dev/null
@@ -104,20 +104,20 @@ summary() {
 
 # A throwaway projects directory holding one throwaway git repo.
 #
-# TENDER_TOOLS_FILE points at a path that never exists unless a test creates it:
+# ATK_TOOLS_FILE points at a path that never exists unless a test creates it:
 # without this, "no tools file" tests would silently read whatever a
 # developer happens to have at the real default
-# (${XDG_CONFIG_HOME:-$HOME/.config}/treetender/tools) — hermetic either way,
+# (${XDG_CONFIG_HOME:-$HOME/.config}/agentaker/tools) — hermetic either way,
 # but only on purpose if it's pinned here rather than left to whatever the
 # host happens to have.
 make_sandbox() {
   SANDBOX=$(mktemp -d)
-  export TENDER_PROJECTS_DIR="$SANDBOX"
-  export TENDER_DRY_RUN=1
-  export TENDER_TOOLS_FILE="$SANDBOX/no-such-tools-file"
+  export ATK_PROJECTS_DIR="$SANDBOX"
+  export ATK_DRY_RUN=1
+  export ATK_TOOLS_FILE="$SANDBOX/no-such-tools-file"
   # Where a start records its credential label (lib/credential.sh) — kept
   # out of the real ~/.local/state, which a test has no business writing to.
-  export TENDER_STATE_DIR="$SANDBOX/state"
+  export ATK_STATE_DIR="$SANDBOX/state"
   git init -q -b main "$SANDBOX/demo"
   git -C "$SANDBOX/demo" -c user.email=t@e -c user.name=t commit -q --allow-empty -m init
 }

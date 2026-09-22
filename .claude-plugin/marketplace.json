@@ -1,11 +1,11 @@
 {
-  "name": "treetender",
+  "name": "agentaker",
   "owner": { "name": "culfin" },
   "plugins": [
     {
-      "name": "treetender",
+      "name": "agentaker",
       "source": ".",
-      "description": "Loads a worktree's role at session start. Optional — the tender command does this for any coding agent."
+      "description": "Loads a worktree's role at session start. Optional — the atk command does this for any coding agent."
     }
   ]
 }

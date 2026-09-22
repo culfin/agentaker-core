@@ -225,19 +225,19 @@ server compete for an issue exactly as two sessions on one machine do, and
 exactly one wins. Issues, PRs, labels and reviews live on the forge too. So
 running agents on several machines needs no central process, no SSH
 orchestration and no shared state beyond the repository — clone it on each
-machine, install `tender` there, and start sessions as usual.
+machine, install `atk` there, and start sessions as usual.
 
 **What each machine needs of its own:** its own clone under
-`TENDER_PROJECTS_DIR`, its own tmux server, its own keychain entries (the
+`ATK_PROJECTS_DIR`, its own tmux server, its own keychain entries (the
 reviewer token, named credentials — `docs/setup.md`, sections 7 and 8), and its
 coding agent's trust in that clone (`docs/limits.md`, "A coding agent may ask
 whether to trust a folder").
 
 **Give each machine's sessions a suffix.** A worktree's branch is named after
 it — `<repo>-<role>[-<suffix>]`, the same name on every machine. Two machines
-that both run `tender acme developer` push to one remote branch,
+that both run `atk acme developer` push to one remote branch,
 `acme-developer`: the second push is refused as not a fast-forward, and a
-`git pull` to get past it mixes two sessions' work in one branch and one PR. `tender acme developer laptop` on one and `tender acme
+`git pull` to get past it mixes two sessions' work in one branch and one PR. `atk acme developer laptop` on one and `atk acme
 developer server` on the other keep them apart. The same holds for a reviewer
 on two machines. The maintainer needs none: there is one per repository, on
 whichever machine it runs (see the top of `docs/limits.md`).
@@ -246,15 +246,15 @@ whichever machine it runs (see the top of `docs/limits.md`).
 
 | Command | Sees |
 |---|---|
-| `tender status` — issues, reviews, approvals, decisions (also as `--json [--since <time>]`) | every machine: it asks the forge |
-| `tender status` — "agent PRs open" | this checkout's count (`docs/limits.md`, `max-open-prs`) |
-| `tender claims <repo>` | every machine: it reads the claim refs on the forge |
-| `tender list`, `attach`, `restart`, `drop` | this machine only: its worktrees and its tmux server |
+| `atk status` — issues, reviews, approvals, decisions (also as `--json [--since <time>]`) | every machine: it asks the forge |
+| `atk status` — "agent PRs open" | this checkout's count (`docs/limits.md`, `max-open-prs`) |
+| `atk claims <repo>` | every machine: it reads the claim refs on the forge |
+| `atk list`, `attach`, `restart`, `drop` | this machine only: its worktrees and its tmux server |
 | the `max-open-prs` start refusal ("another developer session running") | this machine only |
 
 There is no overview of the sessions running on *other* machines — which
 windows are open where, which agent is waiting on you there. That is the one
-real gap, and closing it (for example `tender status --remote <ssh-alias>`) is
+real gap, and closing it (for example `atk status --remote <ssh-alias>`) is
 its own piece of work, not something the coordination needs.
 
 ## Orphaned claims: age-based release
@@ -278,9 +278,9 @@ releases it and reclaims it in two ordinary pushes — never `--force` — and
 says so on the issue or PR, so a human reading it later can see whose claim
 it was and why it changed hands.
 
-`tender claims <repo>` (`--json` for a script or a GUI) lists every claim this
+`atk claims <repo>` (`--json` for a script or a GUI) lists every claim this
 way — name, timestamp, age, and whether it's past the threshold — without
-waiting for a second session to collide with one first. `tender claim-release
+waiting for a second session to collide with one first. `atk claim-release
 <repo> <N>` runs the same release-then-reclaim by hand, and refuses exactly
 where the mechanism above would: a claim younger than `claim-timeout-days`.
 

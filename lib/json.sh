@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # JSON string escaping, shared by every subcommand that prints --json:
-# `tender claims --json` (lib/claims.sh) and `tender init --propose --json`
+# `atk claims --json` (lib/claims.sh) and `atk init --propose --json`
 # (lib/init_propose.sh). One escaper, so a value that survives one of them
 # survives the other.
 #
-# Sourced by bin/tender on demand, before whichever of those files needs it.
+# Sourced by bin/atk on demand, before whichever of those files needs it.
 #
-# Needs from bin/tender: nothing
+# Needs from bin/atk: nothing
 # Provides to it:     json_escape(), json_string()
 
 # $1 escaped for use between double quotes in JSON: backslash, quote, the

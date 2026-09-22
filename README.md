@@ -1,13 +1,13 @@
-# treetender
+# agentaker
 
 Give each AI coding session a fixed role and its own git worktree.
 
 ```console
-$ tender acme developer            # opens a tmux window titled "acme · DEV"
-$ tender acme reviewer             #                            "acme · REV"
-$ tender acme maintainer           #                            "acme · MNT"
+$ atk acme developer            # opens a tmux window titled "acme · DEV"
+$ atk acme reviewer             #                            "acme · REV"
+$ atk acme maintainer           #                            "acme · MNT"
 
-$ tender list acme
+$ atk list acme
 acme
   DEV              acme-developer           acme-developer
   REV              acme-reviewer            acme-reviewer
@@ -53,7 +53,7 @@ Three worktrees, three branches, three roles, one repository. See
 Paste this into your coding agent:
 
 ```
-Read https://raw.githubusercontent.com/culfin/treetender/main/INSTALL.md
+Read https://raw.githubusercontent.com/culfin/agentaker/main/INSTALL.md
 and walk me through setting this up for my project.
 ```
 
@@ -66,35 +66,35 @@ without an agent.
 ## Quickstart
 
 ```bash
-git clone https://github.com/culfin/treetender ~/.treetender
-ln -s ~/.treetender/bin/tender ~/bin/tender   # not on your PATH? see docs/setup.md
+git clone https://github.com/culfin/agentaker ~/.agentaker
+ln -s ~/.agentaker/bin/atk ~/bin/atk   # not on your PATH? see docs/setup.md
 
-tender init myproject          # myproject means ~/Projekte/myproject — see below
-tender myproject developer     # opens a session that knows it's a developer
-tender list                    # see every worktree, across every project
-tender drop myproject DEV      # remove one — refuses unless it's safe to
-tender restart myproject DEV   # hand over, replace the process, resume
+atk init myproject          # myproject means ~/Projekte/myproject — see below
+atk myproject developer     # opens a session that knows it's a developer
+atk list                    # see every worktree, across every project
+atk drop myproject DEV      # remove one — refuses unless it's safe to
+atk restart myproject DEV   # hand over, replace the process, resume
 ```
 
-`tender init myproject` and everything after it look for `myproject` under
-`TENDER_PROJECTS_DIR` — default `~/Projekte` (German for "projects", not a typo).
+`atk init myproject` and everything after it look for `myproject` under
+`ATK_PROJECTS_DIR` — default `~/Projekte` (German for "projects", not a typo).
 If your repositories live somewhere else, say `~/code`, set that first:
 
 ```bash
-export TENDER_PROJECTS_DIR=~/code
+export ATK_PROJECTS_DIR=~/code
 ```
 
 Otherwise the very first command fails with `myproject is not a git
-repository`, which reads like `tender` is broken rather than pointed at the
+repository`, which reads like `atk` is broken rather than pointed at the
 wrong directory.
 
-`tender init` proposes an `AGENTS.md`, creates the `ready` / `needs-decision`
+`atk init` proposes an `AGENTS.md`, creates the `ready` / `needs-decision`
 labels, and creates the three role worktrees — confirming each step, not
 hiding it. Requires `git`, `gh` and `tmux`; no runtime, no package manager.
 Full walkthrough, including the equivalent by-hand steps and troubleshooting,
 in [docs/adding-a-project.md](docs/adding-a-project.md). A caller that can't
 answer those confirmations (a GUI, say) runs the same four steps through
-flags instead — `tender init --help`.
+flags instead — `atk init --help`.
 
 ## The one idea
 
@@ -117,7 +117,7 @@ applied to. See [docs/concept.md](docs/concept.md).
 Only one function — `launch_command()` in `lib/tools.sh` — knows about a
 specific coding agent. Everything else (worktrees, roles, the GitHub flow,
 `AGENTS.md`) is vendor-neutral. Adding a tool is a line in a config file, not
-a code change or a release — `tender doctor <tool>` checks it actually works.
+a code change or a release — `atk doctor <tool>` checks it actually works.
 Claude Code is verified; other tools range from unverified to "paste this
 file in yourself." See [docs/tools.md](docs/tools.md) for exactly which is
 which — it does not imply parity where none has been checked.
@@ -126,7 +126,7 @@ which — it does not imply parity where none has been checked.
 
 - No message bus. GitHub carries the state.
 - No board, no queue, no database. An issue and a PR *are* the state.
-- No polling. Nothing happens while you're not looking; `tender status` answers
+- No polling. Nothing happens while you're not looking; `atk status` answers
   on demand, it doesn't watch.
 
 ## Limits, in three lines
@@ -134,7 +134,7 @@ which — it does not imply parity where none has been checked.
 One `maintainer` per repository by convention, not by git — nothing stops a
 second one, but two would fight over merge order, so don't. Disk is cheap per
 byte but adds up (a Rust/Tauri worktree runs about 9 GB, mostly build output)
-— `tender list` shows what exists, `tender drop` removes one and refuses if that
+— `atk list` shows what exists, `atk drop` removes one and refuses if that
 isn't safe. Memory is the real ceiling, and two concurrent `cargo` builds
 already strain a 32 GB machine. Role boundaries are self-imposed — the token
 can do more than the role allows; what stops it is the role file, not the
@@ -145,7 +145,7 @@ forge. Full numbers and what they were measured on:
 
 - [docs/concept.md](docs/concept.md) — the problem, the one idea, the three layers
 - [docs/setup.md](docs/setup.md) — install, reviewer account, first project
-- [docs/adding-a-project.md](docs/adding-a-project.md) — the same setup twice, with `tender init` and by hand, plus troubleshooting
+- [docs/adding-a-project.md](docs/adding-a-project.md) — the same setup twice, with `atk init` and by hand, plus troubleshooting
 - [docs/roles.md](docs/roles.md) — permissions, what each role never does, and why they're not enforced
 - [docs/flow.md](docs/flow.md) — the GitHub states, the labels, the review round trip
 - [docs/tools.md](docs/tools.md) — which coding agent integration is verified

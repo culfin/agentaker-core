@@ -1,8 +1,8 @@
 {
-  "name": "treetender",
+  "name": "agentaker",
   "version": "0.1.0",
-  "description": "Optional companion to the treetender tool: loads a worktree's role at session start.",
+  "description": "Optional companion to the agentaker tool: loads a worktree's role at session start.",
   "author": { "name": "culfin" },
-  "homepage": "https://github.com/culfin/treetender",
+  "homepage": "https://github.com/culfin/agentaker",
   "license": "MIT"
 }

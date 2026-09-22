@@ -6,12 +6,12 @@ a number is given, it's measured, and the paragraph says on what.
 ## One maintainer per repository — a convention, not a git-enforced fact
 
 `maintainer`, like every other role, gets its own branch (`$repo-maintainer`)
-when `tender` creates its worktree — the same `git worktree add ... -b` any other
+when `atk` creates its worktree — the same `git worktree add ... -b` any other
 role gets. It does **not** sit on the trunk branch: the top-level clone
 already has trunk checked out, so no worktree ever could, and a maintainer
 merges through the forge (`gh pr merge`), never with a local `git merge` on a
 checked-out trunk — it never needed the branch. Nothing stops a second
-`maintainer` worktree from being created; `tender treetender maintainer second`
+`maintainer` worktree from being created; `atk agentaker maintainer second`
 succeeds exactly like any other suffixed role would.
 
 Stick to one anyway. Two maintainers would contend over merge order and
@@ -28,8 +28,8 @@ other regardless of how many worktrees exist.
 `developer` and `reviewer` don't sit on a shared branch, so nothing stops more
 than one of either running at once. The name suffix is what tells them apart:
 
-    tender dateye developer
-    tender dateye developer a11y
+    atk dateye developer
+    atk dateye developer a11y
 
 gives two worktrees, `dateye-developer` and `dateye-developer-a11y`, each with
 its own branch, each addressable independently. Use this for parallel,
@@ -43,8 +43,8 @@ See the next section.
 
 Renovate solved the equivalent problem in 2019 with `prConcurrentLimit`:
 unbounded automation does not overwhelm the machine, it overwhelms the human
-who has to read the results. `tender status <owner>` measures it: for every
-project under `TENDER_PROJECTS_DIR` that has an `AGENTS.md` and whose
+who has to read the results. `atk status <owner>` measures it: for every
+project under `ATK_PROJECTS_DIR` that has an `AGENTS.md` and whose
 `origin` is a GitHub repository of that owner, one line when agent PRs are
 open —
 
@@ -52,7 +52,7 @@ open —
       acme: 3 agent PRs open, oldest waiting 2d (cap 3 — full)
 
 An **agent PR** is an open pull request whose branch is `<repo>-developer` or
-`<repo>-developer-<suffix>` — the branches `tender <repo> developer [suffix]`
+`<repo>-developer-<suffix>` — the branches `atk <repo> developer [suffix]`
 creates. Drafts count: in single-account mode a draft is exactly what is
 waiting for you. It is one `gh pr list` call per project, run on demand like
 the rest of the board (see "No polling"). A project without a GitHub
@@ -68,7 +68,7 @@ A project that wants a ceiling sets one in its `AGENTS.md`:
 **What it does.** A developer session about to open a PR counts first
 (`roles/developer.md`, "Working", step 2). At the cap it opens nothing,
 keeps its branch pushed, says so, claims no new issue, and works on review
-feedback instead. And `tender <repo> developer [suffix]` refuses to start
+feedback instead. And `atk <repo> developer [suffix]` refuses to start
 another developer session — exit 1, naming the cap and the count — when the
 count is at or above the cap *and* another developer session of that repo
 already has a running pane — found by the pane's start path (the worktree
@@ -92,26 +92,26 @@ it was started in), not the window name, which a `devops` session shares.
 - **It does not count other PRs.** A human's branch, a dependency update, a
   reviewer's or maintainer's branch are not agent PRs.
 - **An invalid value is no cap, never 0.** `max-open-prs: 0`, `three` or `-1`
-  is reported by `tender status` (and by `bin/tender-lint` in an example) and
+  is reported by `atk status` (and by `bin/atk-lint` in an example) and
   otherwise ignored — a typo must not stop every developer.
 - **A waiting branch still holds its claim, and the claim still ages.** Past
   `claim-timeout-days` another session may take the issue over; step 1 of
   "Working" is what notices, when the count drops and the session comes back.
 - **It counts per local checkout.** The count is asked of `origin`, but the
   cap, the running sessions and the refusal belong to one checkout under
-  `TENDER_PROJECTS_DIR`. Two clones of the same remote — on two machines, or
+  `ATK_PROJECTS_DIR`. Two clones of the same remote — on two machines, or
   side by side — share one queue on GitHub and still check it separately,
   each against its own `AGENTS.md` and its own tmux session.
 - **The start refusal needs tmux 3.3 or newer.** It recognises a running
   developer session by the worktree its window was started in
   (`pane_start_path`, added in tmux 3.3). An older tmux cannot say, so
-  `tender` says that instead and starts without the check — the developer's
+  `atk` says that instead and starts without the check — the developer's
   own count in `roles/developer.md` still applies.
 - **It reads at most 200 open PRs.** That is the `--limit` of the one call,
   and it applies to *all* open PRs of the repository, not just agent PRs: a
   repository with 200 or more open PRs of any kind returns only part of them.
   The count is then a lower bound and is said as one —
-  `≥N agent PRs open (list truncated at 200)` in `tender status`. A lower
+  `≥N agent PRs open (list truncated at 200)` in `atk status`. A lower
   bound that already reaches the cap is decisive — the queue is full whatever
   lies past the cut — so the start refusal and the developer's check act on it
   as on a complete count. Below the cap it proves nothing, and they treat it
@@ -133,7 +133,7 @@ disk is the cheap limit here, not the binding one.
 
 `du -sh` on one real Rust/Tauri worktree (DATEYE, 9.1 GB): **~0.99s cold,
 ~0.54s warm.** Measured with `time du -sh`, on the same machine and worktree
-the 9.1 GB figure above comes from — not estimated. `tender list` runs this once
+the 9.1 GB figure above comes from — not estimated. `atk list` runs this once
 per worktree, so a board of a dozen such worktrees costs several seconds with
 a cold cache, on a command whose whole point is to answer quickly. That is
 the number `--size` sits behind a flag for: `list` without it shows worktree,
@@ -161,13 +161,13 @@ the project, not on this tool.
 
 ## A coding agent may ask whether to trust a folder — and nobody answers
 
-`tender` starts the agent in a window nobody may be watching, and it never
+`atk` starts the agent in a window nobody may be watching, and it never
 types into one (a boundary of its own, see "Role boundaries" below). An agent
 that stops to ask a question before it starts looks, from outside, exactly
 like one that is working.
 
 **Claude Code does this once per repository.** Measured on 2026-09-22 with
-Claude Code 2.1.278, starting it the way `tender` does in a fresh worktree of
+Claude Code 2.1.278, starting it the way `atk` does in a fresh worktree of
 a repository it had never seen: the window showed "Quick safety check: Is this
 a project you created or one you trust?", with **"No, exit" preselected**, and
 waited. After confirming once in the repository itself, a new worktree under
@@ -179,11 +179,11 @@ There is no flag to skip the question — `--dangerously-skip-permissions` is
 about tool permissions, not this.
 
 So: **start your coding agent once in the repository and confirm**, before the
-first `tender <repo> <role>`. `tender init` lists it as a step. If a session
-seems to do nothing, `tender attach <repo>` shows whether it is waiting on
+first `atk <repo> <role>`. `atk init` lists it as a step. If a session
+seems to do nothing, `atk attach <repo>` shows whether it is waiting on
 this question; answer it there.
 
-What `tender` does not do is write that trust into the agent's own settings
+What `atk` does not do is write that trust into the agent's own settings
 (for Claude Code, `~/.claude.json`) — that is another tool's configuration,
 and the one decision in it that should stay a person's.
 
@@ -194,7 +194,7 @@ the same day).
 
 **Other agents are not measured.** Codex CLI and Cursor's agent are reported to
 have questions of their own on a new folder; until someone runs them the way
-`tender` does, treat an idle first start as this question first.
+`atk` does, treat an idle first start as this question first.
 
 ## Role boundaries are not enforced
 
@@ -279,7 +279,7 @@ irreversible action an agent can take. That is why it is the only one with a loc
 
 ## No polling
 
-Nothing runs while you're not looking. `tender status` answers "where is work
+Nothing runs while you're not looking. `atk status` answers "where is work
 waiting" on demand — it costs five `gh search` calls per owner (ready issues,
 the review queue, approved PRs twice — natively and by the single-account
 `approved` label —, and decisions waiting on you, issues and PRs;
@@ -292,8 +292,8 @@ the tool to git, `gh` and `tmux`, with nothing idling and no token spent while
 no one is working.
 
 A program that shows the board — the desktop app's "since you were away" —
-asks the same way, on demand: `tender status <owner> --json [--since <time>]`
-prints the board as one JSON object (`tender status --help` has the keys),
+asks the same way, on demand: `atk status <owner> --json [--since <time>]`
+prints the board as one JSON object (`atk status --help` has the keys),
 built from the very same searches through the very same engine
 (`lib/status.sh`; the JSON side is `lib/status_json.sh`), plus, with
 `--since`, what was merged. It is the one place a GUI gets this
@@ -324,17 +324,17 @@ you: a question on a PR does not block its review (`roles/_base.md`,
 The title (`dateye · DEV`) works anywhere tmux does — it's tmux's own
 `set-titles-string`, which every terminal that shows a tmux title already
 understands. The colour is different: it's iTerm2's own proprietary escape
-code, wrapped for tmux's passthrough. Outside iTerm2, `tender` detects that and
+code, wrapped for tmux's passthrough. Outside iTerm2, `atk` detects that and
 emits nothing — deliberately. A stray escape sequence in a terminal that
 doesn't understand it prints garbage in the pane, which is worse than no
 colour; silence was the safer failure here, not an error message. If your tab
 never turns colour and you're not on iTerm2, that's expected, not broken.
-`TENDER_TAB_COLOUR=0` turns it off regardless of terminal, if you'd rather it
+`ATK_TAB_COLOUR=0` turns it off regardless of terminal, if you'd rather it
 never tried.
 
 ## `drop` refuses rather than asks
 
-`tender drop` removes a worktree that can run to several gigabytes and may hold
+`atk drop` removes a worktree that can run to several gigabytes and may hold
 the only copy of something. A yes/no prompt gets answered on reflex, the same
 way every other prompt that session has seen was — so instead of asking,
 `drop` checks three things (uncommitted changes, commits not on any remote —
@@ -350,15 +350,15 @@ the worktree directory and anything not yet committed in it go.
 ## A handover is only as good as the session that writes it — for the half the session writes
 
 That sentence is now only true of `.agents/handoff.md`, the free-text half.
-`tender restart` never reads it before waiting for it — it sends keystrokes and
+`atk restart` never reads it before waiting for it — it sends keystrokes and
 waits for a file to appear, and hands that file to the successor unexamined.
 What ends up in it is entirely up to the session: a role that follows
 `roles/_base.md`'s "Handing over" section closely leaves its successor a
 usable state; one that summarises the conversation instead, or skips `Not
 checked`, leaves a successor that inherits confidence nobody actually earned.
-`tender` has no way to tell the difference in that file, and doesn't try to.
+`atk` has no way to tell the difference in that file, and doesn't try to.
 
-The other half, `.agents/state.md` (`lib/state.sh`), `tender` writes itself,
+The other half, `.agents/state.md` (`lib/state.sh`), `atk` writes itself,
 from git and `gh` — the session never touches it. That makes it honest, not
 complete: it says what the repository and the forge hold (branch, commits,
 uncommitted files, open PR, claim), never whether the work behind them is any
@@ -367,7 +367,7 @@ three commits are right. Reading it first catches a free-text contradiction;
 it cannot catch a free-text lie that happens to agree with the facts.
 
 A wedged session cannot be handed over at all — by definition, it isn't
-answering. `tender restart` waits `TENDER_HANDOFF_TIMEOUT` seconds (default 60),
+answering. `atk restart` waits `ATK_HANDOFF_TIMEOUT` seconds (default 60),
 then aborts rather than guessing: no restart happens, and the session is told
 so, because a lost handover is exactly what this command exists to prevent.
 `--fresh` is the honest way past that: it replaces the process without
@@ -377,14 +377,14 @@ that silently lost its place is worse than one that stops and says so.
 
 ## A project named `init`, `status`, `attach`, `list`, `drop`, `restart`, `doctor`, `claims` or `claim-release` is unreachable
 
-`bin/tender`'s argument parsing matches the first word against the nine
+`bin/atk`'s argument parsing matches the first word against the nine
 subcommand names before it ever considers "everything else is `<repo>
 <role>`". A repository whose directory is actually named `list` (say) can
-never be reached as `tender list <role>` — that always runs `cmd_list "<role>"`
-instead, and `tender list list` looks like a `list` filtered to a repo called
-`list`, not a request to start a role there. The failure isn't loud: `tender
-list developer` runs `tender list` filtered to a repository named `developer`
-and answers `tender: .../developer is not a git repository` if none exists,
+never be reached as `atk list <role>` — that always runs `cmd_list "<role>"`
+instead, and `atk list list` looks like a `list` filtered to a repo called
+`list`, not a request to start a role there. The failure isn't loud: `atk
+list developer` runs `atk list` filtered to a repository named `developer`
+and answers `atk: .../developer is not a git repository` if none exists,
 which reads like a typo rather than a name collision. Name a project one of
 the nine subcommands and every subcommand-shaped invocation of it is gone;
 rename the directory (the nine names are otherwise unremarkable) rather than
@@ -393,9 +393,9 @@ working around this.
 ## `none` marks a worktree nobody should work in
 
 `roles/none.md` isn't wired up any differently from the three real roles —
-`tender <repo> none [suffix]` creates (or resumes) a worktree exactly the way
-`tender <repo> developer` does, just with `.agents/ROLE` set to `none` and a role
+`atk <repo> none [suffix]` creates (or resumes) a worktree exactly the way
+`atk <repo> developer` does, just with `.agents/ROLE` set to `none` and a role
 file that tells whatever reads it not to work there. Use it for a worktree
 that has to exist for some other reason — an old clone, a scratch area, a
 restore test — and would otherwise look like an idle `developer` worktree in
-`tender list`.
+`atk list`.

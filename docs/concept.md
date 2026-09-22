@@ -25,7 +25,7 @@ project, not the role. If roles were tied to a technology, every new language
 would need a new role, and the actual process — how a developer behaves —
 would be duplicated once per stack.
 
-Splitting the two also fixes *file* collisions for free: `tender` gives each role
+Splitting the two also fixes *file* collisions for free: `atk` gives each role
 its own git worktree, so a developer, a reviewer and a maintainer have three
 separate working directories on three separate branches, at the same time,
 without touching each other's files. It does nothing for two sessions in the
@@ -44,9 +44,9 @@ branches don't share a name — is in `docs/flow.md`, "Across machines".
 ## The three layers
 
 ```
-① TOOL       treetender itself             universal, knows no project
+① TOOL       agentaker itself             universal, knows no project
              roles/   _base · developer · reviewer · maintainer · none
-             bin/tender  init · start · attach · status · list · drop · restart
+             bin/atk  init · start · attach · status · list · drop · restart
              agents/  subagents, a curated selection (Claude Code only, see docs/tools.md)
 
 ② PROJECT    <repo>/AGENTS.md                  committed, ~20 lines, standard format
@@ -56,7 +56,7 @@ branches don't share a name — is in `docs/flow.md`, "Across machines".
              developer
 ```
 
-`tender` reads layer ③, adds layer ① (`roles/_base.md` plus the role file named in
+`atk` reads layer ③, adds layer ① (`roles/_base.md` plus the role file named in
 `ROLE`), and starts the coding agent with the result as its system prompt. It
 never reads layer ②: the agent reads `AGENTS.md` itself, because that file
 being readable without help is the entire point of the standard. Duplicating
@@ -64,14 +64,14 @@ its contents into the session's system prompt would just be a second copy that
 can drift from the first.
 
 The assembled text lands in `<worktree>/.agents/context.md`. It is never
-committed — `tender` adds `.agents/` to `git info/exclude` the first time it runs
+committed — `atk` adds `.agents/` to `git info/exclude` the first time it runs
 in a worktree, so it produces no `git status` noise and nothing gets
 committed by accident. Measured: that file is the *repository's* shared
 `info/exclude` (`<repo>/.git/info/exclude`), not a per-worktree one — git
 does not support the latter, so the entry covers `.agents/` in every worktree
 of the repository at once, not only the one that triggered the write. The
-first `tender <repo> <role>` (or `tender init`) in a fresh checkout is therefore
-also the first time `tender` writes into that checkout's `.git/` — worth knowing
+first `atk <repo> <role>` (or `atk init`) in a fresh checkout is therefore
+also the first time `atk` writes into that checkout's `.git/` — worth knowing
 before you point it at a repository you don't otherwise expect it to touch.
 
 ## Why roles are technology-free
@@ -95,8 +95,8 @@ flow runs entirely over `git` and `gh`. None of that names a coding agent.
 
 The one place a coding agent's name appears in the whole tool is
 `launch_command()` in `lib/tools.sh` — it knows how to hand the assembled
-role text to whichever tool `TENDER_TOOL` names, first by checking a config file
-(`${XDG_CONFIG_HOME:-$HOME/.config}/treetender/tools`, or `$TENDER_TOOLS_FILE`) for
+role text to whichever tool `ATK_TOOL` names, first by checking a config file
+(`${XDG_CONFIG_HOME:-$HOME/.config}/agentaker/tools`, or `$ATK_TOOLS_FILE`) for
 a line naming that tool, then falling back to a two-branch `case` for the
 built-in pair:
 
@@ -111,7 +111,7 @@ esac
 Adding a tool means adding a line to that config file — no PR, no release.
 Nothing else in the repository changes — not a role file, not `AGENTS.md`,
 not the flow, not this function. See `docs/tools.md` for the file format,
-the two-point contract a tool has to meet, `tender doctor` (which checks a tool
+the two-point contract a tool has to meet, `atk doctor` (which checks a tool
 actually honours it), and which of the two built-in branches is actually
 verified.
 

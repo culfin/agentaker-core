@@ -3,11 +3,11 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 . tests/lib.sh
-TENDER="$PWD/bin/tender"
+ATK="$PWD/bin/atk"
 DEV_ROLE="$PWD/roles/developer.md"
 make_sandbox
 STUB=$(mktemp -d)
-trap 'tmux kill-session -t =tender-demo >/dev/null 2>&1; tmux kill-session -t =tender-acme >/dev/null 2>&1; rm -rf "$SANDBOX" "$STUB"' EXIT
+trap 'tmux kill-session -t =atk-demo >/dev/null 2>&1; tmux kill-session -t =atk-acme >/dev/null 2>&1; rm -rf "$SANDBOX" "$STUB"' EXIT
 
 # gh is stubbed: `pr list -R <owner>/<name>` answers from $STUB/prs-<name>
 # ("branch createdAt" lines — what the real call's --jq turns gh's JSON
@@ -61,20 +61,20 @@ set_up() {
 run_pane() {
   local wt="$SANDBOX/$1/.worktrees/$2"
   mkdir -p "$wt"
-  if tmux has-session -t "=tender-$1" 2>/dev/null; then
-    tmux new-window -t "=tender-$1" -c "$wt" -n "$3" sleep 600
+  if tmux has-session -t "=atk-$1" 2>/dev/null; then
+    tmux new-window -t "=atk-$1" -c "$wt" -n "$3" sleep 600
   else
-    tmux new-session -d -s "tender-$1" -c "$wt" -n "$3" sleep 600
+    tmux new-session -d -s "atk-$1" -c "$wt" -n "$3" sleep 600
   fi
 }
-stop_panes() { tmux kill-session -t "=tender-$1" >/dev/null 2>&1; }
+stop_panes() { tmux kill-session -t "=atk-$1" >/dev/null 2>&1; }
 # Removes the worktree a successful start of `developer second` created.
 forget_second() {
   rm -rf "$SANDBOX/$1/.worktrees/$1-developer-second"
   git -C "$SANDBOX/$1" worktree prune
   git -C "$SANDBOX/$1" branch -q -D "$1-developer-second" 2>/dev/null
 }
-status() { TENDER_REVIEWER=r "$TENDER" status someowner 2>&1; }
+status() { ATK_REVIEWER=r "$ATK" status someowner 2>&1; }
 
 echo "throttle: counting — exact branch rule, oldest"
 set_up acme "max-open-prs: 5"
@@ -165,7 +165,7 @@ out=$(status)
 check "no GitHub origin, other owner: board exits 0" "0" "$?"
 lacks "no section when nothing was asked" "agent PRs open:" "$out"
 check "none of them was asked" "" "$(grep 'pr list' "$GH_CALLS")"
-out=$(TENDER_REVIEWER=r "$TENDER" status OtherOwner 2>&1)
+out=$(ATK_REVIEWER=r "$ATK" status OtherOwner 2>&1)
 contains "the owner is matched case-insensitively" "other: 1 agent PR open" "$out"
 for url in "git@github.com:someowner/acme.git" "ssh://git@github.com/someowner/acme" \
            "https://someone@github.com/someowner/acme.git/"; do
@@ -195,7 +195,7 @@ printf 'demo-developer %s\ndemo-developer-b %s\n' "$(ago 120)" "$(ago 600)" > "$
 run_pane demo demo-developer DEV
 
 : > "$GH_CALLS"
-out=$("$TENDER" demo developer second 2>&1)
+out=$("$ATK" demo developer second 2>&1)
 check "all three hold: refuses with exit 1" "1" "$?"
 contains "names the cap and the count" \
   "demo has 2 agent PRs open, at its cap (max-open-prs: 2 in AGENTS.md)" "$out"
@@ -204,25 +204,25 @@ check "creates no worktree when refusing" "no" \
   "$([ -d "$SANDBOX/demo/.worktrees/demo-developer-second" ] && echo yes || echo no)"
 
 printf 'demo-developer %s\ndemo-developer-b %s\ndemo-developer-c %s\n' "$(ago 1)" "$(ago 2)" "$(ago 3)" > "$STUB/prs-demo"
-out=$("$TENDER" demo developer second 2>&1)
+out=$("$ATK" demo developer second 2>&1)
 check "above the cap refuses too" "1" "$?"
 
 # (a) false: no cap
 set_up demo
 : > "$GH_CALLS"
-out=$("$TENDER" demo developer second 2>&1)
+out=$("$ATK" demo developer second 2>&1)
 check "no cap: starts" "0" "$?"
 check "no cap: gh is not asked at all" "" "$(grep 'pr list' "$GH_CALLS")"
 forget_second demo
 set_up demo "max-open-prs: nope"
-out=$("$TENDER" demo developer second 2>&1)
+out=$("$ATK" demo developer second 2>&1)
 check "invalid cap: starts (treated as no cap, not 0)" "0" "$?"
 forget_second demo
 
 # (b) false: under the cap
 set_up demo "max-open-prs: 3"
 printf 'demo-developer %s\ndemo-developer-b %s\n' "$(ago 120)" "$(ago 600)" > "$STUB/prs-demo"
-out=$("$TENDER" demo developer second 2>&1)
+out=$("$ATK" demo developer second 2>&1)
 check "under the cap: starts" "0" "$?"
 forget_second demo
 
@@ -230,7 +230,7 @@ forget_second demo
 set_up demo "max-open-prs: 2"
 stop_panes demo
 : > "$GH_CALLS"
-out=$("$TENDER" demo developer second 2>&1)
+out=$("$ATK" demo developer second 2>&1)
 check "no developer running: the first session starts even at the cap" "0" "$?"
 check "no developer running: gh is not asked" "" "$(grep 'pr list' "$GH_CALLS")"
 forget_second demo
@@ -239,13 +239,13 @@ echo "throttle: what counts as another developer session — the pane's path"
 # Only the session's own pane running — re-running the same worktree is not
 # an additional session.
 run_pane demo demo-developer DEV
-out=$("$TENDER" demo developer 2>&1)
+out=$("$ATK" demo developer 2>&1)
 check "its own pane is not 'another'" "0" "$?"
 stop_panes demo
 # The developer worktree exists but is not running; a devops session — whose
 # window role_tag() also names DEV — is. At the cap, the start proceeds.
 run_pane demo demo-devops DEV
-out=$("$TENDER" demo developer second 2>&1)
+out=$("$ATK" demo developer second 2>&1)
 check "a devops window named DEV, next to an idle developer worktree, is not a developer session" "0" "$?"
 forget_second demo
 stop_panes demo
@@ -253,17 +253,17 @@ stop_panes demo
 # running `developer x` would have — and worktree demo-developer-x exists.
 mkdir -p "$SANDBOX/demo/.worktrees/demo-developer-x"
 run_pane demo demo-devops-x "DEV·x"
-out=$("$TENDER" demo developer second 2>&1)
+out=$("$ATK" demo developer second 2>&1)
 check "window DEV·x from devops x is not developer x" "0" "$?"
 forget_second demo
 stop_panes demo
 # A suffixed developer running counts as another session.
 run_pane demo demo-developer-a11y "DEV·a11y"
-out=$("$TENDER" demo developer 2>&1)
+out=$("$ATK" demo developer 2>&1)
 check "a running suffixed developer makes the unsuffixed start an additional one" "1" "$?"
 # Found by path even after the window was renamed.
-tmux rename-window -t "=tender-demo:DEV·a11y" "whatever"
-out=$("$TENDER" demo developer 2>&1)
+tmux rename-window -t "=atk-demo:DEV·a11y" "whatever"
+out=$("$ATK" demo developer 2>&1)
 check "a renamed window is still found by its path" "1" "$?"
 # A tmux older than 3.3 prints pane_start_path as nothing. Played by a thin
 # wrapper around the real (private-socket) tmux that blanks that one field:
@@ -279,7 +279,7 @@ else
 fi
 EOF
 chmod +x "$OLDTMUX/tmux"
-out=$(PATH="$OLDTMUX:$PATH" "$TENDER" demo developer 2>&1)
+out=$(PATH="$OLDTMUX:$PATH" "$ATK" demo developer 2>&1)
 check "tmux < 3.3: starts, it cannot tell the sessions apart" "0" "$?"
 contains "tmux < 3.3: says so instead of staying silent" "pane_start_path needs tmux 3.3" "$out"
 rm -rf "$OLDTMUX"
@@ -289,21 +289,21 @@ set_up de "max-open-prs: 1"
 printf 'de-developer %s\n' "$(ago 60)" > "$STUB/prs-de"
 mkdir -p "$SANDBOX/de/.worktrees/de-developer"
 run_pane demo demo-developer DEV
-out=$("$TENDER" de developer second 2>&1)
-check "tender-demo's pane is not a session of repo 'de'" "0" "$?"
+out=$("$ATK" de developer second 2>&1)
+check "atk-demo's pane is not a session of repo 'de'" "0" "$?"
 stop_panes demo
 
 echo "throttle: could not ask at start — start, with a warning"
 set_up demo "max-open-prs: 1"
 run_pane demo demo-developer-a11y "DEV·a11y"
 touch "$STUB/fail-demo"
-out=$("$TENDER" demo developer 2>&1)
+out=$("$ATK" demo developer 2>&1)
 check "could not ask: starts" "0" "$?"
 contains "could not ask: one-line warning with the reason" \
   "could not count open agent PRs (gh: could not authenticate) — starting anyway, max-open-prs: 1 unchecked" "$out"
 rm -f "$STUB/fail-demo"
 set_up demo "max-open-prs: 1" none
-out=$("$TENDER" demo developer 2>&1)
+out=$("$ATK" demo developer 2>&1)
 check "no GitHub origin: starts" "0" "$?"
 contains "no GitHub origin: says why it could not count" "(origin is not a GitHub remote) — starting anyway" "$out"
 truncated_listing() {
@@ -315,18 +315,18 @@ truncated_listing() {
 # One agent PR seen before the cut: a lower bound of 1.
 set_up demo "max-open-prs: 2"
 truncated_listing
-out=$("$TENDER" demo developer 2>&1)
+out=$("$ATK" demo developer 2>&1)
 check "truncated listing below the cap: starts, like could not ask" "0" "$?"
 contains "truncated listing below the cap: says the count is incomplete" "stopped at 200 open PRs, so the count is incomplete" "$out"
 set_up demo "max-open-prs: 1"
 truncated_listing
-out=$("$TENDER" demo developer 2>&1)
+out=$("$ATK" demo developer 2>&1)
 check "truncated listing whose lower bound reaches the cap: refused" "1" "$?"
 contains "... as a full queue, not as could-not-ask" "at its cap (max-open-prs: 1" "$out"
 stop_panes demo
 
 echo "throttle: gh missing is could-not-ask too"
-# A PATH without gh at all. bin/tender itself still needs bash, git, date,
+# A PATH without gh at all. bin/atk itself still needs bash, git, date,
 # sed, grep — so shadow only gh, like test_status.sh shadows tmux.
 NOGH=$(mktemp -d)
 NOGH_PATH=""
@@ -346,7 +346,7 @@ for dir in "${path_dirs[@]}"; do
   fi
 done
 run_pane demo demo-developer-a11y "DEV·a11y"
-out=$(PATH="${NOGH_PATH#:}" "$TENDER" demo developer 2>&1)
+out=$(PATH="${NOGH_PATH#:}" "$ATK" demo developer 2>&1)
 check "no gh: the start proceeds" "0" "$?"
 contains "no gh: says so in one line" "could not count open agent PRs (gh is not installed) — starting anyway" "$out"
 rm -rf "$NOGH"
@@ -358,7 +358,7 @@ echo "throttle: other roles are never throttled"
 NOKEY=$(mktemp -d)
 printf '#!/bin/sh\nexit 44\n' > "$NOKEY/security"; printf '#!/bin/sh\nexit 1\n' > "$NOKEY/secret-tool"
 chmod +x "$NOKEY/security" "$NOKEY/secret-tool"
-out=$(PATH="$NOKEY:$PATH" "$TENDER" demo reviewer 2>&1)
+out=$(PATH="$NOKEY:$PATH" "$ATK" demo reviewer 2>&1)
 check "a reviewer starts at the cap" "0" "$?"
 check "and gh is not asked for it" "" "$(grep 'pr list' "$GH_CALLS")"
 rm -rf "$NOKEY"

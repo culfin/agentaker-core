@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The reviewer token (issue #10): keychain service treetender-reviewer has to
+# The reviewer token (issue #10): keychain service agentaker-reviewer has to
 # reach the reviewer agent as GH_TOKEN without the value ever appearing in
 # any tmux argv -- the same proof tests/test_credential.sh gives named
 # credentials. Soft, unlike those: a missing token warns and starts anyway.
@@ -13,28 +13,28 @@
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 . tests/lib.sh
-TENDER="$PWD/bin/tender"
+ATK="$PWD/bin/atk"
 make_sandbox
 STUB=$(mktemp -d)
-trap 'tmux kill-session -t tender-demo >/dev/null 2>&1; rm -rf "$SANDBOX" "$STUB"' EXIT
+trap 'tmux kill-session -t atk-demo >/dev/null 2>&1; rm -rf "$SANDBOX" "$STUB"' EXIT
 # Whatever the developer's own shell carries must not stand in for the token
 # under test -- nor reach the tmux server these tests start.
 unset GH_TOKEN GITHUB_TOKEN STUB_REVIEWER_PRESENT STUB_REVIEWER_TOKEN STUB_SERVICE STUB_ACCOUNT STUB_VALUE
 
 # --- a stub `security`, never the real keychain -----------------------------
-# Serves treetender-reviewer (attributes when STUB_REVIEWER_PRESENT is set,
+# Serves agentaker-reviewer (attributes when STUB_REVIEWER_PRESENT is set,
 # the value on -w when STUB_REVIEWER_TOKEN is) and one named credential, the
 # way tests/test_credential.sh's stub does. Every call is logged with its own
 # argv *and* its caller's, read while the caller is alive -- which tells
-# tender's own pre-check apart from the pane's lookup.
+# atk's own pre-check apart from the pane's lookup.
 cat > "$STUB/security" <<'STUBEOF'
 #!/usr/bin/env bash
 printf '%s | caller: %s\n' "$*" "$(ps -ww -o args= -p "$PPID" 2>/dev/null)" >> "$SECURITY_LOG"
 case "$*" in
-  "find-generic-password -s treetender-reviewer -w")
+  "find-generic-password -s agentaker-reviewer -w")
     [ -n "${STUB_REVIEWER_TOKEN:-}" ] && { printf '%s\n' "$STUB_REVIEWER_TOKEN"; exit 0; }
     exit 44 ;;
-  "find-generic-password -s treetender-reviewer")
+  "find-generic-password -s agentaker-reviewer")
     [ -n "${STUB_REVIEWER_PRESENT:-}" ] && { printf '    "acct"<blob>="someone"\n'; exit 0; }
     exit 44 ;;
   "find-generic-password -s "*" -a "*" -w")
@@ -57,16 +57,16 @@ PANE_WARNING='could not be read here — starting without GH_TOKEN or GITHUB_TOK
 
 echo "reviewer token: a dry run wraps the reviewer, with no value anywhere"
 : > "$SECURITY_LOG"
-out=$(PATH="$SAFE_PATH" STUB_REVIEWER_PRESENT=1 STUB_REVIEWER_TOKEN="$TOKEN" "$TENDER" demo reviewer 2>&1)
+out=$(PATH="$SAFE_PATH" STUB_REVIEWER_PRESENT=1 STUB_REVIEWER_TOKEN="$TOKEN" "$ATK" demo reviewer 2>&1)
 check "exits 0" "0" "$?"
 contains "the launch runs lib/credential.sh --reviewer-token" "lib/credential.sh --reviewer-token" "$out"
 lacks "no warning when the entry exists" "$WARNING" "$out"
 lacks "the dry run never carries the value" "$TOKEN" "$out"
-contains "the pre-check asked the keychain (positive control)" "find-generic-password -s treetender-reviewer | caller" "$(cat "$SECURITY_LOG")"
-lacks "the pre-check never asked for the value (-w)" "treetender-reviewer -w" "$(cat "$SECURITY_LOG")"
+contains "the pre-check asked the keychain (positive control)" "find-generic-password -s agentaker-reviewer | caller" "$(cat "$SECURITY_LOG")"
+lacks "the pre-check never asked for the value (-w)" "agentaker-reviewer -w" "$(cat "$SECURITY_LOG")"
 
 echo "reviewer token: missing — warns, starts anyway, unwrapped"
-out=$(PATH="$SAFE_PATH" "$TENDER" demo reviewer 2>&1)
+out=$(PATH="$SAFE_PATH" "$ATK" demo reviewer 2>&1)
 check "exits 0" "0" "$?"
 contains "says the token is missing" "$WARNING" "$out"
 contains "still launches" "would launch" "$out"
@@ -75,15 +75,15 @@ lacks "unwrapped" "--reviewer-token" "$out"
 echo "reviewer token: other roles never wrap, and never ask"
 for role in developer maintainer none; do
   : > "$SECURITY_LOG"
-  out=$(PATH="$SAFE_PATH" STUB_REVIEWER_PRESENT=1 STUB_REVIEWER_TOKEN="$TOKEN" "$TENDER" demo "$role" 2>&1)
+  out=$(PATH="$SAFE_PATH" STUB_REVIEWER_PRESENT=1 STUB_REVIEWER_TOKEN="$TOKEN" "$ATK" demo "$role" 2>&1)
   lacks "$role is not wrapped" "--reviewer-token" "$out"
-  lacks "$role never looks the reviewer token up" "treetender-reviewer" "$(cat "$SECURITY_LOG")"
+  lacks "$role never looks the reviewer token up" "agentaker-reviewer" "$(cat "$SECURITY_LOG")"
 done
 
 echo "reviewer token: with a named credential, the reviewer wrapper is outside"
 out=$(PATH="$SAFE_PATH" STUB_REVIEWER_PRESENT=1 STUB_REVIEWER_TOKEN="$TOKEN" \
-  STUB_SERVICE=treetender-cred-work STUB_ACCOUNT=TESTVAR STUB_VALUE=named-value \
-  TENDER_CREDENTIAL=work "$TENDER" demo reviewer 2>&1)
+  STUB_SERVICE=agentaker-cred-work STUB_ACCOUNT=TESTVAR STUB_VALUE=named-value \
+  ATK_CREDENTIAL=work "$ATK" demo reviewer 2>&1)
 check "exits 0" "0" "$?"
 contains "credential.sh --reviewer-token, then credential.sh work" \
   "lib/credential.sh --reviewer-token bash $PWD/lib/credential.sh work " "$out"
@@ -141,10 +141,10 @@ EOF
   wait_for() { local i=0; while [ ! -s "$1" ] && [ "$i" -lt 200 ]; do sleep 0.05; i=$((i + 1)); done; }
   reset_logs() { rm -f "$STUB/argv.txt" "$STUB/env.txt" "$STUB/github-token.txt" "$STUB/tmux.log"; : > "$SECURITY_LOG"; }
   run_tender() {
-    PATH="$SAFE_PATH" TENDER_TOOLS_FILE="$TOOLS" TENDER_TOOL=agentstub TENDER_DRY_RUN="" \
-      "$TENDER" "$@" </dev/null >"$STUB/out.txt" 2>&1
+    PATH="$SAFE_PATH" ATK_TOOLS_FILE="$TOOLS" ATK_TOOL=agentstub ATK_DRY_RUN="" \
+      "$ATK" "$@" </dev/null >"$STUB/out.txt" 2>&1
   }
-  tmux kill-session -t tender-demo >/dev/null 2>&1
+  tmux kill-session -t atk-demo >/dev/null 2>&1
 
   reset_logs
   STUB_REVIEWER_PRESENT=1 STUB_REVIEWER_TOKEN="$TOKEN" run_tender demo reviewer
@@ -155,14 +155,14 @@ EOF
   lacks "no tmux argv carries the token" "$TOKEN" "$(cat "$STUB/tmux.log" 2>/dev/null)"
   lacks "no tmux argv sets GH_TOKEN at all" "GH_TOKEN" "$(cat "$STUB/tmux.log" 2>/dev/null)"
   lacks "the agent's live argv never carries the token" "$TOKEN" "$(cat "$STUB/argv.txt" 2>/dev/null)"
-  lacks "tender's own output never carries it" "$TOKEN" "$(cat "$STUB/out.txt")"
+  lacks "atk's own output never carries it" "$TOKEN" "$(cat "$STUB/out.txt")"
   sec=$(cat "$SECURITY_LOG")
-  contains "tender's pre-check asked, attributes only (positive control)" \
-    "find-generic-password -s treetender-reviewer | caller: " "$sec"
-  lacks "tender's own process never ran -w" "treetender-reviewer -w" \
+  contains "atk's pre-check asked, attributes only (positive control)" \
+    "find-generic-password -s agentaker-reviewer | caller: " "$sec"
+  lacks "atk's own process never ran -w" "agentaker-reviewer -w" \
     "$(grep -v 'credential.sh --reviewer-token' "$SECURITY_LOG")"
   contains "the value was read inside the pane, by credential.sh" \
-    "treetender-reviewer -w | caller: bash $PWD/lib/credential.sh --reviewer-token" "$sec"
+    "agentaker-reviewer -w | caller: bash $PWD/lib/credential.sh --reviewer-token" "$sec"
   lacks "no lookup's caller carried the token" "$TOKEN" "$sec"
 
   echo "reviewer token: restart puts it back the same way"
@@ -173,7 +173,7 @@ EOF
   check "the restarted agent has GH_TOKEN" "$TOKEN <unset>" "$(cat "$STUB/env.txt" 2>/dev/null)"
   contains "the tmux shim saw the respawn (positive control)" "respawn-pane" "$(cat "$STUB/tmux.log" 2>/dev/null)"
   lacks "no restart tmux argv carries the token" "$TOKEN" "$(cat "$STUB/tmux.log" 2>/dev/null)"
-  lacks "restart's pre-check never ran -w in tender's process" "treetender-reviewer -w" \
+  lacks "restart's pre-check never ran -w in atk's process" "agentaker-reviewer -w" \
     "$(grep -v 'credential.sh --reviewer-token' "$SECURITY_LOG")"
 
   echo "reviewer token: restart without a token warns and restarts anyway"
@@ -185,14 +185,14 @@ EOF
   # The pane's server still carries the stub's token from the first start;
   # unwrapped, the pane never looks it up, so GH_TOKEN stays unset.
   check "the agent restarted, without GH_TOKEN" "<unset> <unset>" "$(cat "$STUB/env.txt" 2>/dev/null)"
-  tmux kill-session -t tender-demo >/dev/null 2>&1
+  tmux kill-session -t atk-demo >/dev/null 2>&1
 
   echo "reviewer token: present at the pre-check, gone in the pane — warns there, starts anyway, clears inherited tokens"
   # The session's own environment (-e) has an entry without a readable
-  # value; tender's pre-check, in the test's environment, sees one. The
+  # value; atk's pre-check, in the test's environment, sees one. The
   # server itself is started with GH_TOKEN/GITHUB_TOKEN set, standing in for
   # the developer's own login that a two-account reviewer must not act under.
-  GH_TOKEN=inherited GITHUB_TOKEN=inherited tmux new-session -d -s tender-demo -n holder \
+  GH_TOKEN=inherited GITHUB_TOKEN=inherited tmux new-session -d -s atk-demo -n holder \
     -e "PATH=$SAFE_PATH" -e "SECURITY_LOG=$SECURITY_LOG" \
     -e STUB_REVIEWER_PRESENT=1 -e STUB_REVIEWER_TOKEN= "sleep 300"
   reset_logs
@@ -206,24 +206,24 @@ EOF
   wait_for "$STUB/env.txt"
   check "the agent started, without GH_TOKEN" "<unset> <unset>" "$(cat "$STUB/env.txt" 2>/dev/null)"
   check "... and without GITHUB_TOKEN" "<unset>" "$(cat "$STUB/github-token.txt" 2>/dev/null)"
-  contains "the pane shows the warning, naming both" "$PANE_WARNING" "$(tmux capture-pane -p -J -t tender-demo:REV 2>/dev/null)"
-  tmux kill-session -t tender-demo >/dev/null 2>&1
+  contains "the pane shows the warning, naming both" "$PANE_WARNING" "$(tmux capture-pane -p -J -t atk-demo:REV 2>/dev/null)"
+  tmux kill-session -t atk-demo >/dev/null 2>&1
 
   echo "reviewer token: with a named credential — both arrive; the named one wins GH_TOKEN"
   reset_logs
-  STUB_REVIEWER_PRESENT=1 STUB_REVIEWER_TOKEN="$TOKEN" STUB_SERVICE=treetender-cred-work \
-    STUB_ACCOUNT=TESTVAR STUB_VALUE=named-value TENDER_CREDENTIAL=work run_tender demo reviewer
+  STUB_REVIEWER_PRESENT=1 STUB_REVIEWER_TOKEN="$TOKEN" STUB_SERVICE=agentaker-cred-work \
+    STUB_ACCOUNT=TESTVAR STUB_VALUE=named-value ATK_CREDENTIAL=work run_tender demo reviewer
   check "exits 0" "0" "$?"
   wait_for "$STUB/env.txt"
   check "the agent has both" "$TOKEN named-value" "$(cat "$STUB/env.txt" 2>/dev/null)"
   lacks "no tmux argv carries either" "$TOKEN" "$(cat "$STUB/tmux.log" 2>/dev/null)"
-  tmux kill-session -t tender-demo >/dev/null 2>&1
+  tmux kill-session -t atk-demo >/dev/null 2>&1
   reset_logs
-  STUB_REVIEWER_PRESENT=1 STUB_REVIEWER_TOKEN="$TOKEN" STUB_SERVICE=treetender-cred-work \
-    STUB_ACCOUNT=GH_TOKEN STUB_VALUE=named-gh-token TENDER_CREDENTIAL=work run_tender demo reviewer
+  STUB_REVIEWER_PRESENT=1 STUB_REVIEWER_TOKEN="$TOKEN" STUB_SERVICE=agentaker-cred-work \
+    STUB_ACCOUNT=GH_TOKEN STUB_VALUE=named-gh-token ATK_CREDENTIAL=work run_tender demo reviewer
   wait_for "$STUB/env.txt"
   check "a named credential whose account is GH_TOKEN wins" "named-gh-token <unset>" "$(cat "$STUB/env.txt" 2>/dev/null)"
-  tmux kill-session -t tender-demo >/dev/null 2>&1
+  tmux kill-session -t atk-demo >/dev/null 2>&1
 
   echo "reviewer token: a developer joining a session the reviewer created gets no GH_TOKEN"
   # The regression the old `tmux new-session -e GH_TOKEN=...` had: -e on
@@ -238,8 +238,8 @@ EOF
   wait_for "$STUB/env.txt"
   contains "the developer joined via new-window (positive control)" "new-window" "$(cat "$STUB/tmux.log" 2>/dev/null)"
   check "the developer agent has no GH_TOKEN" "<unset> <unset>" "$(cat "$STUB/env.txt" 2>/dev/null)"
-  lacks "the session environment holds no GH_TOKEN" "GH_TOKEN=" "$(tmux show-environment -t tender-demo 2>/dev/null)"
-  tmux kill-session -t tender-demo >/dev/null 2>&1
+  lacks "the session environment holds no GH_TOKEN" "GH_TOKEN=" "$(tmux show-environment -t atk-demo 2>/dev/null)"
+  tmux kill-session -t atk-demo >/dev/null 2>&1
 
   echo "reviewer token: the Linux branch (no security, secret-tool only)"
   # A PATH on which `security` does not exist at all -- this machine's real
@@ -251,7 +251,7 @@ EOF
 #!/usr/bin/env bash
 printf '%s | caller: %s\n' "$*" "$(ps -ww -o args= -p "$PPID" 2>/dev/null)" >> "$SECRET_TOOL_LOG"
 case "$*" in
-  "lookup service treetender-reviewer")
+  "lookup service agentaker-reviewer")
     [ -n "${STUB_LINUX_TOKEN:-}" ] && { printf '%s' "$STUB_LINUX_TOKEN"; exit 0; }
     exit 1 ;;
   *) exit 1 ;;
@@ -278,22 +278,22 @@ LEOF
   export SECRET_TOOL_LOG="$LINUX/secret-tool.log"
   check "no security on that PATH (setup)" "" "$(PATH="$LINUX_PATH" command -v security)"
   : > "$SECRET_TOOL_LOG"
-  out=$(PATH="$LINUX_PATH" STUB_LINUX_TOKEN="$TOKEN" "$TENDER" demo reviewer 2>&1)
+  out=$(PATH="$LINUX_PATH" STUB_LINUX_TOKEN="$TOKEN" "$ATK" demo reviewer 2>&1)
   contains "the pre-check finds the entry and wraps" "lib/credential.sh --reviewer-token" "$out"
-  lacks "tender's output never carries the value" "$TOKEN" "$out"
-  contains "the pre-check asked secret-tool (positive control)" "lookup service treetender-reviewer | caller: " "$(cat "$SECRET_TOOL_LOG")"
-  trace=$(PATH="$LINUX_PATH" STUB_LINUX_TOKEN="$TOKEN" bash -x "$TENDER" demo reviewer 2>&1)
-  contains "the trace shows the pre-check ran (positive control)" "secret-tool lookup service treetender-reviewer" "$trace"
-  lacks "a bash -x trace of tender never shows the value — its stdout was not captured" "$TOKEN" "$trace"
+  lacks "atk's output never carries the value" "$TOKEN" "$out"
+  contains "the pre-check asked secret-tool (positive control)" "lookup service agentaker-reviewer | caller: " "$(cat "$SECRET_TOOL_LOG")"
+  trace=$(PATH="$LINUX_PATH" STUB_LINUX_TOKEN="$TOKEN" bash -x "$ATK" demo reviewer 2>&1)
+  contains "the trace shows the pre-check ran (positive control)" "secret-tool lookup service agentaker-reviewer" "$trace"
+  lacks "a bash -x trace of atk never shows the value — its stdout was not captured" "$TOKEN" "$trace"
   reset_logs
-  PATH="$LINUX_PATH" STUB_LINUX_TOKEN="$TOKEN" TENDER_TOOLS_FILE="$TOOLS" TENDER_TOOL=agentstub TENDER_DRY_RUN="" \
-    "$TENDER" demo reviewer </dev/null >"$STUB/out.txt" 2>&1
+  PATH="$LINUX_PATH" STUB_LINUX_TOKEN="$TOKEN" ATK_TOOLS_FILE="$TOOLS" ATK_TOOL=agentstub ATK_DRY_RUN="" \
+    "$ATK" demo reviewer </dev/null >"$STUB/out.txt" 2>&1
   check "a real start exits 0" "0" "$?"
   wait_for "$STUB/env.txt"
   check "the pane exported GH_TOKEN from secret-tool" "$TOKEN <unset>" "$(cat "$STUB/env.txt" 2>/dev/null)"
   contains "... read inside the pane, by credential.sh" "caller: bash $PWD/lib/credential.sh --reviewer-token" "$(cat "$SECRET_TOOL_LOG")"
   lacks "no tmux argv carries it" "$TOKEN" "$(cat "$STUB/tmux.log" 2>/dev/null)"
-  tmux kill-session -t tender-demo >/dev/null 2>&1
+  tmux kill-session -t atk-demo >/dev/null 2>&1
   rm -rf "$LINUX"
 fi
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tender — give each AI coding session a fixed role and its own git worktree.
+# atk — give each AI coding session a fixed role and its own git worktree.
 #
 # Vendor knowledge lives in exactly one function, launch_command() —
 # lib/tools.sh now, not this file (see its header) — plus the tools table it
@@ -7,111 +7,111 @@
 # git, gh and tmux.
 set -uo pipefail
 
-# Resolve this script's own location, following symlinks. `ln -s ~/tool/bin/tender
-# ~/bin/tender` is the usual way to install a shell tool, and ${BASH_SOURCE[0]} does
+# Resolve this script's own location, following symlinks. `ln -s ~/tool/bin/atk
+# ~/bin/atk` is the usual way to install a shell tool, and ${BASH_SOURCE[0]} does
 # not follow the link — without this, ROLES_DIR lands beside the symlink instead
 # of inside the installation and every session fails with "no role file".
 # GNU `readlink -f` would be one line, and is missing on the older macOS this
 # tool promises to survive.
-tender_self=${BASH_SOURCE[0]}
-while [ -L "$tender_self" ]; do
-  tender_link_dir=$(cd -P "$(dirname "$tender_self")" && pwd)
-  tender_self=$(readlink "$tender_self")
-  case $tender_self in
+atk_self=${BASH_SOURCE[0]}
+while [ -L "$atk_self" ]; do
+  atk_link_dir=$(cd -P "$(dirname "$atk_self")" && pwd)
+  atk_self=$(readlink "$atk_self")
+  case $atk_self in
     /*) ;;
-    *) tender_self="$tender_link_dir/$tender_self" ;;
+    *) atk_self="$atk_link_dir/$atk_self" ;;
   esac
 done
-TENDER_HOME=$(cd -P "$(dirname "$tender_self")/.." && pwd)
-ROLES_DIR="${TENDER_ROLES_DIR:-$TENDER_HOME/roles}"
-PROJECTS_DIR="${TENDER_PROJECTS_DIR:-$HOME/Projekte}"
-TOOL="${TENDER_TOOL:-}"
-DRY_RUN="${TENDER_DRY_RUN:-}"
-REVIEWER="${TENDER_REVIEWER:-}"
-CREDENTIAL="${TENDER_CREDENTIAL:-}"
+ATK_HOME=$(cd -P "$(dirname "$atk_self")/.." && pwd)
+ROLES_DIR="${ATK_ROLES_DIR:-$ATK_HOME/roles}"
+PROJECTS_DIR="${ATK_PROJECTS_DIR:-$HOME/Projekte}"
+TOOL="${ATK_TOOL:-}"
+DRY_RUN="${ATK_DRY_RUN:-}"
+REVIEWER="${ATK_REVIEWER:-}"
+CREDENTIAL="${ATK_CREDENTIAL:-}"
 LAUNCH_CMD=()
 
-die() { printf 'tender: %s\n' "$1" >&2; exit "${2:-1}"; }
+die() { printf 'atk: %s\n' "$1" >&2; exit "${2:-1}"; }
 
 # role_tag() and wrap_launch_command() run on every cmd_start(), the hot
 # path — unlike lib/init.sh and lib/manage.sh (see their headers), this is
 # sourced unconditionally, not on demand. Split into its own file only to
 # keep this one under the 450-line ceiling; see lib/tabs.sh's own header.
 # shellcheck source=lib/tabs.sh
-. "$TENDER_HOME/lib/tabs.sh" || die "cannot load $TENDER_HOME/lib/tabs.sh"
+. "$ATK_HOME/lib/tabs.sh" || die "cannot load $ATK_HOME/lib/tabs.sh"
 
 # launch_command() runs on the same hot path — see lib/tools.sh's own header
 # for why it, too, is sourced unconditionally rather than on demand.
 # shellcheck source=lib/tools.sh
-. "$TENDER_HOME/lib/tools.sh" || die "cannot load $TENDER_HOME/lib/tools.sh"
+. "$ATK_HOME/lib/tools.sh" || die "cannot load $ATK_HOME/lib/tools.sh"
 
 # credential_available() runs on the same hot path, for the same reason —
 # see lib/credential.sh's own header for why this one file is also the
 # script cmd_start() hands tmux to run directly, later, from inside the
 # new pane.
 # shellcheck source=lib/credential.sh
-. "$TENDER_HOME/lib/credential.sh" || die "cannot load $TENDER_HOME/lib/credential.sh"
+. "$ATK_HOME/lib/credential.sh" || die "cannot load $ATK_HOME/lib/credential.sh"
 
 # shellcheck source=lib/throttle.sh
-. "$TENDER_HOME/lib/throttle.sh" || die "cannot load $TENDER_HOME/lib/throttle.sh"
+. "$ATK_HOME/lib/throttle.sh" || die "cannot load $ATK_HOME/lib/throttle.sh"
 
 usage() {
   cat <<'EOF'
 Usage:
-  tender init [repo] [flags]       set a project up, step by step
-                                    (tender init --help: flags for a
-                                    non-interactive caller, e.g. a GUI —
-                                    --trunk, --reviewer, --tests, --boundary,
-                                    --yes, --no-*)
-  tender <repo> <role> [suffix]    start a session in its own worktree
-  tender attach <repo>             re-attach to a repo's tmux session
-  tender status [owner] [--json [--since <time>]]
-                                    show where work is waiting, across repos
-                                    (tender status --help: the JSON board)
-  tender list [repo]               show worktrees, their branch, size and state
-  tender drop <repo> <name>        remove a worktree (refuses if it isn't safe)
-  tender restart <repo> <name>     hand over, replace the process, resume
-  tender restart <repo> <name> --fresh   replace without asking for a handover
-  tender restart --all             restart every running session
-  tender doctor [tool]             start a tool with a throwaway context and
-                                    check whether its role arrived
-  tender claims <repo> [--json]    list refs/claims/* — who claimed what, how
-                                    long ago, and whether it's past this
-                                    project's claim-timeout-days
-  tender claim-release <repo> <N>  release and reclaim an orphaned claim
-                                    (<N>, 'issue-N' or 'pr-N'); refuses unless
-                                    it is actually past the threshold
+  atk init [repo] [flags]         set a project up, step by step
+                                  (atk init --help: flags for a
+                                  non-interactive caller, e.g. a GUI —
+                                  --trunk, --reviewer, --tests, --boundary,
+                                  --yes, --no-*)
+  atk <repo> <role> [suffix]      start a session in its own worktree
+  atk attach <repo>               re-attach to a repo's tmux session
+  atk status [owner] [--json [--since <time>]]
+                                  show where work is waiting, across repos
+                                  (atk status --help: the JSON board)
+  atk list [repo]                 show worktrees, their branch, size and state
+  atk drop <repo> <name>          remove a worktree (refuses if it isn't safe)
+  atk restart <repo> <name>       hand over, replace the process, resume
+  atk restart <repo> <name> --fresh   replace without asking for a handover
+  atk restart --all               restart every running session
+  atk doctor [tool]               start a tool with a throwaway context and
+                                  check whether its role arrived
+  atk claims <repo> [--json]      list refs/claims/* — who claimed what, how
+                                  long ago, and whether it's past this
+                                  project's claim-timeout-days
+  atk claim-release <repo> <N>    release and reclaim an orphaned claim
+                                  (<N>, 'issue-N' or 'pr-N'); refuses unless
+                                  it is actually past the threshold
 
 Roles: developer, reviewer, maintainer
 
 Environment:
-  TENDER_PROJECTS_DIR   the parent directory your repositories live under, one
+  ATK_PROJECTS_DIR      the parent directory your repositories live under, one
                         subdirectory per repo (default: ~/Projekte — a German
                         word, not a typo; set this if yours live elsewhere)
-  TENDER_ROLES_DIR      where the role files live (default: <install>/roles)
-  TENDER_TOOL           which coding agent to launch (default: claude)
+  ATK_ROLES_DIR         where the role files live (default: <install>/roles)
+  ATK_TOOL              which coding agent to launch (default: claude)
                         see docs/tools.md for the supported list, and how to
                         add one without editing this file
-  TENDER_TOOLS_FILE     the tools table (default: $XDG_CONFIG_HOME or
-                        ~/.config)/treetender/tools) — see docs/tools.md
-  TENDER_DOCTOR_TIMEOUT   seconds `tender doctor` waits for a tool to answer
+  ATK_TOOLS_FILE        the tools table (default: $XDG_CONFIG_HOME or
+                        ~/.config)/agentaker/tools) — see docs/tools.md
+  ATK_DOCTOR_TIMEOUT    seconds `atk doctor` waits for a tool to answer
                         before giving up on it (default: 15)
-  TENDER_OWNER          default GitHub owner for `tender status`
-  TENDER_REVIEWER       login of the reviewer account, for `tender status`
-  TENDER_TAB_COLOUR     iTerm2 tab colour by role (default: on, 0 to disable)
-  TENDER_HANDOFF_TIMEOUT   seconds to wait for a handover before `restart`
+  ATK_OWNER             default GitHub owner for `atk status`
+  ATK_REVIEWER          login of the reviewer account, for `atk status`
+  ATK_TAB_COLOUR        iTerm2 tab colour by role (default: on, 0 to disable)
+  ATK_HANDOFF_TIMEOUT   seconds to wait for a handover before `restart`
                         aborts (default: 60)
-  TENDER_YES            answer every `tender init` prompt with its default —
-                        the env-var route through it; `tender init --yes` is the
+  ATK_YES               answer every `atk init` prompt with its default —
+                        the env-var route through it; `atk init --yes` is the
                         flag-driven route and additionally requires --boundary
-                        (see `tender init --help`)
-  TENDER_NO_NETWORK     `tender init` skips the label and environment steps,
+                        (see `atk init --help`)
+  ATK_NO_NETWORK        `atk init` skips the label and environment steps,
                         which otherwise call `gh`
-  TENDER_DRY_RUN        print what `tender <repo> <role>` would launch instead
+  ATK_DRY_RUN           print what `atk <repo> <role>` would launch instead
                         of launching it (any non-empty value). The worktree,
                         its branch and .agents/ are still created — only the
                         agent process is skipped
-  TENDER_CREDENTIAL     label of a keychain entry (treetender-cred-<label>) to
+  ATK_CREDENTIAL        label of a keychain entry (agentaker-cred-<label>) to
                         put into the started agent's environment — never its
                         argv. A missing or unreadable entry aborts the start;
                         see docs/setup.md, "Named credentials for an agent"
@@ -148,7 +148,7 @@ exclude_agents_dir() {
   grep -qxF '.agents/' "$exclude" 2>/dev/null || printf '.agents/\n' >> "$exclude"
 }
 
-session_name() { printf 'tender-%s' "$1"; }
+session_name() { printf 'atk-%s' "$1"; }
 
 # After tmux accepted the window, never before and never on a dry run — see
 # credential_record() in lib/credential.sh. A record that cannot be written
@@ -156,7 +156,7 @@ session_name() { printf 'tender-%s' "$1"; }
 # which credential to put back.
 remember_credential() {
   credential_record "$1" "$CREDENTIAL" \
-    || printf 'tender: could not record the credential label for %s — a restart would start it without one\n' "$1" >&2
+    || printf 'atk: could not record the credential label for %s — a restart would start it without one\n' "$1" >&2
 }
 
 # A start from a terminal ends attached to the session, as it always has.
@@ -167,7 +167,7 @@ attach_if_terminal() {
   if [ -t 0 ] && [ -t 1 ]; then
     tmux attach -t "$1"
   else
-    printf 'started in tmux session %s — attach with: tender attach %s\n' "$1" "$2"
+    printf 'started in tmux session %s — attach with: atk attach %s\n' "$1" "$2"
   fi
 }
 
@@ -196,11 +196,11 @@ cmd_start() {
   LAUNCH_CMD=()
   TOOL_STATUS=verified
   if ! launch_command "$wt/.agents/context.md"; then
-    die "no launch command known for tool '$TOOL' — paste $wt/.agents/context.md as your first message, and consider adding a branch to launch_command() in bin/tender"
+    die "no launch command known for tool '$TOOL' — paste $wt/.agents/context.md as your first message, and consider adding a branch to launch_command() in bin/atk"
   fi
 
   if [ "${TOOL_STATUS:-verified}" = unverified ]; then
-    printf 'tender: the launch path for "%s" has never been run — if this session starts without its role, that is why. See docs/tools.md.\n' "$TOOL" >&2
+    printf 'atk: the launch path for "%s" has never been run — if this session starts without its role, that is why. See docs/tools.md.\n' "$TOOL" >&2
   fi
 
   # A named credential (issue #5), unlike the reviewer token below, never
@@ -210,16 +210,16 @@ cmd_start() {
   # docs/setup.md, "Named credentials for an agent".
   if [ -n "$CREDENTIAL" ]; then
     valid_credential_label "$CREDENTIAL" \
-      || die "'$CREDENTIAL' is not a credential label (letters, digits, - and _; see TENDER_CREDENTIAL)"
+      || die "'$CREDENTIAL' is not a credential label (letters, digits, - and _; see ATK_CREDENTIAL)"
     credential_available "$CREDENTIAL" \
       || die "no readable credential named '$CREDENTIAL' in the keychain — refusing to start without it. See docs/setup.md"
-    credential_wrapper_argv "$TENDER_HOME" "$CREDENTIAL" "${LAUNCH_CMD[@]}"
+    credential_wrapper_argv "$ATK_HOME" "$CREDENTIAL" "${LAUNCH_CMD[@]}"
   fi
 
   # The reviewer runs under its own hosting account (issue #10). Wrapped
   # outside a named credential, so that one's export wins; soft, unlike it —
   # see reviewer_token_wrap() in lib/credential.sh.
-  if [ "$role" = "reviewer" ]; then reviewer_token_wrap "$TENDER_HOME" "${LAUNCH_CMD[@]}"; fi
+  if [ "$role" = "reviewer" ]; then reviewer_token_wrap "$ATK_HOME" "${LAUNCH_CMD[@]}"; fi
 
   local session
   session=$(session_name "$repo")
@@ -246,7 +246,7 @@ cmd_start() {
   fi
 
   command -v tmux >/dev/null 2>&1 \
-    || die "tmux is not installed — treetender uses it so sessions outlive the device looking at them"
+    || die "tmux is not installed — agentaker uses it so sessions outlive the device looking at them"
 
   # See wrap_launch_command() for why this has to run from inside the pane
   # itself, and why it exists as a shared function at all.
@@ -256,7 +256,7 @@ cmd_start() {
     tmux new-window -t "$session" -c "$wt" -n "$window_label" "${LAUNCH_CMD[@]}" \
       && remember_credential "$wt"
     tmux set-option -t "$session" set-titles on
-    tmux set-option -t "$session" set-titles-string '#{s/^tender-//:#S} · #W'
+    tmux set-option -t "$session" set-titles-string '#{s/^atk-//:#S} · #W'
     attach_if_terminal "$session" "$repo"
   else
     # Detached first, not the direct attach new-session offers without -d: the
@@ -265,7 +265,7 @@ cmd_start() {
     tmux new-session -d -s "$session" -c "$wt" -n "$window_label" "${LAUNCH_CMD[@]}" \
       && remember_credential "$wt"
     tmux set-option -t "$session" set-titles on
-    tmux set-option -t "$session" set-titles-string '#{s/^tender-//:#S} · #W'
+    tmux set-option -t "$session" set-titles-string '#{s/^atk-//:#S} · #W'
     attach_if_terminal "$session" "$repo"
   fi
 }
@@ -274,10 +274,10 @@ cmd_attach() {
   local repo=${1:-}
   [ -n "$repo" ] || { usage; exit 2; }
   command -v tmux >/dev/null 2>&1 \
-    || die "tmux is not installed — treetender uses it so sessions outlive the device looking at them"
+    || die "tmux is not installed — agentaker uses it so sessions outlive the device looking at them"
   local session; session=$(session_name "$repo")
   tmux has-session -t "$session" 2>/dev/null \
-    || die "no session for '$repo' — start one with: tender $repo developer"
+    || die "no session for '$repo' — start one with: atk $repo developer"
   tmux attach -t "$session"
 }
 
@@ -287,66 +287,66 @@ case "${1:-}" in
   init)
     shift
     # shellcheck source=lib/init_flags.sh
-    . "$TENDER_HOME/lib/init_flags.sh" || die "cannot load $TENDER_HOME/lib/init_flags.sh"
+    . "$ATK_HOME/lib/init_flags.sh" || die "cannot load $ATK_HOME/lib/init_flags.sh"
     # shellcheck source=lib/init.sh
-    . "$TENDER_HOME/lib/init.sh" || die "cannot load $TENDER_HOME/lib/init.sh"
+    . "$ATK_HOME/lib/init.sh" || die "cannot load $ATK_HOME/lib/init.sh"
     # shellcheck source=lib/json.sh
-    . "$TENDER_HOME/lib/json.sh" || die "cannot load $TENDER_HOME/lib/json.sh"
+    . "$ATK_HOME/lib/json.sh" || die "cannot load $ATK_HOME/lib/json.sh"
     # shellcheck source=lib/init_propose.sh
-    . "$TENDER_HOME/lib/init_propose.sh" || die "cannot load $TENDER_HOME/lib/init_propose.sh"
+    . "$ATK_HOME/lib/init_propose.sh" || die "cannot load $ATK_HOME/lib/init_propose.sh"
     cmd_init "$@"
     ;;
   status)
     shift
     # shellcheck source=lib/json.sh
-    . "$TENDER_HOME/lib/json.sh" || die "cannot load $TENDER_HOME/lib/json.sh"
+    . "$ATK_HOME/lib/json.sh" || die "cannot load $ATK_HOME/lib/json.sh"
     # shellcheck source=lib/status.sh
-    . "$TENDER_HOME/lib/status.sh" || die "cannot load $TENDER_HOME/lib/status.sh"
+    . "$ATK_HOME/lib/status.sh" || die "cannot load $ATK_HOME/lib/status.sh"
     # shellcheck source=lib/status_json.sh
-    . "$TENDER_HOME/lib/status_json.sh" || die "cannot load $TENDER_HOME/lib/status_json.sh"
+    . "$ATK_HOME/lib/status_json.sh" || die "cannot load $ATK_HOME/lib/status_json.sh"
     status_dispatch "$@"
     ;;
   attach)    shift; cmd_attach "$@" ;;
   list)
     shift
     # shellcheck source=lib/manage.sh
-    . "$TENDER_HOME/lib/manage.sh" || die "cannot load $TENDER_HOME/lib/manage.sh"
+    . "$ATK_HOME/lib/manage.sh" || die "cannot load $ATK_HOME/lib/manage.sh"
     cmd_list "$@"
     ;;
   drop)
     shift
     # shellcheck source=lib/manage.sh
-    . "$TENDER_HOME/lib/manage.sh" || die "cannot load $TENDER_HOME/lib/manage.sh"
+    . "$ATK_HOME/lib/manage.sh" || die "cannot load $ATK_HOME/lib/manage.sh"
     cmd_drop "$@"
     ;;
   restart)
     shift
     # shellcheck source=lib/manage.sh
-    . "$TENDER_HOME/lib/manage.sh" || die "cannot load $TENDER_HOME/lib/manage.sh"
+    . "$ATK_HOME/lib/manage.sh" || die "cannot load $ATK_HOME/lib/manage.sh"
     # shellcheck source=lib/state.sh
-    . "$TENDER_HOME/lib/state.sh" || die "cannot load $TENDER_HOME/lib/state.sh"
+    . "$ATK_HOME/lib/state.sh" || die "cannot load $ATK_HOME/lib/state.sh"
     cmd_restart "$@"
     ;;
   doctor)
     shift
     # shellcheck source=lib/doctor.sh
-    . "$TENDER_HOME/lib/doctor.sh" || die "cannot load $TENDER_HOME/lib/doctor.sh"
+    . "$ATK_HOME/lib/doctor.sh" || die "cannot load $ATK_HOME/lib/doctor.sh"
     cmd_doctor "$@"
     ;;
   claims)
     shift
     # shellcheck source=lib/json.sh
-    . "$TENDER_HOME/lib/json.sh" || die "cannot load $TENDER_HOME/lib/json.sh"
+    . "$ATK_HOME/lib/json.sh" || die "cannot load $ATK_HOME/lib/json.sh"
     # shellcheck source=lib/claims.sh
-    . "$TENDER_HOME/lib/claims.sh" || die "cannot load $TENDER_HOME/lib/claims.sh"
+    . "$ATK_HOME/lib/claims.sh" || die "cannot load $ATK_HOME/lib/claims.sh"
     cmd_claims "$@"
     ;;
   claim-release)
     shift
     # shellcheck source=lib/json.sh
-    . "$TENDER_HOME/lib/json.sh" || die "cannot load $TENDER_HOME/lib/json.sh"
+    . "$ATK_HOME/lib/json.sh" || die "cannot load $ATK_HOME/lib/json.sh"
     # shellcheck source=lib/claims.sh
-    . "$TENDER_HOME/lib/claims.sh" || die "cannot load $TENDER_HOME/lib/claims.sh"
+    . "$ATK_HOME/lib/claims.sh" || die "cannot load $ATK_HOME/lib/claims.sh"
     cmd_claim_release "$@"
     ;;
   *)         [ $# -ge 2 ] || { usage; exit 2; }; cmd_start "$@" ;;

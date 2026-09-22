@@ -1,4 +1,4 @@
-# Setting up treetender
+# Setting up agentaker
 
 **This file is written for a coding agent, not for you.** Paste the block from
 the README into your agent and it will read this and walk you through.
@@ -10,7 +10,7 @@ You can also do everything here by hand — `docs/setup.md` and
 
 ## Instructions for the coding agent
 
-You are setting up `treetender` for a human's project. You are a guide, not
+You are setting up `agentaker` for a human's project. You are a guide, not
 an installer. Work through the phases below in order.
 
 ### How you must behave
@@ -35,32 +35,32 @@ Run these and report what you find:
 git --version
 gh --version && gh auth status
 tmux -V
-tender --help
-command -v "${TENDER_TOOL:-claude}"
+atk --help
+command -v "${ATK_TOOL:-claude}"
 ```
 
 If any of the first three is missing, say which and how to install it on their
 platform, then stop until it is there. Do not install those yourself.
 
-The last line checks the coding agent itself, not just `tender` — `TENDER_TOOL`
-(default `claude`) names the binary `tender` actually launches a session with.
+The last line checks the coding agent itself, not just `atk` — `ATK_TOOL`
+(default `claude`) names the binary `atk` actually launches a session with.
 Skip this check and everything else in this file can go fine, right up to
-the first `tender <repo> <role>`, which then opens an empty tmux window with
-nothing running in it — that reads as a bug in `tender`, not a missing tool. If
-it's absent, say which command `TENDER_TOOL` names and point at `docs/tools.md`
+the first `atk <repo> <role>`, which then opens an empty tmux window with
+nothing running in it — that reads as a bug in `atk`, not a missing tool. If
+it's absent, say which command `ATK_TOOL` names and point at `docs/tools.md`
 for what's supported, then stop the same way as above.
 
-If `tender` itself is not found, that's expected — the rest of this file assumes
+If `atk` itself is not found, that's expected — the rest of this file assumes
 it exists, but nothing installs it first. Propose the README's quickstart:
 
 ```bash
-git clone https://github.com/culfin/treetender ~/.treetender
-ln -s ~/.treetender/bin/tender ~/bin/tender
+git clone https://github.com/culfin/agentaker ~/.agentaker
+ln -s ~/.agentaker/bin/atk ~/bin/atk
 ```
 
 Check first whether `~/bin` is actually on their `PATH` before proposing that
 exact target — it commonly isn't (`~/.local/bin` is the more usual default on
-a fresh install), and a symlink created outside `PATH` still leaves `tender`
+a fresh install), and a symlink created outside `PATH` still leaves `atk`
 reported as "command not found", which reads as a broken install rather than
 a wrong directory:
 
@@ -84,10 +84,10 @@ If the trunk is not what they expect — a stale `main` next to an active
 `development`, say — point that out. Working against the wrong branch is a
 failure mode that stays invisible for days.
 
-`tender init <repo>` in Phase 4 resolves `<repo>` under `TENDER_PROJECTS_DIR`
+`atk init <repo>` in Phase 4 resolves `<repo>` under `ATK_PROJECTS_DIR`
 (default `~/Projekte`) — it takes a name, not the path you just confirmed
 above. Check the repository actually lives there; if it doesn't, tell them to
-`export TENDER_PROJECTS_DIR=<parent directory>` before Phase 4, or `tender init`
+`export ATK_PROJECTS_DIR=<parent directory>` before Phase 4, or `atk init`
 fails with "not a git repository" against a path that was never theirs.
 
 ### Phase 3 — Read the project, then propose
@@ -116,11 +116,11 @@ formatters or review skills, and list what you found.
 
 ### Phase 4 — Write `AGENTS.md`
 
-`tender init <repo>` only offers a yes/no on its own auto-generated draft — it has
+`atk init <repo>` only offers a yes/no on its own auto-generated draft — it has
 no way to take the values you established in Phase 3. So write `AGENTS.md`
 yourself instead: show the human the finished file using your Phase 3 findings
 (trunk, test commands, production boundary), then write it. Afterwards, run
-`tender init <repo>` anyway — it detects the file already exists, leaves it alone,
+`atk init <repo>` anyway — it detects the file already exists, leaves it alone,
 and still does the rest (labels, worktrees) that Phase 5 needs in place.
 
 The `reviewer:` field stays empty. Empty means **single-account mode** — the
@@ -140,7 +140,7 @@ gh label create ready --description "Ready for an agent to pick up" --color 0E8A
 gh label create needs-decision --description "Waiting on a human decision" --color D93F0B
 ```
 
-`tender init` already created the three worktrees back in Phase 4 — do not start
+`atk init` already created the three worktrees back in Phase 4 — do not start
 anything here. Explain what they are: directories, not processes. They
 persist, they cost only disk, and a session is whoever is sitting in one at
 the time. Nothing is running in them yet.
@@ -151,17 +151,17 @@ Have them put `ready` on one real issue, then start a single developer session:
 
 ```bash
 gh issue edit <N> --add-label ready
-tender <repo> developer
+atk <repo> developer
 ```
 
 That opens a tmux window and launches their coding agent in it. In that
 session, ask it: *"What is your role, and name one thing you may not do."* It
 must answer `developer` and name merging. If it does not, the role did not
-reach the model — check `.agents/ROLE` exists and `TENDER_TOOL` names a tool that
-`launch_command()` in `bin/tender` knows.
+reach the model — check `.agents/ROLE` exists and `ATK_TOOL` names a tool that
+`launch_command()` in `bin/atk` knows.
 
 To leave the session without stopping it, detach from tmux (`Ctrl-b d` by
-default). To come back later: `tender attach <repo>`.
+default). To come back later: `atk attach <repo>`.
 
 **Start only this one.** The `reviewer` and `maintainer` worktrees stay idle
 until there is work for them — starting all three now means three agents with
@@ -203,8 +203,8 @@ That switches every role file from single-account mode to two-account mode —
 
 Summarise in five lines: what was written, what they still owe (the second
 account, if the previous section was declined or left for later), and the
-three commands they will use daily — `tender <repo> <role>`, `tender attach
-<repo>`, `tender status <owner>`.
+three commands they will use daily — `atk <repo> <role>`, `atk attach
+<repo>`, `atk status <owner>`.
 
 Point at `docs/limits.md` and name the two limits that bite first: one
 maintainer per repository, and memory rather than disk as the real ceiling on

@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
-# `tender list`, `tender drop` and `tender restart` — seeing what worktrees exist,
+# `atk list`, `atk drop` and `atk restart` — seeing what worktrees exist,
 # cleaning up after them, and replacing the process behind one without
 # losing where it had got to.
 #
-# Sourced by bin/tender on demand, for the same reason as lib/init.sh: the
-# everyday `tender <repo> <role>` path doesn't pay to parse any of this.
+# Sourced by bin/atk on demand, for the same reason as lib/init.sh: the
+# everyday `atk <repo> <role>` path doesn't pay to parse any of this.
 #
-# Needs from bin/tender: die(), usage(), role_tag(), session_name(),
+# Needs from bin/atk: die(), usage(), role_tag(), session_name(),
 #   build_context(), launch_command(), wrap_launch_command(),
-#   PROJECTS_DIR, ROLES_DIR, TOOL, TENDER_HOME, and credential_recorded()/
+#   PROJECTS_DIR, ROLES_DIR, TOOL, ATK_HOME, and credential_recorded()/
 #   credential_wrapper_argv()/reviewer_token_wrap() from lib/credential.sh
-# Needs from lib/state.sh: collect_state() — bin/tender sources it alongside
+# Needs from lib/state.sh: collect_state() — bin/atk sources it alongside
 #   this file, only in the `restart` branch of its dispatch.
 # Provides to it:     nothing — cmd_list()/cmd_drop()/cmd_restart() are the
 #   whole surface.
 
 # Sets WT_ROLE, WT_LABEL, WT_BRANCH for the worktree named $2 (its directory
-# basename under .worktrees/) belonging to repo $1. A worktree tender didn't
+# basename under .worktrees/) belonging to repo $1. A worktree atk didn't
 # create — no .agents/ROLE, or a name that doesn't fit the repo-role[-suffix]
 # pattern cmd_start() uses — still gets a label; role_tag() falls back to
 # uppercasing whatever it's given, so it never comes back empty.
@@ -31,7 +31,7 @@ describe_worktree() {
   fi
   WT_LABEL=$tag
   # Braced ("${tag}·${suffix}"), not "$tag·$suffix" — see the matching
-  # comment in bin/tender's cmd_start(): under a UTF-8 locale, bash can fold the
+  # comment in bin/atk's cmd_start(): under a UTF-8 locale, bash can fold the
   # multibyte "·" right after an unbraced $tag into the variable name itself.
   [ -n "$suffix" ] && WT_LABEL="${tag}·${suffix}"
   WT_BRANCH=$(git -C "$wt" symbolic-ref --short HEAD 2>/dev/null \
@@ -79,7 +79,7 @@ cmd_list() {
       # The directory name, always — two worktrees can share a label
       # (role_tag() falls back to the first three letters of an unknown role,
       # so "devops" and "developer" both read DEV); a user reading this list
-      # has to be able to build a `tender drop` command that means what they
+      # has to be able to build a `atk drop` command that means what they
       # think, and the label alone can't promise that. See cmd_drop()'s own
       # ambiguity handling for the other half of this.
       printf '  %-16s %-24s %-22s %6s   %s\n' "$WT_LABEL" "$(basename "$wt")" "$WT_BRANCH" "$size" "$running"
@@ -138,7 +138,7 @@ cmd_drop() {
   elif [ "${#candidates[@]}" -eq 1 ]; then
     match=${candidates[0]}
   elif [ "${#candidates[@]}" -eq 0 ]; then
-    die "no worktree named '$label' in $repo — see \`tender list $repo\`"
+    die "no worktree named '$label' in $repo — see \`atk list $repo\`"
   else
     # More than one candidate. This refuses unconditionally — before the
     # --force check below, and not reachable through it — because --force
@@ -146,12 +146,12 @@ cmd_drop() {
     # unpushed commits, an open window), never to proceed without knowing
     # WHICH worktree it's about to remove.
     {
-      printf 'tender: "%s" matches more than one worktree in %s:\n\n' "$label" "$repo"
+      printf 'atk: "%s" matches more than one worktree in %s:\n\n' "$label" "$repo"
       for wt in "${candidates[@]}"; do
         describe_worktree "$repo" "$(basename "$wt")"
         printf '  %-5s %-24s %s\n' "$WT_LABEL" "$(basename "$wt")" "$WT_BRANCH"
       done
-      printf '\nUse the directory name to say which one:\n  tender drop %s %s\n' \
+      printf '\nUse the directory name to say which one:\n  atk drop %s %s\n' \
         "$repo" "$(basename "${candidates[0]}")"
     } >&2
     exit 1
@@ -209,7 +209,7 @@ cmd_drop() {
 }
 
 # --- restart --------------------------------------------------------------
-# tender never learns anything about the coding agent it restarts: it sends
+# atk never learns anything about the coding agent it restarts: it sends
 # keystrokes and waits for a file. What belongs in that file is stated in
 # roles/_base.md, which every tool reads — see "## Handing over" there.
 HANDOVER_PROMPT='Please hand over now: write .agents/handoff.md as described in your instructions, then exit.'
@@ -249,7 +249,7 @@ restart_window() {
   local target; target="$(session_name "$repo"):$label"
 
   worktree_running "$repo" "$label" || {
-    printf 'tender: no running session for %s in %s — see `tender list %s`\n' "$label" "$repo" "$repo" >&2
+    printf 'atk: no running session for %s in %s — see `atk list %s`\n' "$label" "$repo" "$repo" >&2
     return 1
   }
   local cred; cred=$(credential_recorded "$wt") || return 1  # before anything is touched
@@ -274,11 +274,11 @@ restart_window() {
     tmux set-window-option -t "$target" remain-on-exit on 2>/dev/null
     printf 'asking %s in %s to hand over\n' "$label" "$repo"
     request_handover "$target"
-    if ! wait_for_handoff "$handoff" "${TENDER_HANDOFF_TIMEOUT:-60}"; then
+    if ! wait_for_handoff "$handoff" "${ATK_HANDOFF_TIMEOUT:-60}"; then
       tmux set-window-option -t "$target" remain-on-exit off 2>/dev/null
-      printf 'tender: %s in %s did not hand over within %ss — its state would be lost, so nothing was restarted.\n' \
-        "$label" "$repo" "${TENDER_HANDOFF_TIMEOUT:-60}" >&2
-      printf 'tender: to replace it anyway, losing its state: tender restart %s %s --fresh\n' "$repo" "$label" >&2
+      printf 'atk: %s in %s did not hand over within %ss — its state would be lost, so nothing was restarted.\n' \
+        "$label" "$repo" "${ATK_HANDOFF_TIMEOUT:-60}" >&2
+      printf 'atk: to replace it anyway, losing its state: atk restart %s %s --fresh\n' "$repo" "$label" >&2
       return 1
     fi
     printf 'received a handover from %s in %s\n' "$label" "$repo"
@@ -286,7 +286,7 @@ restart_window() {
 
   build_context "$wt" "$role" || {
     tmux set-window-option -t "$target" remain-on-exit off 2>/dev/null
-    printf 'tender: could not assemble the role context from %s\n' "$ROLES_DIR" >&2
+    printf 'atk: could not assemble the role context from %s\n' "$ROLES_DIR" >&2
     return 1
   }
   # Facts before free text: whoever reads this next hits the part that can't
@@ -304,13 +304,13 @@ restart_window() {
   LAUNCH_CMD=()
   if ! launch_command "$wt/.agents/context.md"; then
     tmux set-window-option -t "$target" remain-on-exit off 2>/dev/null
-    printf 'tender: no launch command known for tool %s\n' "${TOOL:-claude}" >&2
+    printf 'atk: no launch command known for tool %s\n' "${TOOL:-claude}" >&2
     return 1
   fi
-  [ -n "$cred" ] && credential_wrapper_argv "$TENDER_HOME" "$cred" "${LAUNCH_CMD[@]}"
+  [ -n "$cred" ] && credential_wrapper_argv "$ATK_HOME" "$cred" "${LAUNCH_CMD[@]}"
 
   # Same order and same soft check as cmd_start() (issue #10).
-  if [ "$role" = "reviewer" ]; then reviewer_token_wrap "$TENDER_HOME" "${LAUNCH_CMD[@]}"; fi
+  if [ "$role" = "reviewer" ]; then reviewer_token_wrap "$ATK_HOME" "${LAUNCH_CMD[@]}"; fi
 
   wrap_launch_command "$role" "${LAUNCH_CMD[@]}"
   local respawn_rc
@@ -319,14 +319,14 @@ restart_window() {
   tmux set-window-option -t "$target" remain-on-exit off 2>/dev/null
 
   if [ "$respawn_rc" -ne 0 ]; then
-    printf 'tender: tmux would not respawn %s in %s — see \`tmux respawn-pane -t %s\` for why\n' \
+    printf 'atk: tmux would not respawn %s in %s — see \`tmux respawn-pane -t %s\` for why\n' \
       "$label" "$repo" "$target" >&2
     return 1
   fi
   printf 'restarted %s in %s\n' "$label" "$repo"
 }
 
-# `tender restart --all`: every currently running window, across every project
+# `atk restart --all`: every currently running window, across every project
 # under PROJECTS_DIR. A dirty worktree is skipped, never forced through —
 # same discipline as cmd_drop(): uncommitted changes are a signal this isn't
 # a good moment, and --all has no human in the loop to ask.
@@ -334,7 +334,7 @@ restart_all() {
   local restarted=0 skipped=0 repo_dir repo wt dirty
 
   # A first pass just to count what's running, before touching any of it:
-  # restart_window() waits up to TENDER_HANDOFF_TIMEOUT per session, one at a
+  # restart_window() waits up to ATK_HANDOFF_TIMEOUT per session, one at a
   # time (see the loop below), so several running sessions add up with no
   # warning otherwise — six sessions is six minutes of silence at the
   # default 60s, worst case, if every one of them is wedged.
@@ -352,8 +352,8 @@ restart_all() {
     done
   done
   if [ "$total" -gt 0 ]; then
-    printf 'restarting up to %d running session(s), one at a time — worst case %ds if every one times out waiting for a handover (%ds each, TENDER_HANDOFF_TIMEOUT)\n' \
-      "$total" "$((total * ${TENDER_HANDOFF_TIMEOUT:-60}))" "${TENDER_HANDOFF_TIMEOUT:-60}"
+    printf 'restarting up to %d running session(s), one at a time — worst case %ds if every one times out waiting for a handover (%ds each, ATK_HANDOFF_TIMEOUT)\n' \
+      "$total" "$((total * ${ATK_HANDOFF_TIMEOUT:-60}))" "${ATK_HANDOFF_TIMEOUT:-60}"
   fi
 
   for repo_dir in "$PROJECTS_DIR"/*/; do
@@ -424,15 +424,15 @@ cmd_restart() {
   elif [ "${#candidates[@]}" -eq 1 ]; then
     match=${candidates[0]}
   elif [ "${#candidates[@]}" -eq 0 ]; then
-    die "no worktree named '$label' in $repo — see \`tender list $repo\`"
+    die "no worktree named '$label' in $repo — see \`atk list $repo\`"
   else
     {
-      printf 'tender: "%s" matches more than one worktree in %s:\n\n' "$label" "$repo"
+      printf 'atk: "%s" matches more than one worktree in %s:\n\n' "$label" "$repo"
       for wt in "${candidates[@]}"; do
         describe_worktree "$repo" "$(basename "$wt")"
         printf '  %-5s %-24s %s\n' "$WT_LABEL" "$(basename "$wt")" "$WT_BRANCH"
       done
-      printf '\nUse the directory name to say which one:\n  tender restart %s %s\n' \
+      printf '\nUse the directory name to say which one:\n  atk restart %s %s\n' \
         "$repo" "$(basename "${candidates[0]}")"
     } >&2
     exit 1

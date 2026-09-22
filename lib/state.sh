@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# The facts tender can vouch for itself before a restart — git and GitHub state,
+# The facts atk can vouch for itself before a restart — git and GitHub state,
 # never the session's own report of what it did. The session still writes
 # .agents/handoff.md by hand (roles/_base.md's "Handing over" section); this
 # file is the other half, and the two are appended to the successor's context
 # in that order (see restart_window() in lib/manage.sh) — facts first, so a
 # contradiction in the free text is visible on the first read, not the second.
 #
-# Sourced by bin/tender on demand, alongside lib/manage.sh, only for `restart` —
+# Sourced by bin/atk on demand, alongside lib/manage.sh, only for `restart` —
 # `list` and `drop` never call collect_state(), so they don't pay to parse it.
 #
-# Needs from bin/tender: nothing — every function here is self-contained.
+# Needs from bin/atk: nothing — every function here is self-contained.
 # Provides to it:     collect_state()
 #
 # Three-way discipline per line, the same one status_section() in lib/status.sh uses:
@@ -114,7 +114,7 @@ collect_state() {
   fi
 
   {
-    printf '## State (collected by tender, not reported by the session)\n\n'
+    printf '## State (collected by atk, not reported by the session)\n\n'
     state_line "role" "$role"
     state_line "worktree" "$worktree_name"
     state_line "branch" "$branch"

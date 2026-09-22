@@ -30,8 +30,8 @@ jobs:
       - name: Tests
         run: bash tests/run.sh
       - name: Lint
-        run: bin/tender-lint .
+        run: bin/atk-lint .
       - name: Shellcheck
         run: |
           sudo apt-get update -qq && sudo apt-get install -y shellcheck
-          shellcheck -S warning bin/tender lib/init.sh lib/init_flags.sh lib/init_propose.sh lib/json.sh lib/manage.sh lib/tabs.sh lib/state.sh lib/tools.sh lib/doctor.sh lib/claims.sh lib/credential.sh lib/throttle.sh lib/status.sh lib/status_json.sh bin/tender-lint hooks/load_role.sh
+          shellcheck -S warning bin/atk lib/init.sh lib/init_flags.sh lib/init_propose.sh lib/json.sh lib/manage.sh lib/tabs.sh lib/state.sh lib/tools.sh lib/doctor.sh lib/claims.sh lib/credential.sh lib/throttle.sh lib/status.sh lib/status_json.sh bin/atk-lint hooks/load_role.sh

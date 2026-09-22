@@ -11,14 +11,14 @@
 #
 # `max-open-prs: N` in the project's AGENTS.md sets the cap. Absent means no
 # cap and nothing changes anywhere; present but not a positive integer is
-# reported (`tender status`) and treated as no cap — never as 0, which would
+# reported (`atk status`) and treated as no cap — never as 0, which would
 # stop every developer on a typo.
 #
-# Sourced by bin/tender unconditionally: `cmd_start()` asks it on every
+# Sourced by bin/atk unconditionally: `cmd_start()` asks it on every
 # developer start, `cmd_status()` on every board. Both ask `gh` only when the
 # answer can change something.
 #
-# Needs from bin/tender: PROJECTS_DIR, STATUS_FAILED (lib/status.sh), role_tag() (lib/tabs.sh),
+# Needs from bin/atk: PROJECTS_DIR, STATUS_FAILED (lib/status.sh), role_tag() (lib/tabs.sh),
 #   session_name()
 # Provides to it:     throttle_start_check(), throttle_status_section()
 
@@ -123,8 +123,8 @@ throttle_age() {
 # started (worktree path $2) has a pane open right now — found by the pane's
 # start path, not its window name. A window name is only role_tag() plus the
 # suffix, and role_tag() abbreviates an unknown role like `devops` to DEV
-# too: `tender acme devops x` runs in a window named DEV·x, exactly like
-# `tender acme developer x` would. The path cannot be confused that way.
+# too: `atk acme devops x` runs in a window named DEV·x, exactly like
+# `atk acme developer x` would. The path cannot be confused that way.
 #
 # #{pane_start_path}, not #{pane_current_path}: the start path is the `-c`
 # cmd_start() (and restart's respawn-pane) passes, kept verbatim for the
@@ -135,8 +135,8 @@ throttle_age() {
 # so a plain string comparison is exact. A tmux too old to know the format
 # prints an empty path, which matches nothing: the start proceeds.
 #
-# `=` makes tmux match the session name exactly — without it, `tender-de`
-# also finds `tender-demo`.
+# `=` makes tmux match the session name exactly — without it, `atk-de`
+# also finds `atk-demo`.
 throttle_other_developer_running() {
   local repo=$1 own=$2 paths wt
   command -v tmux >/dev/null 2>&1 || return 1
@@ -145,7 +145,7 @@ throttle_other_developer_running() {
   # vanishing into an empty string that looks like "no panes at all".
   paths=$(tmux list-panes -s -t "=$(session_name "$repo")" -F 'x#{pane_start_path}' 2>/dev/null) || return 1
   if [ -n "$paths" ] && ! printf '%s\n' "$paths" | grep -q '^x.'; then
-    printf 'tender: this tmux cannot tell which session runs in which worktree (pane_start_path needs tmux 3.3) — max-open-prs not checked for this start\n' >&2
+    printf 'atk: this tmux cannot tell which session runs in which worktree (pane_start_path needs tmux 3.3) — max-open-prs not checked for this start\n' >&2
     return 1
   fi
   paths=$(printf '%s\n' "$paths" | sed 's/^x//')
@@ -179,19 +179,19 @@ throttle_start_check() {
       && THROTTLE_ERROR="the listing stopped at $THROTTLE_LIMIT open PRs, so the count is incomplete"
   fi
   if [ -n "$THROTTLE_ERROR" ]; then
-    printf 'tender: could not count open agent PRs (%s) — starting anyway, max-open-prs: %s unchecked\n' \
+    printf 'atk: could not count open agent PRs (%s) — starting anyway, max-open-prs: %s unchecked\n' \
       "$THROTTLE_ERROR" "$cap" >&2
     return 0
   fi
   [ "$THROTTLE_COUNT" -lt "$cap" ] && return 0
-  printf 'tender: %s has %s agent PRs open, at its cap (max-open-prs: %s in AGENTS.md), and a developer session is already running — not starting another. Review the open PRs first; see docs/limits.md\n' \
+  printf 'atk: %s has %s agent PRs open, at its cap (max-open-prs: %s in AGENTS.md), and a developer session is already running — not starting another. Review the open PRs first; see docs/limits.md\n' \
     "$repo" "$THROTTLE_COUNT" "$cap" >&2
   return 1
 }
 
 # One line per set-up project (a git checkout with AGENTS.md) of owner $1 —
 # the owner cmd_status() already resolved, from its argument or
-# TENDER_OWNER — that has agent PRs open, could not be asked, or carries an
+# ATK_OWNER — that has agent PRs open, could not be asked, or carries an
 # invalid cap. "Of owner $1" is read off `origin`: a project with no GitHub
 # origin has no queue to count and is skipped silently, as is one whose
 # origin belongs to someone else — the rest of the board is scoped to that

@@ -1,30 +1,30 @@
 #!/usr/bin/env bash
-# The `tender init` subcommand and its helpers.
+# The `atk init` subcommand and its helpers.
 #
-# Sourced by bin/tender on demand rather than always: init runs once per project
+# Sourced by bin/atk on demand rather than always: init runs once per project
 # and never during normal work, so the three everyday subcommands do not pay to
 # parse it.
 #
-# Needs from bin/tender:  die(), usage(), cmd_start(), PROJECTS_DIR
+# Needs from bin/atk:  die(), usage(), cmd_start(), PROJECTS_DIR
 # Provides to it:      DRY_RUN, set for the subshell that creates the worktrees
 #                      so cmd_start() prepares them without launching anything
 #
 # ROLES_DIR is deliberately absent: cmd_start() reads it, and cmd_start() stays
-# in bin/tender where it is already in scope.
+# in bin/atk where it is already in scope.
 #
-# lib/init_flags.sh, sourced by bin/tender immediately before this file, holds
+# lib/init_flags.sh, sourced by bin/atk immediately before this file, holds
 # argument parsing, --help text and the exit-code contract (issue #3) — see
 # its own header. This file stays about what the four steps actually do;
 # that one is about how a caller (interactive or a flag-driven GUI) reaches
 # them.
 
-# `tender init` shows every step instead of hiding it: each action is proposed and
+# `atk init` shows every step instead of hiding it: each action is proposed and
 # confirmed separately, so someone who watched it run can redo it by hand.
 
 ask() {
-  # Prompt unless TENDER_YES is set; echo the (possibly default) answer.
+  # Prompt unless ATK_YES is set; echo the (possibly default) answer.
   local prompt=$1 default=${2:-y} reply
-  if [ -n "${TENDER_YES:-}" ]; then printf '%s' "$default"; return 0; fi
+  if [ -n "${ATK_YES:-}" ]; then printf '%s' "$default"; return 0; fi
   printf '  %s [%s] ' "$prompt" "$default" >&2
   read -r reply || reply=""
   printf '%s' "${reply:-$default}"
@@ -121,7 +121,7 @@ $tests_body
     # optional — a CONTEXT.md domain glossary, with a "flagged ambiguities"
     # section for words that meant two things and how that got resolved.
     # See docs/adding-a-project.md, "Optional: a domain glossary". Not
-    # required — tender-lint never asks for one.
+    # required — atk-lint never asks for one.
 
 ## Roles
 
@@ -193,7 +193,7 @@ init_commit_agents_md() {
   fi
   entry=$(git -C "$dir" ls-files -s -- AGENTS.md 2>/dev/null)
   if err=$(git -C "$dir" add -- AGENTS.md 2>&1) \
-     && err=$(git -C "$dir" commit -q -m "Add AGENTS.md (tender init)" -- AGENTS.md 2>&1); then
+     && err=$(git -C "$dir" commit -q -m "Add AGENTS.md (atk init)" -- AGENTS.md 2>&1); then
     printf '  committed: AGENTS.md on %s\n' \
       "$(git -C "$dir" symbolic-ref --short HEAD 2>/dev/null || printf 'a detached HEAD')"
     return 0
@@ -219,13 +219,13 @@ cmd_init() {
   # (lib/init_propose.sh); it returns before any of them runs.
   if [ "$INIT_PROPOSE" -eq 1 ]; then init_propose "$repo" "$dir"; exit 0; fi
 
-  # --yes is the flag-driven equivalent of TENDER_YES: it answers the four
+  # --yes is the flag-driven equivalent of ATK_YES: it answers the four
   # confirmations the same way, but — unlike the env var, which the
   # interactive path (and today's tests) already rely on — it also turns on
   # the boundary guard below. A `local` here is enough: ask() sees it through
   # bash's dynamic scoping without leaking back into the caller's shell.
-  local TENDER_YES=${TENDER_YES:-}
-  [ "$INIT_YES" -eq 1 ] && TENDER_YES=1
+  local ATK_YES=${ATK_YES:-}
+  [ "$INIT_YES" -eq 1 ] && ATK_YES=1
 
   local did_something=0 committed=0 role
 
@@ -291,7 +291,7 @@ cmd_init() {
   # --- labels ---------------------------------------------------------------
   if [ "$INIT_SKIP_LABELS" -eq 1 ]; then
     printf '\n  skipped: labels (--no-labels)\n'
-  elif [ -z "${TENDER_NO_NETWORK:-}" ] && [ "$(ask 'Create the three labels on the remote? (y/n)' y)" = "y" ]; then
+  elif [ -z "${ATK_NO_NETWORK:-}" ] && [ "$(ask 'Create the three labels on the remote? (y/n)' y)" = "y" ]; then
     local label_out
     label_out=$(
       cd "$dir" || exit 1
@@ -326,7 +326,7 @@ cmd_init() {
   # lock, since a release reaches real users and cannot be undone like a merge.
   if [ "$INIT_SKIP_ENVIRONMENT" -eq 1 ]; then
     printf '\n  skipped: production environment (--no-environment)\n'
-  elif [ -z "${TENDER_NO_NETWORK:-}" ]; then
+  elif [ -z "${ATK_NO_NETWORK:-}" ]; then
     printf '\nThe production boundary needs a lock: a protected environment makes the\n'
     printf 'job wait for you in the browser, whoever triggered it.\n'
     if [ "$(ask 'Create or update a protected "production" environment? (y/n)' y)" = "y" ]; then
@@ -370,7 +370,7 @@ cmd_init() {
         printf '  worktree: %s-%s\n' "$repo" "$role"
         [ "$wt_existed" -eq 0 ] && did_something=1
       else
-        printf '  could not create the %s worktree — run `tender %s %s` to see why\n' "$role" "$repo" "$role"
+        printf '  could not create the %s worktree — run `atk %s %s` to see why\n' "$role" "$repo" "$role"
       fi
     done
   fi
@@ -421,7 +421,7 @@ $pulls"
     "Start your coding agent once in $dir and confirm it may trust the folder —
      the role worktrees inherit that; an unanswered prompt stalls a session
      silently. See docs/limits.md." \
-    "Start working:             tender $repo developer"
+    "Start working:             atk $repo developer"
   do
     [ -n "$step" ] || continue
     n=$((n + 1))

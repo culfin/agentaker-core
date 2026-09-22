@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# `tender status [owner] --json [--since <time>]` — the board `tender status`
+# `atk status [owner] --json [--since <time>]` — the board `atk status`
 # prints, as one JSON object, for a program that shows it (app issue #10, "what
 # happened since you were away"). Owner decision 2026-09-22: the GitHub side
 # of that view comes from here, not from the app — a GUI building its own `gh`
@@ -10,11 +10,11 @@
 # This file only adds what the text board does not have — the --since date
 # filter, the JSON rendering, and `merged`.
 #
-# Sourced by bin/tender on demand, for `status` only, after lib/status.sh:
-# status_dispatch() is also what sends a plain `tender status` on to
+# Sourced by bin/atk on demand, for `status` only, after lib/status.sh:
+# status_dispatch() is also what sends a plain `atk status` on to
 # cmd_status().
 #
-# Needs from bin/tender: die(); from lib/status.sh: cmd_status(),
+# Needs from bin/atk: die(); from lib/status.sh: cmd_status(),
 #   status_q_*(), status_cmd(), status_section(), STATUS_SEC_*,
 #   STATUS_FAILED; json_escape() (lib/json.sh)
 # Provides to it:     status_dispatch()
@@ -22,11 +22,11 @@
 status_usage() {
   cat <<'EOF'
 Usage:
-  tender status [owner]                         the board, as text
-  tender status [owner] --json                  the same board, as one JSON object
-  tender status [owner] --json --since <time>   only what changed since <time>
+  atk status [owner]                         the board, as text
+  atk status [owner] --json                  the same board, as one JSON object
+  atk status [owner] --json --since <time>   only what changed since <time>
 
-  <owner> defaults to TENDER_OWNER. <time> is ISO-8601 UTC with a date and
+  <owner> defaults to ATK_OWNER. <time> is ISO-8601 UTC with a date and
   a time: 2026-09-22T08:00:00Z, also with fractional seconds
   (2026-09-22T08:00:00.000Z) or +00:00 instead of Z. It is handed to gh — and
   echoed as "since" — as YYYY-MM-DDTHH:MM:SSZ, fractions dropped. Any other
@@ -38,7 +38,7 @@ asked (never an empty list):
   waiting_on_you       open issues and PRs labelled needs-decision
   approved             open PRs approved — natively, or by the `approved` label
                        (single-account mode, see roles/reviewer.md)
-  waiting_for_review   as on the text board (TENDER_REVIEWER, or the approximation)
+  waiting_for_review   as on the text board (ATK_REVIEWER, or the approximation)
   ready                open issues labelled ready, not needs-decision
   merged               only with --since: PRs merged at or after <time>
 
@@ -74,18 +74,18 @@ status_dispatch() {
         shift
         ;;
       --since=*) since=${1#--since=} have_since=1 ;;
-      -*) printf 'tender: unknown option %s\n' "$1" >&2; status_usage >&2; exit 2 ;;
+      -*) printf 'atk: unknown option %s\n' "$1" >&2; status_usage >&2; exit 2 ;;
       *) [ -n "$owner" ] || owner=$1 ;;
     esac
     shift
   done
   if [ "$json" -eq 0 ]; then
-    [ "$have_since" -eq 0 ] || die "--since needs --json (see tender status --help)" 2
+    [ "$have_since" -eq 0 ] || die "--since needs --json (see atk status --help)" 2
     cmd_status "$owner"
     return
   fi
-  owner=${owner:-${TENDER_OWNER:-}}
-  [ -n "$owner" ] || die "give an owner: tender status <owner> --json  (or set TENDER_OWNER)"
+  owner=${owner:-${ATK_OWNER:-}}
+  [ -n "$owner" ] || die "give an owner: atk status <owner> --json  (or set ATK_OWNER)"
   if [ "$have_since" -eq 1 ]; then
     local normal
     normal=$(status_json_normal_time "$since") \

@@ -2,7 +2,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 . tests/lib.sh
-LINT="$PWD/bin/tender-lint"
+LINT="$PWD/bin/atk-lint"
 
 echo "lint: this repository"
 out=$("$LINT" . 2>&1); check "repository is consistent" "0" "$?"
@@ -69,7 +69,7 @@ touch "$TMP2/roles/_base.md"
 printf 'x\n' > "$TMP2/lib/init.sh"
 yes '# padding' | head -451 >> "$TMP2/lib/init.sh"
 out=$("$LINT" "$TMP2" 2>&1); check "oversized lib/init.sh fails" "1" "$?"
-contains "names lib/init.sh, not just bin/tender" "lib/init.sh is" "$out"
+contains "names lib/init.sh, not just bin/atk" "lib/init.sh is" "$out"
 rm -f "$TMP2/lib/init.sh"
 yes '# padding' | head -451 > "$TMP2/lib/throttle.sh"
 out=$("$LINT" "$TMP2" 2>&1); check "oversized lib/throttle.sh fails" "1" "$?"

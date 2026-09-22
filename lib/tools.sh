@@ -7,22 +7,22 @@
 # file existed. See docs/tools.md for the format and the two-point contract
 # every tool has to meet.
 #
-# Sourced by bin/tender unconditionally, right after lib/tabs.sh: launch_command()
+# Sourced by bin/atk unconditionally, right after lib/tabs.sh: launch_command()
 # runs on every cmd_start(), the hot path, and lib/manage.sh's restart_window()
 # calls it too — the same reason lib/tabs.sh is loaded eagerly rather than on
 # demand (see its own header) rather than sourced only for the subcommands
 # that need it, the way lib/init.sh and lib/manage.sh are.
 #
-# Needs from bin/tender: die(), TOOL
+# Needs from bin/atk: die(), TOOL
 # Provides to it:     launch_command() (sets LAUNCH_CMD, TOOL_STATUS)
-# Provides to lib/doctor.sh, on demand, for `tender doctor`:
+# Provides to lib/doctor.sh, on demand, for `atk doctor`:
 #                      tools_file_path(), tools_known_names()
 
-# ${XDG_CONFIG_HOME:-$HOME/.config}/treetender/tools, or TENDER_TOOLS_FILE to
+# ${XDG_CONFIG_HOME:-$HOME/.config}/agentaker/tools, or ATK_TOOLS_FILE to
 # override it — tests need the override, so they never read (or race) a real
 # file a developer happens to have at the default path.
 tools_file_path() {
-  printf '%s' "${TENDER_TOOLS_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/treetender/tools}"
+  printf '%s' "${ATK_TOOLS_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/agentaker/tools}"
 }
 
 # True (rc 0) if $1 is blank, or a comment once its leading whitespace is
@@ -79,7 +79,7 @@ tools_file_lookup() {
     tools_split_line "$line"
     local n=${#TOOLS_FIELDS[@]}
     if [ "$n" -lt 3 ]; then
-      printf 'tender: %s:%d: too few fields (need name, command with {context}, status) — skipping\n' \
+      printf 'atk: %s:%d: too few fields (need name, command with {context}, status) — skipping\n' \
         "$file" "$lineno" >&2
       continue
     fi
@@ -110,12 +110,12 @@ tools_file_lookup() {
   return 1
 }
 
-# Every tool name tender currently knows how to start: the built-in two, plus
+# Every tool name atk currently knows how to start: the built-in two, plus
 # every validly-shaped line in the tools file (malformed ones are reported
-# and skipped, same as tools_file_lookup() — used by `tender doctor` with no
+# and skipped, same as tools_file_lookup() — used by `atk doctor` with no
 # argument, which has to enumerate the same set launch_command() would ever
 # actually use). Order: built-ins first, then the file, first-seen kept —
-# not sorted, so `tender doctor`'s own output order stays predictable across
+# not sorted, so `atk doctor`'s own output order stays predictable across
 # runs of the same file rather than shuffling with locale collation.
 tools_known_names() {
   {
@@ -129,7 +129,7 @@ tools_known_names() {
         local -a TOOLS_FIELDS=()
         tools_split_line "$line"
         if [ "${#TOOLS_FIELDS[@]}" -lt 3 ]; then
-          printf 'tender: %s:%d: too few fields (need name, command with {context}, status) — skipping\n' \
+          printf 'atk: %s:%d: too few fields (need name, command with {context}, status) — skipping\n' \
             "$file" "$lineno" >&2
           continue
         fi
@@ -170,7 +170,7 @@ launch_command() {
     codex)
       # UNVERIFIED — codex was not installed when this was written.
       # If this is wrong, fix it here and say so in docs/tools.md.
-      # shellcheck disable=SC2034  # global, read by the caller (bin/tender's
+      # shellcheck disable=SC2034  # global, read by the caller (bin/atk's
       # cmd_start(), lib/doctor.sh's doctor_probe()) after this returns.
       TOOL_STATUS=unverified
       LAUNCH_CMD=(codex --prompt-file "$ctx")

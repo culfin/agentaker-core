@@ -36,7 +36,7 @@ The file format is Claude Code's. Other agents use other formats, and
 `agency-agents` maintains converters for sixteen of them. Porting those is a
 separate piece of work.
 
-**So: the core of treetender is vendor-neutral, these ten files are not.**
+**So: the core of agentaker is vendor-neutral, these ten files are not.**
 If your tool is not Claude Code, everything works except this layer — your
 `AGENTS.md` simply lists no subagents.
 
@@ -65,6 +65,6 @@ follows the same shape:
    today's date, and the "Frozen on purpose" line.
 4. Verify byte-equality: `diff <(tail -n +7 agents/<file>) /tmp/agency/<division>/<file>`
    must print nothing.
-5. Add it to a project's `AGENTS.md` under `## Subagents` — `bin/tender-lint`
+5. Add it to a project's `AGENTS.md` under `## Subagents` — `bin/atk-lint`
    fails any example or project file that names a subagent not present as a
    file here, so the file must exist before you reference it.

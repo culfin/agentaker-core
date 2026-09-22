@@ -2,19 +2,19 @@
 # Tab and window legibility: the role tag, iTerm2 tab colour, and the pane
 # wrapper that pins both before a coding agent's first paint.
 #
-# Split out of bin/tender to keep it under the 450-line ceiling (see
+# Split out of bin/atk to keep it under the 450-line ceiling (see
 # CONTRIBUTING.md) — not for on-demand loading like lib/init.sh and
 # lib/manage.sh. role_tag() and wrap_launch_command() run on every
-# cmd_start()/restart_window() call, in bin/tender and lib/manage.sh alike, so
-# bin/tender sources this unconditionally, right after it resolves TENDER_HOME.
+# cmd_start()/restart_window() call, in bin/atk and lib/manage.sh alike, so
+# bin/atk sources this unconditionally, right after it resolves ATK_HOME.
 #
-# Needs from bin/tender: nothing — every function here is self-contained.
+# Needs from bin/atk: nothing — every function here is self-contained.
 # Provides to it:     role_tag(), wrap_launch_command() (sets LAUNCH_CMD)
 
 # --- legible tabs --------------------------------------------------------
 # A terminal tab shows one line and the user reads it at a glance: project,
 # then who. Everything else is noise — the session name already carries
-# "tender", so repeating it costs characters and says nothing.
+# "atk", so repeating it costs characters and says nothing.
 #
 # developer -> DEV, reviewer -> REV, maintainer -> MNT, none -> ---, anything
 # else -> its first three characters, uppercased. tr, not ${var^^}: bash 3.2
@@ -35,9 +35,9 @@ role_tag() {
 
 # iTerm2's own tab-colour codes are proprietary, and only iTerm2 understands
 # them — a stray escape sequence in a terminal that doesn't is worse than no
-# colour, it prints garbage. Every tender-launched pane runs inside tmux, so
+# colour, it prints garbage. Every atk-launched pane runs inside tmux, so
 # TERM_PROGRAM inside the pane is always "tmux" (tmux sets it itself); that
-# check has to happen here, in tender's own process, before tmux exists in the
+# check has to happen here, in atk's own process, before tmux exists in the
 # picture. iTerm2's tmux integration sets LC_TERMINAL for exactly this reason
 # — it's the one signal that survives being wrapped in tmux.
 iterm2_detected() {
@@ -91,12 +91,12 @@ EOF
 # either could be the culprit on a different tmux config.
 #
 # This has to run from inside the pane itself, window-scoped via its own
-# $TMUX_PANE, as its first act: a `tmux set-window-option` issued from tender's
+# $TMUX_PANE, as its first act: a `tmux set-window-option` issued from atk's
 # own process, after creation, would race the pane's first automatic-rename
 # evaluation. Measured with a stand-in command across 3 seconds of wall time:
 # zero flicker once this runs before anything else does.
 #
-# Colour, right after, if the role has one, TENDER_TAB_COLOUR hasn't disabled
+# Colour, right after, if the role has one, ATK_TAB_COLOUR hasn't disabled
 # it, and this is iTerm2. It has to come from inside the pane to reach the
 # terminal at all, and turning allow-passthrough on from inside — same
 # $TMUX_PANE, window-scoped, never global — avoids the same race: a pane
@@ -109,10 +109,10 @@ wrap_launch_command() {
   local role=$1
   shift
   local colour_seq=""
-  if [ "${TENDER_TAB_COLOUR:-1}" != "0" ] && iterm2_detected; then
+  if [ "${ATK_TAB_COLOUR:-1}" != "0" ] && iterm2_detected; then
     colour_seq=$(tab_colour_sequence "$role") || colour_seq=""
   fi
-  # shellcheck disable=SC2034  # global, read by the caller (bin/tender's
+  # shellcheck disable=SC2034  # global, read by the caller (bin/atk's
   # cmd_start(), lib/manage.sh's restart_window()) after this returns — not
   # unused, just not read from this file, now that this lives apart from them.
   LAUNCH_CMD=(sh -c '
@@ -122,5 +122,5 @@ wrap_launch_command() {
     printf "%s" "$1"
     shift
     exec "$@"
-  ' tender "$colour_seq" "$@")
+  ' atk "$colour_seq" "$@")
 }
