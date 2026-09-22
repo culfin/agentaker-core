@@ -180,18 +180,20 @@ done
 
 echo "AGENTS.md: max-open-prs ships as a commented hint only (issue #1)"
 contains "lib/init.sh carries the hint next to claim-timeout-days" \
-  "# max-open-prs: 3  # cap on open agent PRs — see docs/limits.md" "$INIT"
+  "<!-- max-open-prs: 3  cap on open agent PRs — see docs/limits.md -->" "$INIT"
+check "the hint is not a Markdown heading" "0" "$(grep -c '^#[^!]*max-open-prs' lib/init.sh)"
 check "no uncommented max-open-prs line in the template — default stays no cap" "0" \
   "$(grep -c '^max-open-prs:' lib/init.sh)"
 
 echo "roles: the developer checks max-open-prs before opening a PR"
 contains "reads max-open-prs from AGENTS.md" "grep -m1 '^max-open-prs:' AGENTS.md" "$DEV"
 contains "counts only this repo's developer branches" 'startswith(\"$repo-developer-\")' "$DEV"
-contains "at the cap: keeps the branch pushed" "git push -u origin HEAD   # at the cap" "$DEV"
+contains "at the cap: keeps the branch pushed, as prose after the count" "**At the cap** (\`full=yes\`): do not open the PR. Push the branch" "$DEV"
 contains "at the cap: no new claim" "Claim no new issue until the" "$DEV"
 contains "at the cap: review feedback continues" "Review feedback on the" "$DEV"
 contains "could not ask: proceeds and says so" "going ahead without the max-open-prs check" "$DEV"
-contains "finding work runs the cap check before claiming" "before claiming: at the cap, claim nothing" "$DEV"
+contains "finding work runs only the count before claiming" "the count block only, nothing after it" "$DEV"
+contains "the repo name comes from the branch tender named" 'repo=${branch%-developer*}' "$DEV"
 check "the cap check comes before gh pr create" "yes" \
   "$([ "$(grep -n "grep -m1 '^max-open-prs:'" roles/developer.md | head -1 | cut -d: -f1)" -lt "$(grep -n 'gh pr create --draft' roles/developer.md | head -1 | cut -d: -f1)" ] && echo yes || echo no)"
 contains "limits says the cap binds the project, not the tool" "It binds the project, not the tool" "$LIMITS"

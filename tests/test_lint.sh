@@ -36,6 +36,9 @@ contains "names the bad value" "max-open-prs '0' is not a positive integer" "$ou
 printf 'trunk: main\nreviewer: x\nmax-open-prs: 3  # small\n\n## Test commands\nx\n\n## Production boundary\nnone\n' > "$TMP/examples/a.AGENTS.md"
 out=$("$LINT" "$TMP" 2>&1)
 lacks "max-open-prs: 3 with a comment passes" "max-open-prs" "$out"
+printf 'trunk: main\nreviewer: x\nmax-open-prs: 1234567890\n\n## Test commands\nx\n\n## Production boundary\nnone\n' > "$TMP/examples/a.AGENTS.md"
+out=$("$LINT" "$TMP" 2>&1)
+contains "ten digits fails" "max-open-prs '1234567890' is not a positive integer" "$out"
 
 echo "lint: vendor names in roles are caught"
 printf 'trunk: main\n\n## Production boundary\nnone\n' > "$TMP/examples/a.AGENTS.md"

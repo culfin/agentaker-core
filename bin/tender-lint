@@ -42,7 +42,7 @@ for ex in "$ROOT"/examples/*.AGENTS.md; do
   if [ -n "$cap_line" ]; then
     cap=$(printf '%s' "${cap_line#max-open-prs:}" | sed 's/#.*//; s/^[[:space:]]*//; s/[[:space:]]*$//')
     case $cap in
-      ''|0*|*[!0-9]*) problem "$name: max-open-prs '$cap' is not a positive integer — it would be ignored as no cap" ;;
+      ''|0*|*[!0-9]*|??????????*) problem "$name: max-open-prs '$cap' is not a positive integer — it would be ignored as no cap" ;;
     esac
   fi
 

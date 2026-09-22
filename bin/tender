@@ -362,7 +362,7 @@ cmd_status() {
     --json repository,number,title \
     --jq '.[] | "  \(.repository.name)#\(.number)  \(.title)"'
 
-  throttle_status_section   # per local project — lib/throttle.sh
+  throttle_status_section "$owner"   # per local project — lib/throttle.sh
 
   if [ "$STATUS_FAILED" -ne 0 ]; then
     printf '\nSome questions could not be asked — this board is incomplete.\n' >&2

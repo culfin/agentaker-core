@@ -25,7 +25,9 @@
 # max-open-prs from $1/AGENTS.md, first matching line — the same file and
 # the same "first line wins" reading as claim-timeout-days (lib/claims.sh),
 # but strict: a comment after the value is allowed, anything else in it is
-# not. Prints the raw value; rc 0 valid, 1 absent, 2 present but invalid.
+# not, and neither is a value of ten digits or more — past that, bash
+# arithmetic overflows long before any queue gets there. Prints the raw
+# value; rc 0 valid, 1 absent, 2 present but invalid.
 throttle_cap() {
   local line value
   line=$(grep -m1 '^max-open-prs:' "$1/AGENTS.md" 2>/dev/null) || return 1
@@ -34,36 +36,61 @@ throttle_cap() {
   value=$(printf '%s' "$value" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
   printf '%s' "$value"
   # 0-leading is refused too: bash arithmetic would read 08 as a bad octal.
-  case $value in ''|0*|*[!0-9]*) return 2 ;; esac
+  case $value in ''|0*|*[!0-9]*|??????????*) return 2 ;; esac
   return 0
 }
 
-# Counts repo $2's open agent PRs by asking `gh` from inside its checkout $1.
-# Sets THROTTLE_COUNT and THROTTLE_OLDEST (createdAt of the oldest, ISO-8601
-# UTC). rc 1 means "could not ask" — gh missing, offline, no remote — with the
-# reason in THROTTLE_ERROR; that must never read as zero, the same three-way
+# owner/name of checkout $1's `origin`, if it is a GitHub remote — https
+# (with or without a user), ssh:// or scp-style. rc 1 for no origin, or an
+# origin somewhere else: such a project has no GitHub queue to count.
+throttle_github_slug() {
+  local url slug
+  url=$(git -C "$1" remote get-url origin 2>/dev/null) || return 1
+  url=${url%/}
+  url=${url%.git}
+  slug=$(printf '%s\n' "$url" \
+    | sed -nE 's#^(https?://([^@/]+@)?github\.com/|ssh://git@github\.com/|git@github\.com:)([^/]+/[^/]+)$#\3#p')
+  [ -n "$slug" ] || return 1
+  printf '%s' "$slug"
+}
+
+# Counts repo $2's open agent PRs on GitHub repository $3 (owner/name),
+# asking `gh` from inside its checkout $1. Sets THROTTLE_COUNT,
+# THROTTLE_OLDEST (createdAt of the oldest, ISO-8601 UTC) and
+# THROTTLE_TRUNCATED (1 when gh returned its whole --limit: the listing then
+# holds only the newest 200 open PRs, agent or not, and the count is a lower
+# bound — callers must not treat it as the answer). rc 1 means "could not
+# ask" — gh missing, offline, unauthenticated — with the reason in
+# THROTTLE_ERROR; that must never read as zero, the same three-way
 # discipline as status_query() in bin/tender.
 #
 # The branch filter runs here rather than in --jq so the rule is plain shell:
 # exact name or name plus "-suffix". A prefix match alone would count
 # `acme-developerx`, and a branch of a repo named `acme-web` never matches
-# `acme-developer…` at all.
+# `acme-developer…` at all. stderr goes to its own file: a gh warning mixed
+# into stdout would be counted as a line of the listing.
+THROTTLE_LIMIT=200
 throttle_count() {
-  local repo_dir=$1 repo=$2 out rc branch created
-  THROTTLE_COUNT=0 THROTTLE_OLDEST="" THROTTLE_ERROR=""
+  local repo_dir=$1 repo=$2 slug=$3 out rc branch created raw=0 errfile
+  THROTTLE_COUNT=0 THROTTLE_OLDEST="" THROTTLE_ERROR="" THROTTLE_TRUNCATED=0
   if ! command -v gh >/dev/null 2>&1; then
     THROTTLE_ERROR="gh is not installed"
     return 1
   fi
-  out=$(cd "$repo_dir" && gh pr list --state open --json headRefName,createdAt --limit 200 \
-        --jq '.[] | "\(.headRefName) \(.createdAt)"' 2>&1)
+  errfile=$(mktemp) || { THROTTLE_ERROR="cannot create a temporary file"; return 1; }
+  out=$(cd "$repo_dir" && gh pr list -R "$slug" --state open --json headRefName,createdAt \
+        --limit "$THROTTLE_LIMIT" --jq '.[] | "\(.headRefName) \(.createdAt)"' 2>"$errfile")
   rc=$?
   if [ "$rc" -ne 0 ]; then
-    THROTTLE_ERROR=$(printf '%s' "$out" | head -1)
+    THROTTLE_ERROR=$(head -1 "$errfile")
     THROTTLE_ERROR=${THROTTLE_ERROR:-gh exited $rc}
+    rm -f "$errfile"
     return 1
   fi
+  rm -f "$errfile"
   while read -r branch created; do
+    [ -n "$branch" ] || continue
+    raw=$((raw + 1))
     case $branch in
       "$repo-developer"|"$repo-developer-"?*) ;;
       *) continue ;;
@@ -75,6 +102,7 @@ throttle_count() {
   done <<THROTTLEOUT
 $out
 THROTTLEOUT
+  [ "$raw" -ge "$THROTTLE_LIMIT" ] && THROTTLE_TRUNCATED=1
   return 0
 }
 
@@ -92,29 +120,32 @@ throttle_age() {
 }
 
 # True (rc 0) if a developer session of repo $1 other than the one being
-# started (suffix $2) has a window open right now. Walks the developer
-# worktrees (the names cmd_start() gives them) rather than matching every
-# "DEV…" window: role_tag() abbreviates an unknown role like `devops` to DEV
-# too. `=` makes tmux match the session
-# name exactly — without it, `tender-acme` also finds `tender-acme-web`.
+# started (worktree path $2) has a pane open right now — found by the pane's
+# start path, not its window name. A window name is only role_tag() plus the
+# suffix, and role_tag() abbreviates an unknown role like `devops` to DEV
+# too: `tender acme devops x` runs in a window named DEV·x, exactly like
+# `tender acme developer x` would. The path cannot be confused that way.
+#
+# #{pane_start_path}, not #{pane_current_path}: the start path is the `-c`
+# cmd_start() (and restart's respawn-pane) passes, kept verbatim for the
+# pane's life — measured on tmux 3.6a, it stays the worktree after the
+# process cd's into a subdirectory, and it is not symlink-resolved (the
+# current path came back as /private/var/… for a /var/… worktree on
+# macOS). Both sides are built as "$PROJECTS_DIR/<repo>/.worktrees/<name>",
+# so a plain string comparison is exact. A tmux too old to know the format
+# prints an empty path, which matches nothing: the start proceeds.
+#
+# `=` makes tmux match the session name exactly — without it, `tender-de`
+# also finds `tender-demo`.
 throttle_other_developer_running() {
-  local repo=$1 suffix=$2 windows tag own wt s label
+  local repo=$1 own=$2 paths wt
   command -v tmux >/dev/null 2>&1 || return 1
-  windows=$(tmux list-windows -t "=$(session_name "$repo")" -F '#{window_name}' 2>/dev/null) || return 1
-  tag=$(role_tag developer)
-  own=$tag
-  [ -n "$suffix" ] && own="${tag}·${suffix}"
+  paths=$(tmux list-panes -s -t "=$(session_name "$repo")" -F '#{pane_start_path}' 2>/dev/null) || return 1
   for wt in "$PROJECTS_DIR/$repo/.worktrees/$repo-developer" \
             "$PROJECTS_DIR/$repo/.worktrees/$repo-developer-"*; do
     [ -d "$wt" ] || continue
-    s=${wt##*/}
-    s=${s#"$repo-developer"}
-    s=${s#-}
-    label=$tag
-    # Braced — see the matching comment in bin/tender's cmd_start().
-    [ -n "$s" ] && label="${tag}·${s}"
-    [ "$label" = "$own" ] && continue
-    printf '%s\n' "$windows" | grep -qxF "$label" && return 0
+    [ "$wt" = "$own" ] && continue
+    printf '%s\n' "$paths" | grep -qxF "$wt" && return 0
   done
   return 1
 }
@@ -126,10 +157,17 @@ throttle_other_developer_running() {
 # refusing it would leave a full queue with nobody to empty it. Could not
 # count → start anyway, and say so.
 throttle_start_check() {
-  local repo=$1 suffix=$2 repo_dir="$PROJECTS_DIR/$1" cap
+  local repo=$1 suffix=$2 repo_dir="$PROJECTS_DIR/$1" cap slug
   cap=$(throttle_cap "$repo_dir") || return 0
-  throttle_other_developer_running "$repo" "$suffix" || return 0
-  if ! throttle_count "$repo_dir" "$repo"; then
+  throttle_other_developer_running "$repo" \
+    "$repo_dir/.worktrees/$repo-developer${suffix:+-$suffix}" || return 0
+  if ! slug=$(throttle_github_slug "$repo_dir"); then
+    THROTTLE_ERROR="origin is not a GitHub remote"
+  elif throttle_count "$repo_dir" "$repo" "$slug"; then
+    [ "$THROTTLE_TRUNCATED" -eq 1 ] \
+      && THROTTLE_ERROR="the listing stopped at $THROTTLE_LIMIT open PRs, so the count is incomplete"
+  fi
+  if [ -n "$THROTTLE_ERROR" ]; then
     printf 'tender: could not count open agent PRs (%s) — starting anyway, max-open-prs: %s unchecked\n' \
       "$THROTTLE_ERROR" "$cap" >&2
     return 0
@@ -140,16 +178,24 @@ throttle_start_check() {
   return 1
 }
 
-# One line per set-up project (a git checkout with AGENTS.md) that has agent
-# PRs open, could not be asked, or carries an invalid cap. A could-not-ask
-# sets STATUS_FAILED, like every other section of the board. No set-up
-# project under PROJECTS_DIR means no question was asked, so no section —
-# "(none)" is kept for "asked, and there are none".
+# One line per set-up project (a git checkout with AGENTS.md) of owner $1 —
+# the owner cmd_status() already resolved, from its argument or
+# TENDER_OWNER — that has agent PRs open, could not be asked, or carries an
+# invalid cap. "Of owner $1" is read off `origin`: a project with no GitHub
+# origin has no queue to count and is skipped silently, as is one whose
+# origin belongs to someone else — the rest of the board is scoped to that
+# owner too. A could-not-ask sets STATUS_FAILED, like every other section of
+# the board. No project asked means no section; "(none)" is kept for
+# "asked, and there are none".
 throttle_status_section() {
-  local repo_dir repo cap cap_rc note any=0 asked=0
+  local owner=$1 repo_dir repo slug cap cap_rc note any=0 asked=0
+  owner=$(printf '%s' "$owner" | tr '[:upper:]' '[:lower:]')
   for repo_dir in "$PROJECTS_DIR"/*/; do
     repo_dir=${repo_dir%/}
     [ -e "$repo_dir/.git" ] && [ -f "$repo_dir/AGENTS.md" ] || continue
+    slug=$(throttle_github_slug "$repo_dir") || continue
+    # GitHub owner names are case-insensitive.
+    [ "$(printf '%s' "${slug%%/*}" | tr '[:upper:]' '[:lower:]')" = "$owner" ] || continue
     [ "$asked" -eq 1 ] || printf 'agent PRs open:\n'
     asked=1
     repo=${repo_dir##*/}
@@ -158,10 +204,18 @@ throttle_status_section() {
     note=""
     [ "$cap_rc" -eq 2 ] && note=" (max-open-prs '$cap' in AGENTS.md is not a positive integer — no cap applied)"
 
-    if ! throttle_count "$repo_dir" "$repo"; then
+    if ! throttle_count "$repo_dir" "$repo" "$slug"; then
       printf '  %s: could not ask: %s%s\n' "$repo" "$THROTTLE_ERROR" "$note"
       # shellcheck disable=SC2034  # global, read by bin/tender's cmd_status()
       STATUS_FAILED=1
+      any=1
+      continue
+    fi
+    if [ "$THROTTLE_TRUNCATED" -eq 1 ]; then
+      # A lower bound, said as one: no oldest (the oldest are exactly what
+      # the limit cut off) and no cap verdict built on it.
+      printf '  %s: ≥%s agent PRs open (list truncated at %s)%s\n' \
+        "$repo" "$THROTTLE_COUNT" "$THROTTLE_LIMIT" "$note"
       any=1
       continue
     fi

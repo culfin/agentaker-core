@@ -20,9 +20,9 @@ dependency natively, the same reasoning `docs/flow.md` gives for having no
 
 Take exactly **one**. If none carries `ready` and is unassigned, say so and
 stop — do not invent work, and never label an issue yourself.
-If this project sets `max-open-prs` in `AGENTS.md`, run the cap check from
-"Working", step 2, before claiming: at the cap, claim nothing and work on
-review feedback instead.
+If this project sets `max-open-prs` in `AGENTS.md`, run the count from
+"Working", step 2 — the count block only, nothing after it — before
+claiming: at `full=yes`, claim nothing and work on review feedback instead.
 The human applies `ready`; it is the one signal no agent may give itself.
 
 Claim it before anything else — before the draft PR, before any code. A git
@@ -158,40 +158,55 @@ A PR stays in that state until you re-request review, so this is your inbox.
    This belongs to the same step as opening the PR, not a separate check run
    sometime earlier — the longer the gap between the check and the `gh pr
    create` below, the less it proves.
-2. **If this project caps open agent PRs, check the cap first.** `max-open-prs`
-   in `AGENTS.md` is optional; absent means no cap and this step does nothing.
+2. **If this project caps open agent PRs, count first.** `max-open-prs` in
+   `AGENTS.md` is optional; absent means no cap and this step does nothing.
    An agent PR is an open PR whose branch is `<repo>-developer` or
    `<repo>-developer-<suffix>` — drafts included, because in single-account
-   mode a draft is exactly what is waiting for a human:
+   mode a draft is exactly what is waiting for a human. The count only
+   counts; it sets `full` to `yes`, `no` or `unknown` and changes nothing:
    ```bash
    cap=$(grep -m1 '^max-open-prs:' AGENTS.md \
          | sed 's/^max-open-prs://; s/#.*//; s/^[[:space:]]*//; s/[[:space:]]*$//')
    case $cap in
      '') ;;   # no cap — nothing to check
-     0*|*[!0-9]*) echo "max-open-prs '$cap' is not a positive integer — treated as no cap"; cap= ;;
+     0*|*[!0-9]*|??????????*) echo "max-open-prs '$cap' is not a positive integer — treated as no cap"; cap= ;;
    esac
+   full=no
    if [ -n "$cap" ]; then
-     repo=$(cd "$(git rev-parse --git-common-dir)/.." && basename "$PWD")
-     if open=$(gh pr list --state open --json headRefName --limit 200 \
-          --jq "[.[] | select(.headRefName == \"$repo-developer\" or (.headRefName | startswith(\"$repo-developer-\")))] | length"); then
-       if [ "$open" -ge "$cap" ]; then
-         git push -u origin HEAD   # at the cap: keep the work, open nothing
+     # This worktree's branch is <repo>-developer[-<suffix>], the name tender
+     # gave it — so the repo name is whatever precedes -developer.
+     branch=$(git rev-parse --abbrev-ref HEAD)
+     repo=${branch%-developer*}
+     if counts=$(gh pr list --state open --json headRefName --limit 200 \
+          --jq "\"\(length) \([.[] | select(.headRefName == \"$repo-developer\" or (.headRefName | startswith(\"$repo-developer-\")))] | length)\""); then
+       listed=${counts% *}
+       open=${counts#* }
+       if [ "$listed" -ge 200 ]; then
+         full=unknown
+         echo "the PR listing stopped at 200, so the count is incomplete — going ahead without the max-open-prs check"
+       elif [ "$open" -ge "$cap" ]; then
+         full=yes
        fi
      else
+       full=unknown
        echo "could not count open agent PRs — going ahead without the max-open-prs check"
      fi
    fi
    ```
-   **At the cap:** do not open the PR. The branch stays pushed, so nothing is
-   lost; say plainly in the session that the project is at its cap
+   **At the cap** (`full=yes`): do not open the PR. Push the branch so
+   nothing is lost —
+   ```bash
+   git push -u origin HEAD
+   ```
+   — and say plainly in the session that the project is at its cap
    (`$open` of `$cap`) and that the PR waits. Claim no new issue until the
-   count drops — run this check again before claiming. Review feedback on the
-   PRs already open is still yours to work on: emptying that queue is what
-   the cap is for. When the count drops, start again from step 1 — the claim
-   may have aged out meanwhile.
-   **Could not ask** (offline, no remote, `gh` missing) is not zero and not
-   the cap: go ahead and say so — a failed count must never stall work
-   silently. `docs/limits.md` has what the cap does and does not do.
+   count drops. Review feedback on the PRs already open is still yours to
+   work on: emptying that queue is what the cap is for. When the count
+   drops, start again from step 1 — the claim may have aged out meanwhile.
+   **Could not ask** (`full=unknown`: offline, no remote, `gh` missing, or a
+   listing cut off at its limit) is not zero and not the cap: go ahead and
+   say so — a failed count must never stall work silently. `docs/limits.md`
+   has what the cap does and does not do.
 3. Open the PR **immediately, as a draft**, so the work is visible:
    ```bash
    gh pr create --draft --title "…" --body "Closes #<N>

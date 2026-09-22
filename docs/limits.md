@@ -43,9 +43,10 @@ See the next section.
 
 Renovate solved the equivalent problem in 2019 with `prConcurrentLimit`:
 unbounded automation does not overwhelm the machine, it overwhelms the human
-who has to read the results. `tender status` measures it: for every project
-under `TENDER_PROJECTS_DIR` that has an `AGENTS.md`, one line when agent PRs
-are open —
+who has to read the results. `tender status <owner>` measures it: for every
+project under `TENDER_PROJECTS_DIR` that has an `AGENTS.md` and whose
+`origin` is a GitHub repository of that owner, one line when agent PRs are
+open —
 
     agent PRs open:
       acme: 3 agent PRs open, oldest waiting 2d (cap 3 — full)
@@ -54,9 +55,11 @@ An **agent PR** is an open pull request whose branch is `<repo>-developer` or
 `<repo>-developer-<suffix>` — the branches `tender <repo> developer [suffix]`
 creates. Drafts count: in single-account mode a draft is exactly what is
 waiting for you. It is one `gh pr list` call per project, run on demand like
-the rest of the board (see "No polling"); when it cannot be asked — `gh`
-missing, offline, no remote — the line says `could not ask`, the board exits
-1, and it never reads as zero.
+the rest of the board (see "No polling"). A project without a GitHub
+`origin` has no queue to count and is left out without comment; one whose
+`origin` is on GitHub but cannot be asked — `gh` missing, offline,
+unauthenticated — gets `could not ask`, the board exits 1, and it never
+reads as zero.
 
 A project that wants a ceiling sets one in its `AGENTS.md`:
 
@@ -68,7 +71,8 @@ keeps its branch pushed, says so, claims no new issue, and works on review
 feedback instead. And `tender <repo> developer [suffix]` refuses to start
 another developer session — exit 1, naming the cap and the count — when the
 count is at or above the cap *and* another developer session of that repo
-already has a running window.
+already has a running pane — found by the pane's start path (the worktree
+it was started in), not the window name, which a `devops` session shares.
 
 **What it does not do.**
 
@@ -93,8 +97,18 @@ already has a running window.
 - **A waiting branch still holds its claim, and the claim still ages.** Past
   `claim-timeout-days` another session may take the issue over; step 1 of
   "Working" is what notices, when the count drops and the session comes back.
-- **It counts up to 200.** That is the `--limit` of the one call; a project
-  with more open agent PRs than that has a different problem.
+- **It counts per local checkout.** The count is asked of `origin`, but the
+  cap, the running sessions and the refusal belong to one checkout under
+  `TENDER_PROJECTS_DIR`. Two clones of the same remote — on two machines, or
+  side by side — share one queue on GitHub and still check it separately,
+  each against its own `AGENTS.md` and its own tmux session.
+- **It reads at most 200 open PRs.** That is the `--limit` of the one call,
+  and it applies to *all* open PRs of the repository, not just agent PRs: a
+  repository with 200 or more open PRs of any kind returns only part of them.
+  The count is then a lower bound and is said as one —
+  `≥N agent PRs open (list truncated at 200)` in `tender status` — and the
+  start refusal and the developer's check treat it like could not ask: go
+  ahead, with a warning, rather than decide on an incomplete number.
 
 ## Disk: a Rust/Tauri worktree is large, and it's `target/`
 
