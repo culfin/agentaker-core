@@ -216,6 +216,47 @@ A developer who abandons an issue releases it; a reviewer releases a PR the
 moment its review is submitted, since — unlike an issue closing a PR —
 nothing here does that step automatically.
 
+## Across machines
+
+Nothing above assumes one computer. A claim is a push to
+`refs/claims/issue-<N>` on the forge, and the forge serializes pushes to a new
+ref no matter where they come from: a developer on a laptop and one on a
+server compete for an issue exactly as two sessions on one machine do, and
+exactly one wins. Issues, PRs, labels and reviews live on the forge too. So
+running agents on several machines needs no central process, no SSH
+orchestration and no shared state beyond the repository — clone it on each
+machine, install `tender` there, and start sessions as usual.
+
+**What each machine needs of its own:** its own clone under
+`TENDER_PROJECTS_DIR`, its own tmux server, its own keychain entries (the
+reviewer token, named credentials — `docs/setup.md`, sections 7 and 8), and its
+coding agent's trust in that clone (`docs/limits.md`, "A coding agent may ask
+whether to trust a folder").
+
+**Give each machine's sessions a suffix.** A worktree's branch is named after
+it — `<repo>-<role>[-<suffix>]`, the same name on every machine. Two machines
+that both run `tender acme developer` push to one remote branch,
+`acme-developer`: the second push is refused as not a fast-forward, and a
+`git pull` to get past it mixes two sessions' work in one branch and one PR. `tender acme developer laptop` on one and `tender acme
+developer server` on the other keep them apart. The same holds for a reviewer
+on two machines. The maintainer needs none: there is one per repository, on
+whichever machine it runs (see the top of `docs/limits.md`).
+
+**What sees every machine, and what only this one:**
+
+| Command | Sees |
+|---|---|
+| `tender status` — issues, reviews, approvals, decisions | every machine: it asks the forge |
+| `tender status` — "agent PRs open" | this checkout's count (`docs/limits.md`, `max-open-prs`) |
+| `tender claims <repo>` | every machine: it reads the claim refs on the forge |
+| `tender list`, `attach`, `restart`, `drop` | this machine only: its worktrees and its tmux server |
+| the `max-open-prs` start refusal ("another developer session running") | this machine only |
+
+There is no overview of the sessions running on *other* machines — which
+windows are open where, which agent is waiting on you there. That is the one
+real gap, and closing it (for example `tender status --remote <ssh-alias>`) is
+its own piece of work, not something the coordination needs.
+
 ## Orphaned claims: age-based release
 
 A held claim used to have no way back short of a human running the release

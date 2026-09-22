@@ -34,6 +34,13 @@ the same issue, because a worktree separates roles from each other, not a
 role from itself. That collision is a work-assignment problem, not a
 filesystem one; see `docs/flow.md` for what closes it.
 
+The same mechanism is why agents on **several machines** need nothing extra:
+the claim that decides who works on an issue is a ref on the forge, not a lock
+on one computer, so a laptop and a server compete for an issue exactly as two
+local sessions do. There is no coordinator to run or reach over SSH. What it
+takes — a clone per machine, and a suffix per machine's sessions so their
+branches don't share a name — is in `docs/flow.md`, "Across machines".
+
 ## The three layers
 
 ```

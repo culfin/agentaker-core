@@ -246,4 +246,16 @@ lacks "the release step no longer says claims never time out" "there is no timeo
 contains "... nor that the threshold cleans up an assigned issue" "even reaches the age-based takeover" "$DEV"
 lacks "the reviewer no longer says a PR claim is locked for good" "stays locked for good" "$REV"
 
+echo "docs: agents on several machines (issue #7)"
+contains "flow has the section" "## Across machines" "$FLOW"
+contains "the forge serializes claims from any machine" "no matter where they come from" "$FLOW"
+contains "no central process or SSH orchestration is needed" "no central process, no SSH" "$FLOW"
+contains "the branch-name trap is named, with the suffix remedy" "tender acme developer laptop" "$FLOW"
+contains "the maintainer stays one per repository" "one per repository, on
+whichever machine it runs" "$FLOW"
+contains "the local-only commands are named" "this machine only: its worktrees and its tmux server" "$FLOW"
+contains "the real gap is named honestly" "That is the one
+real gap" "$FLOW"
+contains "concept points at it" 'docs/flow.md`, "Across machines"' "$CONCEPT"
+
 summary

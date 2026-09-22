@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+Agents on several machines are documented (issue #7): they already coordinate
+through the claim refs on the forge, with no central process. `docs/flow.md`,
+"Across machines", names what each machine needs, which commands see every
+machine and which only this one, and the one trap — give each machine's
+sessions a suffix, or two `tender acme developer` push to the same branch.
+
 Issues can ask for a report instead of a change (issue #6). A human labels them
 `scout` next to `ready`; the developer claims them as usual and answers with a
 comment on the issue when the answer serves only that issue, or with a PR
