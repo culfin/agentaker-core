@@ -15,10 +15,12 @@ echo "tender status: sections"
 STUB=$(mktemp -d); trap 'rm -rf "$SANDBOX" "$STUB"' EXIT
 cat > "$STUB/gh" <<'STUBEOF'
 #!/usr/bin/env bash
-# Records its arguments and prints one fake row, so the test can assert
-# both the output shape and the search terms used.
+# Records its arguments and prints one fake row — in the record shape the
+# --jq program of lib/status.sh prints (\035 size, \036 record, \037
+# field), since gh would run it — so the test can assert both the output
+# shape and the search terms used.
 printf '%s\n' "$*" >> "$GH_CALLS"
-echo "  demo#1  a fake row"
+printf '\0351\n\036demo\0371\037a fake row\037\037\037\n'
 STUBEOF
 chmod +x "$STUB/gh"
 export GH_CALLS="$STUB/calls"
@@ -62,7 +64,7 @@ cat > "$STUB/gh" <<'STUBEOF'
 printf '%s\n' "$*" >> "$GH_CALLS"
 case "$*" in
   *"--label ready"*) ;;  # no rows — an empty "ready to pick up" section
-  *) echo "  demo#1  a fake row" ;;
+  *) printf '\0351\n\036demo\0371\037a fake row\037\037\037\n' ;;
 esac
 STUBEOF
 chmod +x "$STUB/gh"

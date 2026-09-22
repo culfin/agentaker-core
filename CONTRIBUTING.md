@@ -5,7 +5,7 @@
 ```bash
 bash tests/run.sh      # every tests/test_*.sh file, no framework — prints "passed: N failed: N" per file
 bin/tender-lint .          # checks the repository stays internally consistent
-shellcheck -S warning bin/tender lib/init.sh lib/init_flags.sh lib/init_propose.sh lib/json.sh lib/manage.sh lib/tabs.sh lib/state.sh lib/tools.sh lib/doctor.sh lib/claims.sh lib/credential.sh lib/throttle.sh lib/status_json.sh bin/tender-lint hooks/load_role.sh
+shellcheck -S warning bin/tender lib/init.sh lib/init_flags.sh lib/init_propose.sh lib/json.sh lib/manage.sh lib/tabs.sh lib/state.sh lib/tools.sh lib/doctor.sh lib/claims.sh lib/credential.sh lib/throttle.sh lib/status.sh lib/status_json.sh bin/tender-lint hooks/load_role.sh
 ```
 
 (The assertion count isn't stated here on purpose — it only ever goes stale by
@@ -95,10 +95,12 @@ why sourced-versus-executed is a single dual-purpose file here rather than
 two; `lib/doctor.sh` holds `tender doctor`,
 sourced on demand like `lib/init.sh`; `lib/throttle.sh` holds the agent PR
 count and the `max-open-prs` cap (issue #1), sourced unconditionally because
-both `status` and every developer start ask it; `lib/status_json.sh` holds
-`tender status --json` (app issue #10), sourced on demand for `status` only —
-it asks the text board's own questions (`status_q_*()` in `bin/tender`), so
-the two boards cannot drift apart. `bin/tender-lint` checks all of them —
+both `status` and every developer start ask it; `lib/status.sh` holds
+`tender status` itself — the board's questions, the engine that asks gh and
+reads its answer, and the text board — and `lib/status_json.sh` holds
+`tender status --json` (app issue #10); both are sourced on demand for
+`status` only, and the JSON board goes through the same questions and engine,
+so the two boards cannot drift apart. `bin/tender-lint` checks all of them —
 see the loop near the end of `bin/tender-lint` for the current list, which is
 also what to extend when a new file joins them. The ceiling guards
 readability, not a budget: when a file approaches it, ask which block has

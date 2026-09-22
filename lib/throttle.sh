@@ -18,7 +18,7 @@
 # developer start, `cmd_status()` on every board. Both ask `gh` only when the
 # answer can change something.
 #
-# Needs from bin/tender: PROJECTS_DIR, STATUS_FAILED, role_tag() (lib/tabs.sh),
+# Needs from bin/tender: PROJECTS_DIR, STATUS_FAILED (lib/status.sh), role_tag() (lib/tabs.sh),
 #   session_name()
 # Provides to it:     throttle_start_check(), throttle_status_section()
 
@@ -62,7 +62,7 @@ throttle_github_slug() {
 # bound — callers must not treat it as the answer). rc 1 means "could not
 # ask" — gh missing, offline, unauthenticated — with the reason in
 # THROTTLE_ERROR; that must never read as zero, the same three-way
-# discipline as status_query() in bin/tender.
+# discipline as status_section() in lib/status.sh.
 #
 # The branch filter runs here rather than in --jq so the rule is plain shell:
 # exact name or name plus "-suffix". A prefix match alone would count
@@ -217,7 +217,7 @@ throttle_status_section() {
 
     if ! throttle_count "$repo_dir" "$repo" "$slug"; then
       printf '  %s: could not ask: %s%s\n' "$repo" "$THROTTLE_ERROR" "$note"
-      # shellcheck disable=SC2034  # global, read by bin/tender's cmd_status()
+      # shellcheck disable=SC2034  # global, read by cmd_status() (lib/status.sh)
       STATUS_FAILED=1
       any=1
       continue

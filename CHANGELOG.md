@@ -5,17 +5,26 @@
 `tender status <owner> --json [--since <time>]` prints the board as one JSON
 object (app issue #10, "what happened since you were away"): `waiting_on_you`,
 `approved`, `waiting_for_review`, `ready`, and with `--since` also `merged`.
-Each section is `{"ok": true, "items": [...]}` or `{"ok": false, "error": …}`
+Each section is `{"ok": true, "truncated": …, "items": [...]}` or `{"ok": false, "error": …}`
 — "could not ask" is never an empty list — and the exit status is 1 if any
 section could not be asked. `--since` takes ISO-8601 UTC only and hands gh its
 own date filters (`--updated`, `--merged-at`); "updated since" approximates
 "changed since", and `tender status --help` says so. The JSON board asks the
-text board's own searches, now defined once in `bin/tender`; it adds PRs on
-hold to `waiting_on_you` and the single-account `approved` label to
-`approved`, which the text board does not show. Without `--json`, the text
-board is byte-identical to before, argument for argument (`tests/
-test_status_json.sh` holds the captured output); `--since` without `--json`
-and an unknown option are refused with exit status 2.
+text board's own searches, through the same engine. `--since` also takes fractional seconds and `+00:00`, and hands gh
+(and echoes) the plain `YYYY-MM-DDTHH:MM:SSZ`; `--since` without `--json` and
+an unknown option are refused with exit status 2.
+
+The text board changes with it, so the two boards say the same thing:
+"waiting on you" also lists PRs with `needs-decision`; "approved, waiting for
+merge" also lists PRs cleared by the `approved` label (single-account mode),
+each PR once; and "waiting for review" no longer lists a label-cleared PR,
+which the `--review none` approximation used to count as unreviewed. Every
+search asks for up to 100 results instead of gh's default 30, and a section
+that came back with exactly 100 says `(showing the first 100 — there may be
+more)` (JSON: `"truncated": true`). A gh answer that is not in the expected
+shape is now "could not ask: unexpected gh output: …", never a row. The
+board's questions and the engine that asks them moved from `bin/tender` to
+`lib/status.sh`.
 
 Agents on several machines are documented (issue #7): they already coordinate
 through the claim refs on the forge, with no central process. `docs/flow.md`,

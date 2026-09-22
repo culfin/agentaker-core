@@ -30,8 +30,6 @@ DRY_RUN="${TENDER_DRY_RUN:-}"
 REVIEWER="${TENDER_REVIEWER:-}"
 CREDENTIAL="${TENDER_CREDENTIAL:-}"
 LAUNCH_CMD=()
-STATUS_FAILED=0
-STATUS_HAD_ROWS=0
 
 die() { printf 'tender: %s\n' "$1" >&2; exit "${2:-1}"; }
 
@@ -272,95 +270,6 @@ cmd_start() {
   fi
 }
 
-# Ask gh one question and render the answer. Distinguishes three outcomes that
-# must never look alike: rows, no rows, and "I could not ask".
-# Sets STATUS_FAILED=1 on the third, so cmd_status() can exit non-zero.
-# Sets STATUS_HAD_ROWS=1 on the first, so a caller can add a section-specific
-# note without printing it over "(none)" or a failed query.
-status_query() {
-  local heading=$1
-  shift
-  local out rc
-  out=$(gh "$@" 2>&1)
-  rc=$?
-  STATUS_HAD_ROWS=0
-  printf '%s:\n' "$heading"
-  if [ "$rc" -ne 0 ]; then
-    printf '  could not ask: %s\n' "$(printf '%s' "$out" | head -1)"
-    STATUS_FAILED=1
-    return 0
-  fi
-  if [ -z "$out" ]; then
-    printf '  (none)\n'
-  else
-    printf '%s\n' "$out"
-    STATUS_HAD_ROWS=1
-  fi
-}
-
-# The board's questions, each defined once: the qualifiers gh searches with,
-# and the filters applied to what comes back. cmd_status() renders them as
-# text, lib/status_json.sh as JSON; a JSON board that asked differently would
-# be a second truth. Each status_q_*() sets STATUS_Q for owner $1.
-#
-# `gh search issues` — unlike `gh issue list` — has no --json blockedBy /
-# dependency filter, and this asks across every repository in one call, so it
-# cannot loop per-repo to get one either (see roles/developer.md for why the
-# developer itself can and does filter). The text board says so rather than
-# silently listing issues the developer would skip. An issue on hold
-# (needs-decision) is left out, as the developer's own search does — it is
-# listed under "waiting on you" instead.
-STATUS_NOT_HELD='select(any(.labels[]; .name == "needs-decision") | not)'
-STATUS_NOT_BOT='select(.author.login | test("dependabot") | not)'
-STATUS_TEXT_ROW='"  \(.repository.name)#\(.number)  \(.title)"'
-STATUS_Q=()
-status_q_ready()     { STATUS_Q=(search issues --owner "$1" --state open --label ready); }
-status_q_approved()  { STATUS_Q=(search prs --owner "$1" --state open --review approved); }
-status_q_decisions() { STATUS_Q=(search issues --owner "$1" --state open --label needs-decision); }
-status_q_review() {
-  if [ -n "$REVIEWER" ]; then
-    STATUS_Q=(search prs --owner "$1" --state open --draft=false --review-requested "$REVIEWER")
-  else
-    STATUS_Q=(search prs --owner "$1" --state open --draft=false --review none)
-  fi
-}
-
-cmd_status() {
-  local owner=${1:-${TENDER_OWNER:-}}
-  [ -n "$owner" ] || die "give an owner: tender status <owner>  (or set TENDER_OWNER)"
-
-  STATUS_FAILED=0
-
-  status_q_ready "$owner"
-  status_query "ready to pick up" "${STATUS_Q[@]}" --json repository,number,title,labels \
-    --jq ".[] | $STATUS_NOT_HELD | $STATUS_TEXT_ROW"
-  if [ "$STATUS_HAD_ROWS" -eq 1 ]; then
-    printf '  (blocked issues are counted here — the developer skips them)\n'
-  fi
-
-  status_q_review "$owner"
-  status_query "waiting for review" "${STATUS_Q[@]}" --json repository,number,title,author \
-    --jq ".[] | $STATUS_NOT_BOT | $STATUS_TEXT_ROW"
-  [ -n "$REVIEWER" ] \
-    || printf '  (approximate — set TENDER_REVIEWER to your reviewer login for the exact queue)\n'
-
-  status_q_approved "$owner"
-  status_query "approved, waiting for merge" "${STATUS_Q[@]}" --json repository,number,title \
-    --jq ".[] | $STATUS_TEXT_ROW"
-
-  status_q_decisions "$owner"
-  status_query "waiting on you" "${STATUS_Q[@]}" --json repository,number,title \
-    --jq ".[] | $STATUS_TEXT_ROW"
-
-  throttle_status_section "$owner"   # per local project — lib/throttle.sh
-
-  if [ "$STATUS_FAILED" -ne 0 ]; then
-    printf '\nSome questions could not be asked — this board is incomplete.\n' >&2
-    return 1
-  fi
-  return 0
-}
-
 cmd_attach() {
   local repo=${1:-}
   [ -n "$repo" ] || { usage; exit 2; }
@@ -391,6 +300,8 @@ case "${1:-}" in
     shift
     # shellcheck source=lib/json.sh
     . "$TENDER_HOME/lib/json.sh" || die "cannot load $TENDER_HOME/lib/json.sh"
+    # shellcheck source=lib/status.sh
+    . "$TENDER_HOME/lib/status.sh" || die "cannot load $TENDER_HOME/lib/status.sh"
     # shellcheck source=lib/status_json.sh
     . "$TENDER_HOME/lib/status_json.sh" || die "cannot load $TENDER_HOME/lib/status_json.sh"
     status_dispatch "$@"

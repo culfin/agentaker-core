@@ -12,7 +12,7 @@
 # Needs from bin/tender: nothing — every function here is self-contained.
 # Provides to it:     collect_state()
 #
-# Three-way discipline per line, the same one status_query() in bin/tender uses:
+# Three-way discipline per line, the same one status_section() in lib/status.sh uses:
 # a real answer, an explicit "none" when the source genuinely has nothing to
 # say, or "could not ask" when the source itself could not be reached (no
 # network, gh not logged in, no such PR). Never a blank line, never a guess —

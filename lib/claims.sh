@@ -79,8 +79,8 @@ claims_is_orphaned() {
 # remote: name, when it was claimed, how long ago, and whether it's past the
 # project's threshold. Never fails the whole listing over one bad ref (a
 # fetch or cat-file that can't be reached becomes "could not ask" on that
-# row, not a missing row) — the same three-way discipline status_query() in
-# bin/tender and collect_state() in lib/state.sh already use: a real answer, an
+# row, not a missing row) — the same three-way discipline status_section() in
+# lib/status.sh and collect_state() in lib/state.sh already use: a real answer, an
 # explicit "none", or "could not ask", never a blank line and never a guess.
 cmd_claims() {
   local repo="" json=0 arg

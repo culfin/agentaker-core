@@ -280,10 +280,11 @@ irreversible action an agent can take. That is why it is the only one with a loc
 ## No polling
 
 Nothing runs while you're not looking. `tender status` answers "where is work
-waiting" on demand — it costs four `gh search` calls per owner (ready issues,
-the review queue, approved PRs, decisions waiting on you — `cmd_status()` in
-`bin/tender`) plus one `gh pr list` per set-up local project (the agent PR
-count, `lib/throttle.sh`), not a background loop — but it doesn't notify you on its own, and no session
+waiting" on demand — it costs five `gh search` calls per owner (ready issues,
+the review queue, approved PRs twice — natively and by the single-account
+`approved` label —, and decisions waiting on you, issues and PRs;
+`cmd_status()` in `lib/status.sh`) plus one `gh pr list` per set-up local
+project (the agent PR count, `lib/throttle.sh`), not a background loop — but it doesn't notify you on its own, and no session
 advances work it wasn't asked to advance. If you want to know whether
 something moved, you ask; the tool never wakes anyone up by itself. This is a
 deliberate omission (see `docs/concept.md`), not a missing feature — it keeps
@@ -293,22 +294,30 @@ no one is working.
 A program that shows the board — the desktop app's "since you were away" —
 asks the same way, on demand: `tender status <owner> --json [--since <time>]`
 prints the board as one JSON object (`tender status --help` has the keys),
-built from the very same searches (`status_q_*()` in `bin/tender`; the JSON
-side is `lib/status_json.sh`), plus the `approved` label of single-account
-mode and, with `--since`, what was merged. It is the one place a GUI gets this
+built from the very same searches through the very same engine
+(`lib/status.sh`; the JSON side is `lib/status_json.sh`), plus, with
+`--since`, what was merged. It is the one place a GUI gets this
 from; it does not build its own `gh` searches. Two things it does not claim:
 
 - `--since` keeps what was **updated** at or after the time (`gh search
   --updated ">=T"`). That approximates "changed since": a label added, a
   comment, a push all count as an update — and the item shows up with no word
   of which of them happened. It is not an event log.
-- Each search returns at most gh's default 30 results, as on the text board.
-  A section with more is cut there, silently — `--since` keeps the lists short
-  enough that this rarely matters, but it is a cut, not a count.
+- Each search asks for at most 100 results, on both boards. A section whose
+  search came back with exactly 100 may have been cut there, and says so:
+  `"truncated": true` in JSON, `(showing the first 100 — there may be more)`
+  on the text board. It says "may": the board cannot tell 100 from more.
 
 A section that could not be asked is `{"ok": false, "error": "…"}`, never an
 empty list, and the exit status is 1 — the same three-way discipline as the
 text board. The "agent PRs open" section is not part of the JSON board (yet).
+
+Two rules both boards share, since a PR can carry more than one signal: a PR
+cleared by the `approved` label is waiting for merge, not for review — it is
+left out of the review queue, whichever form that queue takes. A PR with
+`needs-decision` stays in the review queue *and* is listed as waiting on
+you: a question on a PR does not block its review (`roles/_base.md`,
+"Escalation").
 
 ## Tab colour is iTerm2-only, and silently absent elsewhere
 
