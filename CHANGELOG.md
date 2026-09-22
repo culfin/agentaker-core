@@ -9,8 +9,16 @@ only checks that the keychain entry exists, and `lib/credential.sh
 --reviewer-token`, inside the new window, reads it and exports `GH_TOKEN`.
 Still soft: a missing token warns and starts anyway, now also on `tender
 restart` and inside the window. With `TENDER_CREDENTIAL` also set, a named
-credential whose account is `GH_TOKEN` wins. See `docs/setup.md`, sections 7
-and 8.
+credential whose account is `GH_TOKEN` wins. When the entry exists but the
+window cannot read it, the reviewer now starts with `GH_TOKEN` and
+`GITHUB_TOKEN` cleared rather than with whatever the tmux server inherited.
+See `docs/setup.md`, sections 7 and 8.
+
+The old `-e` also set `GH_TOKEN` in the tmux *session's* environment, so every
+later window in a session a reviewer created — a developer's included —
+inherited the reviewer's token. Sessions started by an older `tender` still
+carry it: kill them once, or run `tmux set-environment -t tender-<repo> -u
+GH_TOKEN`.
 
 The tool table is now a config file (issue #2): a line in
 `~/.config/treetender/tools` (or `$TENDER_TOOLS_FILE`) adds or overrides a coding

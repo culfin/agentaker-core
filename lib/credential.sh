@@ -257,6 +257,7 @@ credential_recorded() {
 # without a token still works in single-account mode (docs/setup.md, section
 # 7), so a missing token warns and starts anyway, both here and in the pane.
 REVIEWER_TOKEN_WARNING='tender: no reviewer token found — approvals will fail. See docs/setup.md'
+REVIEWER_TOKEN_PANE_WARNING='tender: the reviewer token could not be read here — starting without GH_TOKEN or GITHUB_TOKEN; approvals will fail. See docs/setup.md'
 
 # Whether an entry exists -- never its value. macOS: without -w, `security`
 # prints attributes only. Linux: `secret-tool lookup` can only print the
@@ -288,9 +289,13 @@ reviewer_token_wrap() {
 }
 
 # Direct mode only, inside the pane: the two lookups tender itself used to
-# make, now in the pane's own process. Exports GH_TOKEN when non-empty; says
-# the warning into the pane otherwise and returns 0 either way -- the caller
-# execs the agent regardless.
+# make, now in the pane's own process. Exports GH_TOKEN when non-empty.
+# Otherwise it clears GH_TOKEN and GITHUB_TOKEN and says so into the pane:
+# this path only runs when a treetender-reviewer entry exists (two-account
+# mode), where a token inherited from the tmux server would most likely be
+# the *developer's* -- the reviewer acting under it is the one outcome this
+# mode exists to rule out. Returns 0 either way: the caller execs the agent
+# regardless, as soft as issue #10 asks.
 reviewer_token_export() {
   local value=""
   if command -v security >/dev/null 2>&1; then
@@ -302,7 +307,8 @@ reviewer_token_export() {
   if [ -n "$value" ]; then
     export GH_TOKEN="$value"
   else
-    printf '%s\n' "$REVIEWER_TOKEN_WARNING" >&2
+    unset GH_TOKEN GITHUB_TOKEN
+    printf '%s\n' "$REVIEWER_TOKEN_PANE_WARNING" >&2
   fi
   value=""
 }

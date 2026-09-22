@@ -352,9 +352,15 @@ rm -rf "$NOGH"
 
 echo "throttle: other roles are never throttled"
 : > "$GH_CALLS"
-out=$("$TENDER" demo reviewer 2>&1)
+# A reviewer start asks the keychain whether a token exists: a stub one with
+# none, never the real one (tests/lib.sh shadows it as well).
+NOKEY=$(mktemp -d)
+printf '#!/bin/sh\nexit 44\n' > "$NOKEY/security"; printf '#!/bin/sh\nexit 1\n' > "$NOKEY/secret-tool"
+chmod +x "$NOKEY/security" "$NOKEY/secret-tool"
+out=$(PATH="$NOKEY:$PATH" "$TENDER" demo reviewer 2>&1)
 check "a reviewer starts at the cap" "0" "$?"
 check "and gh is not asked for it" "" "$(grep 'pr list' "$GH_CALLS")"
+rm -rf "$NOKEY"
 stop_panes demo
 
 echo "throttle: the developer role's count block, executed"

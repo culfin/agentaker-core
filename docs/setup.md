@@ -202,7 +202,7 @@ blocked even on a shared one.
    mode otherwise — leave it blank, or matching your own login, to stay on
    single-account mode.
 
-`tender <repo> reviewer` sets `GH_TOKEN` for that session only, and the token
+`tender <repo> reviewer` sets `GH_TOKEN` for that window only, and the token
 never appears in any process's argv — not `tender`'s, not `tmux`'s, not the
 agent's. `tender` itself only asks whether the entry exists (`security` without
 `-w`, which prints attributes, never the password; on Linux `secret-tool
@@ -216,10 +216,16 @@ the first approval, not at session start:
 
     tender: no reviewer token found — approvals will fail. See docs/setup.md
 
-The same line appears inside the window if the entry existed when `tender`
-checked but could not be read from there (the window's lookup runs in the tmux
-server's environment, which can differ from yours); the agent starts anyway,
-without `GH_TOKEN`.
+If the entry existed when `tender` checked but cannot be read from inside the
+window (that lookup runs in the tmux server's environment, which can differ
+from yours), the window says so and the agent starts anyway — with `GH_TOKEN`
+and `GITHUB_TOKEN` cleared, so it cannot pick up a token the tmux server
+inherited from you (most likely the developer's):
+
+    tender: the reviewer token could not be read here — starting without GH_TOKEN or GITHUB_TOKEN; approvals will fail. See docs/setup.md
+
+`gh`'s own stored login (`gh auth login`) may still apply then — clearing the
+variables does not log `gh` out.
 
 ## 8. Named credentials for an agent
 
@@ -272,10 +278,6 @@ read it — answer "Always Allow", or the start waits on that dialog.
 Unlike the reviewer token, a missing or unreadable credential is not a soft
 warning: `tender` refuses to start the session at all.
 
-Both at once — `TENDER_CREDENTIAL=work tender myproject reviewer` — works: the
-reviewer token is exported first and the named credential inside it, so if the
-named entry's account is itself `GH_TOKEN`, the named credential wins.
-
     tender: no readable credential named 'work' in the keychain — refusing to start without it. See docs/setup.md
 
 An agent that started anyway, without its key, might quietly authenticate
@@ -283,6 +285,10 @@ under some other, already-logged-in account instead — silently, and against
 whoever's login happened to be lying around. A failed start is cheaper than
 that. `TENDER_CREDENTIAL` unset behaves exactly as it did before this mechanism
 existed — nothing changes for a session that doesn't ask for a credential.
+
+Both at once — `TENDER_CREDENTIAL=work tender myproject reviewer` — works: the
+reviewer token is exported first and the named credential inside it, so if the
+named entry's account is itself `GH_TOKEN`, the named credential wins.
 
 `tender restart` keeps the credential. A start records the label — never
 the value — once tmux has actually opened the window (a dry run records

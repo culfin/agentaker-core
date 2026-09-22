@@ -53,6 +53,7 @@ SAFE_PATH="$STUB:$PATH"
 export SECURITY_LOG="$STUB/security.log"
 TOKEN='ghp_TESTREVIEWER-should-never-appear-in-argv-7c21'
 WARNING='no reviewer token found — approvals will fail. See docs/setup.md'
+PANE_WARNING='could not be read here — starting without GH_TOKEN or GITHUB_TOKEN'
 
 echo "reviewer token: a dry run wraps the reviewer, with no value anywhere"
 : > "$SECURITY_LOG"
@@ -99,8 +100,13 @@ echo "reviewer token: lib/credential.sh --reviewer-token executed directly"
   out=$(PATH="$SAFE_PATH" bash "$PWD/lib/credential.sh" --reviewer-token \
     bash -c 'printf "%s" "${GH_TOKEN:-<unset>}" > "$1"' -- "$MARKER" 2>&1)
   check "no token: still exits 0" "0" "$?"
-  contains "no token: warns" "$WARNING" "$out"
+  contains "no token: warns, and says it starts without GH_TOKEN" "$PANE_WARNING" "$out"
   check "no token: the command still ran, without GH_TOKEN" "<unset>" "$(cat "$MARKER" 2>/dev/null)"
+  # Two-account mode: whatever the pane inherited is someone else's token.
+  rm -f "$MARKER"
+  GH_TOKEN=inherited GITHUB_TOKEN=inherited PATH="$SAFE_PATH" bash "$PWD/lib/credential.sh" --reviewer-token \
+    bash -c 'printf "%s %s" "${GH_TOKEN:-<unset>}" "${GITHUB_TOKEN:-<unset>}" > "$1"' -- "$MARKER" >/dev/null 2>&1
+  check "no token: an inherited GH_TOKEN and GITHUB_TOKEN are cleared" "<unset> <unset>" "$(cat "$MARKER" 2>/dev/null)"
   trace=$(PATH="$SAFE_PATH" STUB_REVIEWER_TOKEN="$TOKEN" bash -x "$PWD/lib/credential.sh" --reviewer-token true 2>&1)
   lacks "an inherited bash -x never prints the value" "$TOKEN" "$trace"
 }
@@ -119,6 +125,7 @@ EOF
   cat > "$STUB/agent-stub" <<EOF
 #!/usr/bin/env bash
 ps -ww -o args= -p "\$\$" > "$STUB/argv.txt"
+printf '%s' "\${GITHUB_TOKEN:-<unset>}" > "$STUB/github-token.txt"
 printf '%s %s' "\${GH_TOKEN:-<unset>}" "\${TESTVAR:-<unset>}" > "$STUB/env.txt"
 sleep 20
 EOF
@@ -126,7 +133,7 @@ EOF
   TOOLS="$STUB/tools"
   printf 'agentstub  %s {context}  verified:2026-09-22\n' "$STUB/agent-stub" > "$TOOLS"
   wait_for() { local i=0; while [ ! -s "$1" ] && [ "$i" -lt 200 ]; do sleep 0.05; i=$((i + 1)); done; }
-  reset_logs() { rm -f "$STUB/argv.txt" "$STUB/env.txt" "$STUB/tmux.log"; : > "$SECURITY_LOG"; }
+  reset_logs() { rm -f "$STUB/argv.txt" "$STUB/env.txt" "$STUB/github-token.txt" "$STUB/tmux.log"; : > "$SECURITY_LOG"; }
   run_tender() {
     PATH="$SAFE_PATH" TENDER_TOOLS_FILE="$TOOLS" TENDER_TOOL=agentstub TENDER_DRY_RUN="" \
       "$TENDER" "$@" </dev/null >"$STUB/out.txt" 2>&1
@@ -174,17 +181,26 @@ EOF
   check "the agent restarted, without GH_TOKEN" "<unset> <unset>" "$(cat "$STUB/env.txt" 2>/dev/null)"
   tmux kill-session -t tender-demo >/dev/null 2>&1
 
-  echo "reviewer token: present at the pre-check, gone in the pane — warns there, starts anyway"
+  echo "reviewer token: present at the pre-check, gone in the pane — warns there, starts anyway, clears inherited tokens"
   # The session's own environment (-e) has an entry without a readable
-  # value; tender's pre-check, in the test's environment, sees one.
-  tmux new-session -d -s tender-demo -n holder -e "PATH=$SAFE_PATH" -e "SECURITY_LOG=$SECURITY_LOG" \
+  # value; tender's pre-check, in the test's environment, sees one. The
+  # server itself is started with GH_TOKEN/GITHUB_TOKEN set, standing in for
+  # the developer's own login that a two-account reviewer must not act under.
+  GH_TOKEN=inherited GITHUB_TOKEN=inherited tmux new-session -d -s tender-demo -n holder \
+    -e "PATH=$SAFE_PATH" -e "SECURITY_LOG=$SECURITY_LOG" \
     -e STUB_REVIEWER_PRESENT=1 -e STUB_REVIEWER_TOKEN= "sleep 300"
+  reset_logs
+  run_tender demo developer
+  wait_for "$STUB/env.txt"
+  check "an unwrapped window there inherits GH_TOKEN (positive control)" "inherited <unset>" "$(cat "$STUB/env.txt" 2>/dev/null)"
+  check "... and GITHUB_TOKEN (positive control)" "inherited" "$(cat "$STUB/github-token.txt" 2>/dev/null)"
   reset_logs
   STUB_REVIEWER_PRESENT=1 STUB_REVIEWER_TOKEN="$TOKEN" run_tender demo reviewer
   check "exits 0" "0" "$?"
   wait_for "$STUB/env.txt"
   check "the agent started, without GH_TOKEN" "<unset> <unset>" "$(cat "$STUB/env.txt" 2>/dev/null)"
-  contains "the pane shows the warning" "$WARNING" "$(tmux capture-pane -p -t tender-demo:REV 2>/dev/null)"
+  check "... and without GITHUB_TOKEN" "<unset>" "$(cat "$STUB/github-token.txt" 2>/dev/null)"
+  contains "the pane shows the warning, naming both" "$PANE_WARNING" "$(tmux capture-pane -p -J -t tender-demo:REV 2>/dev/null)"
   tmux kill-session -t tender-demo >/dev/null 2>&1
 
   echo "reviewer token: with a named credential — both arrive; the named one wins GH_TOKEN"
@@ -203,12 +219,76 @@ EOF
   check "a named credential whose account is GH_TOKEN wins" "named-gh-token <unset>" "$(cat "$STUB/env.txt" 2>/dev/null)"
   tmux kill-session -t tender-demo >/dev/null 2>&1
 
-  echo "reviewer token: a real developer start never gets GH_TOKEN"
+  echo "reviewer token: a developer joining a session the reviewer created gets no GH_TOKEN"
+  # The regression the old `tmux new-session -e GH_TOKEN=...` had: -e on
+  # new-session sets the *session's* environment, so every later window in
+  # it -- the developer's included -- inherited the reviewer's token.
+  reset_logs
+  STUB_REVIEWER_PRESENT=1 STUB_REVIEWER_TOKEN="$TOKEN" run_tender demo reviewer
+  wait_for "$STUB/env.txt"
+  check "the reviewer created the session, with its token (positive control)" "$TOKEN <unset>" "$(cat "$STUB/env.txt" 2>/dev/null)"
   reset_logs
   STUB_REVIEWER_PRESENT=1 STUB_REVIEWER_TOKEN="$TOKEN" run_tender demo developer
   wait_for "$STUB/env.txt"
+  contains "the developer joined via new-window (positive control)" "new-window" "$(cat "$STUB/tmux.log" 2>/dev/null)"
   check "the developer agent has no GH_TOKEN" "<unset> <unset>" "$(cat "$STUB/env.txt" 2>/dev/null)"
+  lacks "the session environment holds no GH_TOKEN" "GH_TOKEN=" "$(tmux show-environment -t tender-demo 2>/dev/null)"
   tmux kill-session -t tender-demo >/dev/null 2>&1
+
+  echo "reviewer token: the Linux branch (no security, secret-tool only)"
+  # A PATH on which `security` does not exist at all -- this machine's real
+  # one and tests/lib.sh's stand-in both shadowed out, like test_throttle.sh
+  # shadows gh -- and a logging secret-tool that holds the token.
+  LINUX=$(mktemp -d)
+  mkdir -p "$LINUX/stub"
+  cat > "$LINUX/stub/secret-tool" <<'LEOF'
+#!/usr/bin/env bash
+printf '%s | caller: %s\n' "$*" "$(ps -ww -o args= -p "$PPID" 2>/dev/null)" >> "$SECRET_TOOL_LOG"
+case "$*" in
+  "lookup service treetender-reviewer")
+    [ -n "${STUB_LINUX_TOKEN:-}" ] && { printf '%s' "$STUB_LINUX_TOKEN"; exit 0; }
+    exit 1 ;;
+  *) exit 1 ;;
+esac
+LEOF
+  chmod +x "$LINUX/stub/secret-tool"
+  cp "$STUB/tmux" "$LINUX/stub/tmux"
+  LINUX_PATH="$LINUX/stub"
+  IFS=':' read -ra path_dirs <<< "$PATH"
+  for dir in "${path_dirs[@]}"; do
+    [ "$dir" = "$STUB" ] && continue
+    if [ -x "$dir/security" ] || [ -x "$dir/secret-tool" ]; then
+      shadow="$LINUX/${dir//\//_}"
+      mkdir -p "$shadow"
+      for entry in "$dir"/*; do
+        case "$(basename "$entry")" in security|secret-tool) continue ;; esac
+        ln -s "$entry" "$shadow/$(basename "$entry")" 2>/dev/null
+      done
+      LINUX_PATH="$LINUX_PATH:$shadow"
+    else
+      LINUX_PATH="$LINUX_PATH:$dir"
+    fi
+  done
+  export SECRET_TOOL_LOG="$LINUX/secret-tool.log"
+  check "no security on that PATH (setup)" "" "$(PATH="$LINUX_PATH" command -v security)"
+  : > "$SECRET_TOOL_LOG"
+  out=$(PATH="$LINUX_PATH" STUB_LINUX_TOKEN="$TOKEN" "$TENDER" demo reviewer 2>&1)
+  contains "the pre-check finds the entry and wraps" "lib/credential.sh --reviewer-token" "$out"
+  lacks "tender's output never carries the value" "$TOKEN" "$out"
+  contains "the pre-check asked secret-tool (positive control)" "lookup service treetender-reviewer | caller: " "$(cat "$SECRET_TOOL_LOG")"
+  trace=$(PATH="$LINUX_PATH" STUB_LINUX_TOKEN="$TOKEN" bash -x "$TENDER" demo reviewer 2>&1)
+  contains "the trace shows the pre-check ran (positive control)" "secret-tool lookup service treetender-reviewer" "$trace"
+  lacks "a bash -x trace of tender never shows the value — its stdout was not captured" "$TOKEN" "$trace"
+  reset_logs
+  PATH="$LINUX_PATH" STUB_LINUX_TOKEN="$TOKEN" TENDER_TOOLS_FILE="$TOOLS" TENDER_TOOL=agentstub TENDER_DRY_RUN="" \
+    "$TENDER" demo reviewer </dev/null >"$STUB/out.txt" 2>&1
+  check "a real start exits 0" "0" "$?"
+  wait_for "$STUB/env.txt"
+  check "the pane exported GH_TOKEN from secret-tool" "$TOKEN <unset>" "$(cat "$STUB/env.txt" 2>/dev/null)"
+  contains "... read inside the pane, by credential.sh" "caller: bash $PWD/lib/credential.sh --reviewer-token" "$(cat "$SECRET_TOOL_LOG")"
+  lacks "no tmux argv carries it" "$TOKEN" "$(cat "$STUB/tmux.log" 2>/dev/null)"
+  tmux kill-session -t tender-demo >/dev/null 2>&1
+  rm -rf "$LINUX"
 fi
 
 summary

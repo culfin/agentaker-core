@@ -48,6 +48,20 @@ if command -v tmux >/dev/null 2>&1; then
   fi
   unset __probe __sock
 fi
+
+# --- keychain isolation -------------------------------------------------------
+# No test may reach the real OS keychain: a reviewer start asks it whether a
+# token exists, a named credential reads it. So `security` and `secret-tool`
+# are shadowed for every test by stand-ins that find nothing; a test that
+# needs an entry puts its own stub *in front of* this directory on PATH.
+# Kept under the private tmux directory, which summary() removes.
+TEST_NOKEYCHAIN="$TMUX_TMPDIR/nokeychain"
+mkdir -p "$TEST_NOKEYCHAIN"
+printf '#!/bin/sh\nexit 44\n' > "$TEST_NOKEYCHAIN/security"
+printf '#!/bin/sh\nexit 1\n' > "$TEST_NOKEYCHAIN/secret-tool"
+chmod +x "$TEST_NOKEYCHAIN/security" "$TEST_NOKEYCHAIN/secret-tool"
+export PATH="$TEST_NOKEYCHAIN:$PATH"
+
 PASS=0
 FAIL=0
 
