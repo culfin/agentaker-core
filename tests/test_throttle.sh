@@ -287,14 +287,23 @@ set_up demo "max-open-prs: 1" none
 out=$("$TENDER" demo developer 2>&1)
 check "no GitHub origin: starts" "0" "$?"
 contains "no GitHub origin: says why it could not count" "(origin is not a GitHub remote) — starting anyway" "$out"
-set_up demo "max-open-prs: 1"
-{
-  printf 'demo-developer %s\n' "$(ago 60)"
-  i=1; while [ "$i" -lt 200 ]; do printf 'feature-%s %s\n' "$i" "$(ago 60)"; i=$((i + 1)); done
-} > "$STUB/prs-demo"
+truncated_listing() {
+  {
+    printf 'demo-developer %s\n' "$(ago 60)"
+    i=1; while [ "$i" -lt 200 ]; do printf 'feature-%s %s\n' "$i" "$(ago 60)"; i=$((i + 1)); done
+  } > "$STUB/prs-demo"
+}
+# One agent PR seen before the cut: a lower bound of 1.
+set_up demo "max-open-prs: 2"
+truncated_listing
 out=$("$TENDER" demo developer 2>&1)
-check "truncated listing: starts, like could not ask" "0" "$?"
-contains "truncated listing: says the count is incomplete" "stopped at 200 open PRs, so the count is incomplete" "$out"
+check "truncated listing below the cap: starts, like could not ask" "0" "$?"
+contains "truncated listing below the cap: says the count is incomplete" "stopped at 200 open PRs, so the count is incomplete" "$out"
+set_up demo "max-open-prs: 1"
+truncated_listing
+out=$("$TENDER" demo developer 2>&1)
+check "truncated listing whose lower bound reaches the cap: refused" "1" "$?"
+contains "... as a full queue, not as could-not-ask" "at its cap (max-open-prs: 1" "$out"
 stop_panes demo
 
 echo "throttle: gh missing is could-not-ask too"
@@ -376,10 +385,17 @@ STUBEOF
   contains "could not ask: full=unknown" "RESULT full=unknown" "$out"
   contains "could not ask: says so" "going ahead without the max-open-prs check" "$out"
   rm -f "$STUB/snip-fail"
+  # A listing cut off at 200 with one agent PR in it: a lower bound of 1,
+  # below the cap of 2 — proves nothing.
+  { printf '[{"headRefName":"snip-developer"}'; i=1; while [ "$i" -lt 200 ]; do printf ',{"headRefName":"feature-%s"}' "$i"; i=$((i + 1)); done; printf ']\n'; } > "$STUB/snip.json"
+  out=$(runsnip)
+  contains "listing cut off below the cap: full=unknown" "RESULT full=unknown" "$out"
+  contains "listing cut off below the cap: says so" "count is incomplete" "$out"
+  # Cut off, but 200 agent PRs already seen: at the cap whatever lies past it.
   { printf '['; i=0; while [ "$i" -lt 200 ]; do [ "$i" -gt 0 ] && printf ','; printf '{"headRefName":"snip-developer-%s"}' "$i"; i=$((i + 1)); done; printf ']\n'; } > "$STUB/snip.json"
   out=$(runsnip)
-  contains "listing cut off at 200: full=unknown" "RESULT full=unknown" "$out"
-  contains "listing cut off at 200: says so" "count is incomplete" "$out"
+  contains "listing cut off at or above the cap: full=yes" "RESULT full=yes open=200" "$out"
+  lacks "... without the could-not-ask note" "count is incomplete" "$out"
   rm -rf "$JQSTUB"
 else
   echo "  skip (jq not installed — the role snippet's --jq needs a real jq to run)"

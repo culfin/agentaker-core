@@ -164,7 +164,10 @@ throttle_start_check() {
   if ! slug=$(throttle_github_slug "$repo_dir"); then
     THROTTLE_ERROR="origin is not a GitHub remote"
   elif throttle_count "$repo_dir" "$repo" "$slug"; then
-    [ "$THROTTLE_TRUNCATED" -eq 1 ] \
+    # A truncated listing gives a lower bound. Below the cap it proves
+    # nothing (more may be past the cut); at or above it, the queue is full
+    # whatever the rest says — refused like a complete count.
+    [ "$THROTTLE_TRUNCATED" -eq 1 ] && [ "$THROTTLE_COUNT" -lt "$cap" ] \
       && THROTTLE_ERROR="the listing stopped at $THROTTLE_LIMIT open PRs, so the count is incomplete"
   fi
   if [ -n "$THROTTLE_ERROR" ]; then

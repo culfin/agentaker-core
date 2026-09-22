@@ -106,9 +106,12 @@ it was started in), not the window name, which a `devops` session shares.
   and it applies to *all* open PRs of the repository, not just agent PRs: a
   repository with 200 or more open PRs of any kind returns only part of them.
   The count is then a lower bound and is said as one —
-  `≥N agent PRs open (list truncated at 200)` in `tender status` — and the
-  start refusal and the developer's check treat it like could not ask: go
-  ahead, with a warning, rather than decide on an incomplete number.
+  `≥N agent PRs open (list truncated at 200)` in `tender status`. A lower
+  bound that already reaches the cap is decisive — the queue is full whatever
+  lies past the cut — so the start refusal and the developer's check act on it
+  as on a complete count. Below the cap it proves nothing, and they treat it
+  like could not ask: go ahead, with a warning, rather than decide on an
+  incomplete number.
 
 ## Disk: a Rust/Tauri worktree is large, and it's `target/`
 

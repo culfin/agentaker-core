@@ -181,11 +181,11 @@ A PR stays in that state until you re-request review, so this is your inbox.
           --jq "\"\(length) \([.[] | select(.headRefName == \"$repo-developer\" or (.headRefName | startswith(\"$repo-developer-\")))] | length)\""); then
        listed=${counts% *}
        open=${counts#* }
-       if [ "$listed" -ge 200 ]; then
+       if [ "$open" -ge "$cap" ]; then
+         full=yes   # a cut-off listing is a lower bound: at the cap is at the cap
+       elif [ "$listed" -ge 200 ]; then
          full=unknown
          echo "the PR listing stopped at 200, so the count is incomplete — going ahead without the max-open-prs check"
-       elif [ "$open" -ge "$cap" ]; then
-         full=yes
        fi
      else
        full=unknown
