@@ -246,7 +246,7 @@ whichever machine it runs (see the top of `docs/limits.md`).
 
 | Command | Sees |
 |---|---|
-| `tender status` — issues, reviews, approvals, decisions | every machine: it asks the forge |
+| `tender status` — issues, reviews, approvals, decisions (also as `--json [--since <time>]`) | every machine: it asks the forge |
 | `tender status` — "agent PRs open" | this checkout's count (`docs/limits.md`, `max-open-prs`) |
 | `tender claims <repo>` | every machine: it reads the claim refs on the forge |
 | `tender list`, `attach`, `restart`, `drop` | this machine only: its worktrees and its tmux server |

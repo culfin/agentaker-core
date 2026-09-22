@@ -67,7 +67,9 @@ Usage:
                                     --yes, --no-*)
   tender <repo> <role> [suffix]    start a session in its own worktree
   tender attach <repo>             re-attach to a repo's tmux session
-  tender status [owner]            show where work is waiting, across repos
+  tender status [owner] [--json [--since <time>]]
+                                    show where work is waiting, across repos
+                                    (tender status --help: the JSON board)
   tender list [repo]               show worktrees, their branch, size and state
   tender drop <repo> <name>        remove a worktree (refuses if it isn't safe)
   tender restart <repo> <name>     hand over, replace the process, resume
@@ -296,49 +298,59 @@ status_query() {
   fi
 }
 
+# The board's questions, each defined once: the qualifiers gh searches with,
+# and the filters applied to what comes back. cmd_status() renders them as
+# text, lib/status_json.sh as JSON; a JSON board that asked differently would
+# be a second truth. Each status_q_*() sets STATUS_Q for owner $1.
+#
+# `gh search issues` — unlike `gh issue list` — has no --json blockedBy /
+# dependency filter, and this asks across every repository in one call, so it
+# cannot loop per-repo to get one either (see roles/developer.md for why the
+# developer itself can and does filter). The text board says so rather than
+# silently listing issues the developer would skip. An issue on hold
+# (needs-decision) is left out, as the developer's own search does — it is
+# listed under "waiting on you" instead.
+STATUS_NOT_HELD='select(any(.labels[]; .name == "needs-decision") | not)'
+STATUS_NOT_BOT='select(.author.login | test("dependabot") | not)'
+STATUS_TEXT_ROW='"  \(.repository.name)#\(.number)  \(.title)"'
+STATUS_Q=()
+status_q_ready()     { STATUS_Q=(search issues --owner "$1" --state open --label ready); }
+status_q_approved()  { STATUS_Q=(search prs --owner "$1" --state open --review approved); }
+status_q_decisions() { STATUS_Q=(search issues --owner "$1" --state open --label needs-decision); }
+status_q_review() {
+  if [ -n "$REVIEWER" ]; then
+    STATUS_Q=(search prs --owner "$1" --state open --draft=false --review-requested "$REVIEWER")
+  else
+    STATUS_Q=(search prs --owner "$1" --state open --draft=false --review none)
+  fi
+}
+
 cmd_status() {
   local owner=${1:-${TENDER_OWNER:-}}
   [ -n "$owner" ] || die "give an owner: tender status <owner>  (or set TENDER_OWNER)"
 
   STATUS_FAILED=0
 
-  # `gh search issues` — unlike `gh issue list` — has no --json blockedBy /
-  # dependency filter, and this command asks across every repository in one
-  # call, so it cannot loop per-repo to get one either (see roles/developer.md
-  # for why the developer itself can and does filter). Say so rather than
-  # silently listing issues the developer would skip.
-  # An issue on hold (needs-decision) is left out, as the developer's own
-  # search does — it is listed under "waiting on you" instead.
-  status_query "ready to pick up" \
-    search issues --owner "$owner" --state open --label ready \
-    --json repository,number,title,labels \
-    --jq '.[] | select(any(.labels[]; .name == "needs-decision") | not) | "  \(.repository.name)#\(.number)  \(.title)"'
+  status_q_ready "$owner"
+  status_query "ready to pick up" "${STATUS_Q[@]}" --json repository,number,title,labels \
+    --jq ".[] | $STATUS_NOT_HELD | $STATUS_TEXT_ROW"
   if [ "$STATUS_HAD_ROWS" -eq 1 ]; then
     printf '  (blocked issues are counted here — the developer skips them)\n'
   fi
 
-  if [ -n "$REVIEWER" ]; then
-    status_query "waiting for review" \
-      search prs --owner "$owner" --state open --draft=false --review-requested "$REVIEWER" \
-      --json repository,number,title,author \
-      --jq '.[] | select(.author.login | test("dependabot") | not) | "  \(.repository.name)#\(.number)  \(.title)"'
-  else
-    status_query "waiting for review" \
-      search prs --owner "$owner" --state open --draft=false --review none \
-      --json repository,number,title,author \
-      --jq '.[] | select(.author.login | test("dependabot") | not) | "  \(.repository.name)#\(.number)  \(.title)"'
-    printf '  (approximate — set TENDER_REVIEWER to your reviewer login for the exact queue)\n'
-  fi
+  status_q_review "$owner"
+  status_query "waiting for review" "${STATUS_Q[@]}" --json repository,number,title,author \
+    --jq ".[] | $STATUS_NOT_BOT | $STATUS_TEXT_ROW"
+  [ -n "$REVIEWER" ] \
+    || printf '  (approximate — set TENDER_REVIEWER to your reviewer login for the exact queue)\n'
 
-  status_query "approved, waiting for merge" \
-    search prs --owner "$owner" --state open --review approved \
-    --json repository,number,title \
-    --jq '.[] | "  \(.repository.name)#\(.number)  \(.title)"'
+  status_q_approved "$owner"
+  status_query "approved, waiting for merge" "${STATUS_Q[@]}" --json repository,number,title \
+    --jq ".[] | $STATUS_TEXT_ROW"
 
-  status_query "waiting on you" \
-    search issues --owner "$owner" --state open --label needs-decision \
-    --json repository,number,title \
-    --jq '.[] | "  \(.repository.name)#\(.number)  \(.title)"'
+  status_q_decisions "$owner"
+  status_query "waiting on you" "${STATUS_Q[@]}" --json repository,number,title \
+    --jq ".[] | $STATUS_TEXT_ROW"
 
   throttle_status_section "$owner"   # per local project — lib/throttle.sh
 
@@ -375,7 +387,14 @@ case "${1:-}" in
     . "$TENDER_HOME/lib/init_propose.sh" || die "cannot load $TENDER_HOME/lib/init_propose.sh"
     cmd_init "$@"
     ;;
-  status)    shift; cmd_status "$@" ;;
+  status)
+    shift
+    # shellcheck source=lib/json.sh
+    . "$TENDER_HOME/lib/json.sh" || die "cannot load $TENDER_HOME/lib/json.sh"
+    # shellcheck source=lib/status_json.sh
+    . "$TENDER_HOME/lib/status_json.sh" || die "cannot load $TENDER_HOME/lib/status_json.sh"
+    status_dispatch "$@"
+    ;;
   attach)    shift; cmd_attach "$@" ;;
   list)
     shift

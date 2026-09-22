@@ -290,6 +290,26 @@ deliberate omission (see `docs/concept.md`), not a missing feature — it keeps
 the tool to git, `gh` and `tmux`, with nothing idling and no token spent while
 no one is working.
 
+A program that shows the board — the desktop app's "since you were away" —
+asks the same way, on demand: `tender status <owner> --json [--since <time>]`
+prints the board as one JSON object (`tender status --help` has the keys),
+built from the very same searches (`status_q_*()` in `bin/tender`; the JSON
+side is `lib/status_json.sh`), plus the `approved` label of single-account
+mode and, with `--since`, what was merged. It is the one place a GUI gets this
+from; it does not build its own `gh` searches. Two things it does not claim:
+
+- `--since` keeps what was **updated** at or after the time (`gh search
+  --updated ">=T"`). That approximates "changed since": a label added, a
+  comment, a push all count as an update — and the item shows up with no word
+  of which of them happened. It is not an event log.
+- Each search returns at most gh's default 30 results, as on the text board.
+  A section with more is cut there, silently — `--since` keeps the lists short
+  enough that this rarely matters, but it is a cut, not a count.
+
+A section that could not be asked is `{"ok": false, "error": "…"}`, never an
+empty list, and the exit status is 1 — the same three-way discipline as the
+text board. The "agent PRs open" section is not part of the JSON board (yet).
+
 ## Tab colour is iTerm2-only, and silently absent elsewhere
 
 The title (`dateye · DEV`) works anywhere tmux does — it's tmux's own
