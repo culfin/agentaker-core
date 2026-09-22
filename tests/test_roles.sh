@@ -16,7 +16,10 @@ LIMITS=$(cat docs/limits.md)
 CONCEPT=$(cat docs/concept.md)
 
 echo "roles: developer only looks at unassigned ready issues"
-contains "finding-work filters no:assignee" '--search "no:assignee"' "$DEV"
+contains "finding-work filters no:assignee" '--search "no:assignee -label:needs-decision"' "$DEV"
+contains "finding-work leaves issues on hold out" "-label:needs-decision" "$DEV"
+contains "only the human lifts a hold" "only the
+human lifts a hold" "$DEV"
 
 echo "roles: developer claims an issue before working it"
 contains "claims with --add-assignee @me" "gh issue edit <N> --add-assignee @me" "$DEV"
@@ -80,7 +83,8 @@ echo "docs: flow.md no longer carries the superseded PR-number tiebreaker"
 lacks "dropped the lower-PR-number rule" "lower PR number" "$FLOW"
 
 echo "docs: flow.md diagram no longer shows the stale short form"
-contains "diagram line carries the filter" "gh issue list --label ready --search no:assignee" "$FLOW"
+contains "diagram line carries the filter" 'gh issue list --label ready --search "no:assignee -label:needs-decision"' "$FLOW"
+contains "flow says needs-decision on an issue is a hold" "on an issue, a hold: no session picks it up" "$FLOW"
 
 echo "docs: limits.md is honest about what the claim ref does not cover"
 contains "has the new section heading" "## The claim ref locks task selection, not the work after it" "$LIMITS"
@@ -200,5 +204,46 @@ check "the cap check comes before gh pr create" "yes" \
 contains "limits says the cap binds the project, not the tool" "It binds the project, not the tool" "$LIMITS"
 contains "limits says the first developer session is never refused" "never stops the first developer session" "$LIMITS"
 lacks "limits no longer says there is no such knob" "has no such" "$LIMITS"
+
+echo "roles: scout — an issue can ask for a report instead of a change (issue #6)"
+contains "the developer has a section for it" "## A report instead of a change (\`scout\`)" "$DEV"
+contains "shipping stays the default" "Shipping is the default; a report is only what an issue labelled \`scout\`" "$DEV"
+contains "an agent never makes a report of an issue on its own" "Do not turn an issue into a report on your own" "$DEV"
+contains "a question that changes the work goes to needs-decision" "gh issue edit <N> --add-label needs-decision" "$DEV"
+contains "every claim needs a source" "a file and line, or a command" "$DEV"
+contains "the six-months rule decides comment vs report" "would
+someone look for this again in six months?" "$DEV"
+contains "a lasting report is a PR under docs/reports/" "docs/reports/<topic>.md" "$DEV"
+contains "a one-off answer checks the claim first" "if the ref no longer holds your claim, someone took" "$DEV"
+contains "a one-off answer puts the issue on hold, so nobody answers it again" "so no other session
+  answers it again" "$DEV"
+contains "... and leaves closing to the human" "You never close the issue; the human reads the answer" "$DEV"
+check "the scout section releases only on the comment path, never on the ask path" "1" \
+  "$(awk '/^## A report instead of a change/,/^## You never/' roles/developer.md | grep -c 'git push origin ":refs/claims/issue-<N>"')"
+contains "the ask path is a pause that keeps claim, branch and PR" "That is a **pause, not a hand-back**" "$DEV"
+contains "... and takes no other issue in that worktree" "Take no other issue in this worktree" "$DEV"
+contains "giving up checks the claim before releasing" "releasing now would delete *their* claim" "$DEV"
+contains "the human's way to free an issue is spelled out" "tender claim-release\` does not" "$DEV"
+lacks "claim-release is not offered as the way to free an issue" "(\`tender claim-release\`, or removing the" "$DEV"
+lacks "the inbox does not hide PRs with a side question (_base.md: do not block)" 'draft:true -label:needs-decision' "$DEV"
+contains "a pause opens the draft PR first, so a restart carries it" "If no draft PR is open for it
+yet, open it first" "$DEV"
+contains "the issue comment tells the human how to resume or hand on" "tell that session in its window" "$DEV"
+contains "a told session looks before carrying on" "gh issue view <N> --json state,labels,comments" "$DEV"
+contains "_base rule 13 states the pause as its exception" "keeps its claim
+    through the wait and through a handover" "$BASE"
+contains "flow says removing the label does not wake a paused session" "is not woken by that" "$FLOW"
+contains "a report PR skips test-first but runs the suite" "not step 4" "$DEV"
+contains "the reviewer re-runs a sample of a report's commands" "re-run a
+sample of the cited commands" "$REV"
+contains "how to create the label once" "gh label create scout" "$DEV"
+check "the scout section comes before 'You never'" "yes" \
+  "$([ "$(grep -n '^## A report instead of a change' roles/developer.md | cut -d: -f1)" -lt "$(grep -n '^## You never' roles/developer.md | cut -d: -f1)" ] && echo yes || echo no)"
+contains "the reviewer reviews a report on its sources" "A **report PR**" "$REV"
+contains "... and a claim without a source blocks it" "A claim with neither is the blocking finding there" "$REV"
+contains "flow lists the label, set only by a human" "| \`scout\` | Issue | **only a human**, next to \`ready\`" "$FLOW"
+lacks "the release step no longer says claims never time out" "there is no timeout" "$DEV"
+contains "... nor that the threshold cleans up an assigned issue" "even reaches the age-based takeover" "$DEV"
+lacks "the reviewer no longer says a PR claim is locked for good" "stays locked for good" "$REV"
 
 summary

@@ -68,7 +68,7 @@ collect_state() {
   # line — parsed with parameter expansion rather than `read`, to match how
   # the rest of this repository already slices strings (see describe_worktree()
   # in lib/manage.sh), not because `read` would be wrong here.
-  local raw rc pr_line="none" claim_line="none"
+  local raw rc pr_line="none" claim_line="none" hold_line="none"
   raw=$(cd "$wt" && gh pr list --head "$branch" --state open \
     --json number,isDraft,body \
     --jq '.[0] | if . == null then "" else "\(.number)\t\(.isDraft)\t\((.body // "") | gsub("\n";" "))" end' \
@@ -77,6 +77,7 @@ collect_state() {
   if [ "$rc" -ne 0 ]; then
     pr_line="could not ask: $(printf '%s' "$raw" | head -1)"
     claim_line="could not ask"
+    hold_line="could not ask"
   elif [ -n "$raw" ]; then
     local number rest draft body issue
     number=${raw%%$'\t'*}
@@ -95,6 +96,20 @@ collect_state() {
       else
         claim_line="could not ask"
       fi
+      # A held issue (needs-decision) waits for the human: the successor must
+      # not carry on as if the question had been answered.
+      local held
+      if held=$(cd "$wt" && gh issue view "$issue" --json labels,state \
+          --jq 'if .state == "CLOSED" then "closed" else (any(.labels[]; .name == "needs-decision") | tostring) end' 2>&1); then
+        case $held in
+          closed) hold_line="#$issue is closed — read why on the issue before doing anything" ;;
+          true)   hold_line="#$issue is on hold (needs-decision) — wait for the human's answer" ;;
+          false)  hold_line="#$issue is not on hold" ;;
+          *)      hold_line="could not ask" ;;
+        esac
+      else
+        hold_line="could not ask"
+      fi
     fi
   fi
 
@@ -107,5 +122,6 @@ collect_state() {
     state_line "uncommitted" "$uncommitted"
     state_line "open PR" "$pr_line"
     state_line "claim held" "$claim_line"
+    state_line "hold" "$hold_line"
   } > "$out"
 }

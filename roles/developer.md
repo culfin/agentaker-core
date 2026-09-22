@@ -5,13 +5,17 @@ You implement. You do not merge, and you never touch the trunk directly.
 ## Finding work
 
 ```bash
-gh issue list --label ready --search "no:assignee" --json number,title,blockedBy \
+gh issue list --label ready --search "no:assignee -label:needs-decision" --json number,title,blockedBy \
   --jq '.[] | select(.blockedBy.totalCount == 0) | "\(.number)  \(.title)"'
 ```
 
 (`--label` and `--search` combine cleanly — verified directly against a live
 repository — so `ready` stays its own flag instead of moving into the search
 expression.)
+
+An issue carrying `needs-decision` is on hold: someone asked the human
+something, and the answer is not in yet. The search leaves it out; only the
+human lifts a hold — by removing `needs-decision`, or by closing the issue.
 
 An issue whose blockers are still open is not ready, whatever its label says —
 take the next one instead. This needs no new label: GitHub already tracks the
@@ -266,14 +270,86 @@ gh pr edit <N> --add-reviewer <the reviewer login named in AGENTS.md>
 `--add-reviewer` both requests and *re*-requests — it is the one command for
 the first ask and every later one, in two-account mode.
 
-Giving up on an issue before it's done? Release the claim, ref first, or it
-stays taken forever and no other session can ever see it as available again —
-there is no timeout:
+Giving up on an issue before it's done? Release the claim, ref first — after
+the claim check from **Working**, step 1: if the ref no longer holds your
+claim, someone took it over, and releasing now would delete *their* claim;
+release nothing. Left unreleased, the issue stays hidden from every other
+session: its assignee keeps it out of the `no:assignee` search, so it never
+even reaches the age-based takeover. A human frees it with the same two
+commands, naming the login instead of `@me` — `tender claim-release` does not,
+since it re-claims rather than frees:
 
 ```bash
 git push origin ":refs/claims/issue-<N>"
 gh issue edit <N> --remove-assignee @me
 ```
+
+## A report instead of a change (`scout`)
+
+Some issues ask for knowledge, not code: an investigation, a diagnosis, an
+audit, a plan. A human marks them `scout`, next to `ready` — `ready` is still
+the release to start, and `Finding work` above already picks them up. Claim one
+exactly like any other issue.
+
+**Shipping is the default; a report is only what an issue labelled `scout`
+asks for.** Do not turn an issue into a report on your own. If, while
+shipping, an open question could change *whether* or *what* gets built — not a
+side question you can settle while implementing — ask it **on the issue** (it
+decides the issue, not one PR — unlike the PR-level question in `_base.md`,
+"Escalation") and pause.
+
+That is a **pause, not a hand-back**: keep the claim and the branch — this
+worktree's one branch belongs to this one issue. If no draft PR is open for it
+yet, open it first (**Working**, steps 1–3): it is what carries the pause
+through a `tender restart`, whose facts name the issue a PR closes. Then push,
+ask, and hold the issue:
+
+```bash
+git push
+gh issue comment <N> --body "Before building this: <the question, and why it changes the work>
+
+The developer session keeps this issue and waits. When it is answered: remove \`needs-decision\` and tell that session in its window (\`tender attach <repo>\`) — nothing wakes it by itself. To give the issue to another session instead: \`git push origin :refs/claims/issue-<N>\` and \`gh issue edit <N> --remove-assignee <login>\`."
+gh issue edit <N> --add-label needs-decision
+```
+
+Take no other issue in this worktree, and say plainly in the session that it
+waits for the human. Nothing wakes a waiting session — `tender` does not poll
+(`docs/limits.md`); the human tells you. When told, look before carrying on:
+`gh issue view <N> --json state,labels,comments` — an issue closed, or still
+on hold, or answered with "don't build it", or relabelled `scout`, changes
+what comes next.
+
+Working a `scout` issue changes nothing in the product. Read, run, measure —
+and back every claim with its source: a file and line, or a command together
+with its output. A claim without one is a guess, and the report is worth
+exactly its sources. Then choose where the answer goes by one question: **would
+someone look for this again in six months?**
+
+- **No** — it answers this issue and nothing else. First run the claim check
+  from **Working**, step 1: if the ref no longer holds your claim, someone took
+  it over — post nothing and release nothing. Otherwise post the answer as one
+  comment, put the issue on hold with `needs-decision` so no other session
+  answers it again, and release the claim:
+  ```bash
+  gh issue comment <N> --body "<the report, with its sources>"
+  gh issue edit <N> --add-label needs-decision
+  git push origin ":refs/claims/issue-<N>"
+  gh issue edit <N> --remove-assignee @me
+  ```
+  You never close the issue; the human reads the answer and closes it — or
+  removes `needs-decision` if it needs another pass.
+- **Yes** — it maps something others will need (an architecture, an audit, a
+  measured comparison). Add it as `docs/reports/<topic>.md` in a PR, through
+  **Working**: steps 1–3 (claim check, the `max-open-prs` count, a draft PR
+  with `Closes #<N>`), not step 4 — there is nothing to implement test-first —
+  then step 5 (run the `AGENTS.md` suite, to show the report changed nothing
+  else) and step 6. The reviewer checks the sources instead of tests.
+
+The `max-open-prs` count in **Finding work** holds for a `scout` issue too,
+even one that will end in a comment: at the cap, review feedback comes first.
+
+If the label does not exist yet in a repository, a human creates it once:
+`gh label create scout --description "Answer with a report, not a change" --color 5319E7`.
 
 ## You never
 

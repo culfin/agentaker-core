@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+Issues can ask for a report instead of a change (issue #6). A human labels them
+`scout` next to `ready`; the developer claims them as usual and answers with a
+comment on the issue when the answer serves only that issue, or with a PR
+adding `docs/reports/<topic>.md` when someone will look for it again — reviewed
+on its sources, since it has no tests. Shipping stays the default: an agent
+that hits a question which could change what gets built asks it with
+`needs-decision` instead of turning the issue into a report itself. See
+`roles/developer.md`, "A report instead of a change".
+
 A coding agent's first-start question no longer hides (issue #8). Measured:
 Claude Code asks once per repository whether it may trust the folder, with
 "No, exit" preselected, and waits — which an unattended window turns into a

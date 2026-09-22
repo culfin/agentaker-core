@@ -249,6 +249,14 @@ not only the ones started through `tender` — reads it from the checkout.
 ```bash
 gh label create ready --description "Ready for an agent to pick up" --color 0E8A16
 gh label create needs-decision --description "Waiting on a human decision" --color D93F0B
+gh label create approved --description "Reviewed and approved (single-account mode)" --color 0052CC
+```
+
+Optional, for issues that ask for a report instead of a change
+(`roles/developer.md`, "A report instead of a change"):
+
+```bash
+gh label create scout --description "Answer with a report, not a change" --color 5319E7
 ```
 
 **4. Create the three worktrees, one per role.** `tender <repo> <role>` does

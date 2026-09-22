@@ -307,10 +307,12 @@ cmd_status() {
   # call, so it cannot loop per-repo to get one either (see roles/developer.md
   # for why the developer itself can and does filter). Say so rather than
   # silently listing issues the developer would skip.
+  # An issue on hold (needs-decision) is left out, as the developer's own
+  # search does — it is listed under "waiting on you" instead.
   status_query "ready to pick up" \
     search issues --owner "$owner" --state open --label ready \
-    --json repository,number,title \
-    --jq '.[] | "  \(.repository.name)#\(.number)  \(.title)"'
+    --json repository,number,title,labels \
+    --jq '.[] | select(any(.labels[]; .name == "needs-decision") | not) | "  \(.repository.name)#\(.number)  \(.title)"'
   if [ "$STATUS_HAD_ROWS" -eq 1 ]; then
     printf '  (blocked issues are counted here — the developer skips them)\n'
   fi

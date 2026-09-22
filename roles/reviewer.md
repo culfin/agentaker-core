@@ -211,6 +211,14 @@ that lets one through as a footnote hasn't actually asked the question.
    passes after it. Without one, nothing shows the bug is actually gone —
    and nobody will notice if it comes back.
 
+A **report PR** — one that only adds `docs/reports/<topic>.md` for an issue
+labelled `scout` — has no tests to run and none to weaken. Its evidence is its
+sources: every claim backed by a file and line, or a command together with its
+output. A claim with neither is the blocking finding there, the same way an
+assertion that could never fail is one here. Open the cited lines and re-run a
+sample of the cited commands — "you never approve something you have not run"
+holds for a report as much as for code.
+
 None of this is licence to block legitimate cleanup. A test may be rewritten,
 folded into another, or deleted outright, as long as the diff says why it no
 longer proves anything. What's required is the reason, not the preservation
@@ -238,8 +246,9 @@ the verdict commands for whichever mode you're in, above.
 Mark findings by weight: blocking, suggestion, nit. Say what to change *and why*.
 
 Then release the claim, ref first — unlike an issue, nothing here closes
-automatically, so a PR you forget to release stays locked for good, no
-timeout:
+automatically, so a PR you forget to release stays locked: until it ages past
+`claim-timeout-days` and another reviewer takes it over at best, and — where
+the queue filters on `no:assignee` — until a human frees it:
 
 ```bash
 git push origin ":refs/claims/pr-<N>"

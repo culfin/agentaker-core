@@ -12,7 +12,7 @@ you opt into, not a requirement to start.
 ```
 human       puts `ready` on an issue                      ← the only starting point
    |
-developer   gh issue list --label ready --search no:assignee
+developer   gh issue list --label ready --search "no:assignee -label:needs-decision"
             gh pr create --draft   …work…   gh pr ready <N>
                  |
 reviewer    gh pr list --search "is:open draft:false -label:approved"
@@ -50,7 +50,7 @@ maintainer  gh pr list --search "is:open draft:false label:approved"
 ```
 human       puts `ready` on an issue                      ← the only starting point
    |
-developer   gh issue list --label ready --search no:assignee
+developer   gh issue list --label ready --search "no:assignee -label:needs-decision"
             gh pr create --draft   …work…   gh pr ready <N>
             gh pr edit <N> --add-reviewer <login from AGENTS.md>
                  |
@@ -113,10 +113,14 @@ whatever the review flagged.
 | Label | Sits on | Set by | Means |
 |---|---|---|---|
 | `ready` | Issue | **only a human** | may be picked up |
-| `needs-decision` | PR or issue | anyone | waiting on a human decision |
+| `needs-decision` | PR or issue | anyone | waiting on a human decision — on an issue, a hold: no session picks it up until the human removes the label or closes the issue. A session that paused on it keeps the issue and is not woken by that — tell it in its window (the issue comment says how) |
 | `approved` | PR | reviewer, **single-account mode only** | cleared for the maintainer |
+| `scout` | Issue | **only a human**, next to `ready` | answer with a report, not a change — optional |
 
-The first two exist in both modes. Draft status, the review request, and
+The first two exist in both modes, and so does `scout` where a project uses
+it: a `scout` issue ends in a comment on the issue, or in a PR that only adds
+`docs/reports/<topic>.md` and is reviewed on its sources instead of tests
+(`roles/developer.md`, "A report instead of a change"). Draft status, the review request, and
 `review:approved` / `review:changes_requested` are all native GitHub states,
 already visible in `gh pr list`, and none of them need maintaining by hand —
 in two-account mode that covers the whole loop, and the `approved` label

@@ -96,6 +96,9 @@ check "claim held says it could not ask" \
   "$(printf '%s\n' "$state" | grep '^claim held:')"
 lacks "never claims an empty PR queue instead" "$(line_for "open PR" "none")" "$state"
 lacks "never claims no claim instead" "$(line_for "claim held" "none")" "$state"
+check "hold says it could not ask" \
+  "$(line_for "hold" "could not ask")" "$(printf '%s\n' "$state" | grep '^hold:')"
+lacks "never claims 'not on hold' when it could not ask" "$(line_for "hold" "none")" "$state"
 
 echo "tender restart: gh failing does not fail the restart itself"
 # --fresh: the window is now running the claude stub from the restart above,
@@ -137,10 +140,12 @@ cat > "$STUB/gh" <<'EOF'
 #!/usr/bin/env bash
 case "$*" in
   *"pr list"*) printf '7\tfalse\tCloses #42, please review\n' ;;
+  *"issue view 42"*) if [ -e "$STUB_DIR/closed" ]; then echo closed; elif [ -e "$STUB_DIR/held" ]; then echo true; else echo false; fi ;;
   *) exit 1 ;;
 esac
 EOF
 chmod +x "$STUB/gh"
+export STUB_DIR="$STUB"
 state=$(restart_and_read_state found)
 check "reports the PR number, that it's ready, and what it closes" \
   "$(line_for "open PR" "#7 (ready) — closes #42")" \
@@ -148,6 +153,8 @@ check "reports the PR number, that it's ready, and what it closes" \
 check "finds the claim actually held" \
   "$(line_for "claim held" "refs/claims/issue-42")" \
   "$(printf '%s\n' "$state" | grep '^claim held:')"
+check "an issue not on hold says so" \
+  "$(line_for "hold" "#42 is not on hold")" "$(printf '%s\n' "$state" | grep '^hold:')"
 check "role comes from tender, not gh" \
   "$(line_for "role" "developer")" "$(printf '%s\n' "$state" | grep '^role:')"
 check "worktree comes from the directory, not gh" \
@@ -158,6 +165,21 @@ check "branch comes from git, not gh" \
   "$(printf '%s\n' "$state" | grep '^branch:')"
 
 # --- ordering: facts land in context.md before the free-text handover -------
+
+# Its own worktree, so the ordering checks below still read the "found" one.
+echo "a held issue tells the successor to wait for the human"
+touch "$STUB/held"
+held_state=$(restart_and_read_state held)
+check "the hold line says to wait" \
+  "$(line_for "hold" "#42 is on hold (needs-decision) — wait for the human's answer")" \
+  "$(printf '%s\n' "$held_state" | grep '^hold:')"
+rm -f "$STUB/held"
+touch "$STUB/closed"
+closed_state=$(restart_and_read_state closed)
+check "a closed issue is named as closed, not as waiting" \
+  "$(line_for "hold" "#42 is closed — read why on the issue before doing anything")" \
+  "$(printf '%s\n' "$closed_state" | grep '^hold:')"
+rm -f "$STUB/closed"
 
 echo "the new session's context has facts before free text"
 ctx=$(cat "$SANDBOX/demo/.worktrees/demo-developer-found/.agents/context.md")

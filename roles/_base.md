@@ -42,7 +42,11 @@ Items 1–8 are adapted from agency-agents (MIT) — see NOTICE.
     stops mid-task. Release it yourself; do not lean on the threshold to do
     it for you. Your role file has the exact commands, both for releasing
     and for the takeover on the other side of that threshold; this applies
-    whether you finish, hand over, or abandon the work.
+    whether you finish, hand over, or abandon the work. One exception: an
+    issue you paused with `needs-decision` to ask whether or what to build
+    (`roles/developer.md`, "A report instead of a change") keeps its claim
+    through the wait and through a handover — the claim, branch and draft PR
+    stay together until the human answers or hands the issue on.
 
 ## Signing your work
 

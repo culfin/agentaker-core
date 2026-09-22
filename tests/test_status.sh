@@ -121,4 +121,28 @@ check "exits 1" "1" "$?"
 contains "names tmux" "tmux is not installed" "$out"
 rm -rf "$NOTMUX_TMP"
 
+echo "tender status: an issue on hold is not 'ready to pick up' (issue #6)"
+# Here the --jq expression really runs: a gh stand-in applies it, with a real
+# jq, to a listing with one held and one free issue.
+if command -v jq >/dev/null 2>&1; then
+  JQSTUB=$(mktemp -d)
+  cat > "$JQSTUB/gh" <<'JQEOF'
+#!/usr/bin/env bash
+q=""; prev=""
+for a in "$@"; do [ "$prev" = "--jq" ] && q=$a; prev=$a; done
+case "$*" in
+  *"--label ready"*)
+    printf '[{"repository":{"name":"acme"},"number":1,"title":"free","labels":[{"name":"ready"}]},{"repository":{"name":"acme"},"number":2,"title":"held","labels":[{"name":"ready"},{"name":"needs-decision"}]}]' | jq -r "$q" ;;
+esac
+exit 0
+JQEOF
+  chmod +x "$JQSTUB/gh"
+  out=$(PATH="$JQSTUB:$PATH" TENDER_REVIEWER=r "$TENDER" status someowner 2>&1)
+  contains "a free ready issue is listed" "acme#1  free" "$out"
+  lacks "a held one is not" "acme#2  held" "$out"
+  rm -rf "$JQSTUB"
+else
+  echo "  skip (jq not installed — the --jq expression needs a real jq to run)"
+fi
+
 summary
