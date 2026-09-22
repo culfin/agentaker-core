@@ -419,6 +419,7 @@ check "exits 0" "0" "$?"
 check "no commit" "$head_before" "$(git -C "$SANDBOX/nocom" rev-parse HEAD)"
 check "AGENTS.md untracked, as before" "?? AGENTS.md" "$(git -C "$SANDBOX/nocom" status --porcelain AGENTS.md)"
 contains "still tells you to commit and pull" "2. Commit AGENTS.md, then update" "$out"
-contains "keeps the later steps' numbers" "6. Start working:" "$out"
+contains "keeps the later steps' numbers" "7. Start working:" "$out"
+contains "asks to trust the repository once, before the first start" "6. Start your coding agent once in" "$out"
 
 summary

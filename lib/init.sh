@@ -418,6 +418,9 @@ $pulls"
      cannot be asked for a review. See docs/setup.md." \
     "Give the reviewer its own account: docs/setup.md" \
     "Put 'ready' on an issue:   gh issue edit <N> --add-label ready" \
+    "Start your coding agent once in $dir and confirm it may trust the folder —
+     the role worktrees inherit that; an unanswered prompt stalls a session
+     silently. See docs/limits.md." \
     "Start working:             tender $repo developer"
   do
     [ -n "$step" ] || continue

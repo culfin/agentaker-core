@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+A coding agent's first-start question no longer hides (issue #8). Measured:
+Claude Code asks once per repository whether it may trust the folder, with
+"No, exit" preselected, and waits — which an unattended window turns into a
+session that silently does nothing. Trust is keyed on the repository root, so
+one confirmation covers every worktree. `tender init` now lists that
+confirmation as a step, and `docs/limits.md` explains it; `tender` does not
+write another tool's trust settings itself.
+
 `tender doctor` says who can close each gap, and how (issue #9). Every problem
 is now a `human:` (or, once there is a `--fix`, `fixable:`) line followed by an
 `action:` line with the exact next step, naming the tool. A tool that gives no

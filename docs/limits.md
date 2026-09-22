@@ -159,6 +159,43 @@ guidance, don't treat the number itself as portable — the underlying limit is
 "how many concurrent compiles fit in RAM," and that depends on the machine and
 the project, not on this tool.
 
+## A coding agent may ask whether to trust a folder — and nobody answers
+
+`tender` starts the agent in a window nobody may be watching, and it never
+types into one (a boundary of its own, see "Role boundaries" below). An agent
+that stops to ask a question before it starts looks, from outside, exactly
+like one that is working.
+
+**Claude Code does this once per repository.** Measured on 2026-09-22 with
+Claude Code 2.1.278, starting it the way `tender` does in a fresh worktree of
+a repository it had never seen: the window showed "Quick safety check: Is this
+a project you created or one you trust?", with **"No, exit" preselected**, and
+waited. After confirming once in the repository itself, a new worktree under
+`.worktrees/` started straight away. The documentation says why: Claude Code
+keys that trust on the git repository's root, and for a worktree on the root
+of its main checkout, so one confirmation covers every worktree
+([permissions: workspace trust](https://code.claude.com/docs/en/permissions)).
+There is no flag to skip the question — `--dangerously-skip-permissions` is
+about tool permissions, not this.
+
+So: **start your coding agent once in the repository and confirm**, before the
+first `tender <repo> <role>`. `tender init` lists it as a step. If a session
+seems to do nothing, `tender attach <repo>` shows whether it is waiting on
+this question; answer it there.
+
+What `tender` does not do is write that trust into the agent's own settings
+(for Claude Code, `~/.claude.json`) — that is another tool's configuration,
+and the one decision in it that should stay a person's.
+
+A second Claude Code question — whether a project's `CLAUDE.md` may import
+files from outside it with `@path` — only comes up for a *project* file with
+such imports; a personal `~/.claude/CLAUDE.md` does not trigger it (measured
+the same day).
+
+**Other agents are not measured.** Codex CLI and Cursor's agent are reported to
+have questions of their own on a new folder; until someone runs them the way
+`tender` does, treat an idle first start as this question first.
+
 ## Role boundaries are not enforced
 
 Worth repeating here because it's a limit, not just a design note: the
