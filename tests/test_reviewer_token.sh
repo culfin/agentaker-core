@@ -19,7 +19,7 @@ STUB=$(mktemp -d)
 trap 'tmux kill-session -t tender-demo >/dev/null 2>&1; rm -rf "$SANDBOX" "$STUB"' EXIT
 # Whatever the developer's own shell carries must not stand in for the token
 # under test -- nor reach the tmux server these tests start.
-unset GH_TOKEN STUB_REVIEWER_PRESENT STUB_REVIEWER_TOKEN STUB_SERVICE STUB_ACCOUNT STUB_VALUE
+unset GH_TOKEN GITHUB_TOKEN STUB_REVIEWER_PRESENT STUB_REVIEWER_TOKEN STUB_SERVICE STUB_ACCOUNT STUB_VALUE
 
 # --- a stub `security`, never the real keychain -----------------------------
 # Serves treetender-reviewer (attributes when STUB_REVIEWER_PRESENT is set,
@@ -107,6 +107,12 @@ echo "reviewer token: lib/credential.sh --reviewer-token executed directly"
   GH_TOKEN=inherited GITHUB_TOKEN=inherited PATH="$SAFE_PATH" bash "$PWD/lib/credential.sh" --reviewer-token \
     bash -c 'printf "%s %s" "${GH_TOKEN:-<unset>}" "${GITHUB_TOKEN:-<unset>}" > "$1"' -- "$MARKER" >/dev/null 2>&1
   check "no token: an inherited GH_TOKEN and GITHUB_TOKEN are cleared" "<unset> <unset>" "$(cat "$MARKER" 2>/dev/null)"
+  # With the token read, only it remains: no inherited GITHUB_TOKEN next to it.
+  rm -f "$MARKER"
+  GH_TOKEN=inherited GITHUB_TOKEN=inherited PATH="$SAFE_PATH" STUB_REVIEWER_TOKEN="$TOKEN" \
+    bash "$PWD/lib/credential.sh" --reviewer-token \
+    bash -c 'printf "%s %s" "${GH_TOKEN:-<unset>}" "${GITHUB_TOKEN:-<unset>}" > "$1"' -- "$MARKER" >/dev/null 2>&1
+  check "token read: GH_TOKEN is the reviewer's, an inherited GITHUB_TOKEN is gone" "$TOKEN <unset>" "$(cat "$MARKER" 2>/dev/null)"
   trace=$(PATH="$SAFE_PATH" STUB_REVIEWER_TOKEN="$TOKEN" bash -x "$PWD/lib/credential.sh" --reviewer-token true 2>&1)
   lacks "an inherited bash -x never prints the value" "$TOKEN" "$trace"
 }

@@ -305,6 +305,10 @@ reviewer_token_export() {
     value=$(secret-tool lookup service treetender-reviewer 2>/dev/null) || value=""
   fi
   if [ -n "$value" ]; then
+    # The reviewer's token, and only it: an inherited GITHUB_TOKEN (most
+    # likely the developer's) must not sit next to it for tools that read
+    # that name instead.
+    unset GITHUB_TOKEN
     export GH_TOKEN="$value"
   else
     unset GH_TOKEN GITHUB_TOKEN

@@ -16,7 +16,9 @@ trap 'rm -rf "$SANDBOX"' EXIT
 
 STUB=$(mktemp -d)
 trap 'rm -rf "$SANDBOX" "$STUB"' EXIT
-SAFE_PATH="$STUB:/usr/bin:/bin"
+# The keychain stand-ins from tests/lib.sh stay first: no test reaches the
+# real keychain, not even through a hand-built PATH.
+SAFE_PATH="$TEST_NOKEYCHAIN:$STUB:/usr/bin:/bin"
 
 TOOLS="$SANDBOX/tools"
 
