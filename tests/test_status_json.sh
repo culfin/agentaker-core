@@ -109,7 +109,7 @@ EXPECTED_CALLS_APPROX=$(cat <<'EOF'
 <--json>
 <repository,number,title,url,updatedAt,labels>
 <--jq>
-<"\u001d\(length)", (.[] | select(any((.labels // [])[]; .name == "needs-decision") | not) | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), ""] | map(. // "") | join("\u001f")))>
+<"\u001d\(length)", (.[] | select(any((.labels // [])[]; .name == "needs-decision") | not) | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), ""] | map((. // "") | tostring | gsub("[\u001d-\u001f]"; "")) | join("\u001f")))>
 ---
 <search>
 <prs>
@@ -125,7 +125,7 @@ EXPECTED_CALLS_APPROX=$(cat <<'EOF'
 <--json>
 <repository,number,title,url,updatedAt,author,labels>
 <--jq>
-<"\u001d\(length)", (.[] | select(.author.login | test("dependabot") | not) | select(any((.labels // [])[]; .name == "approved") | not) | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), ""] | map(. // "") | join("\u001f")))>
+<"\u001d\(length)", (.[] | select(.author.login | test("dependabot") | not) | select(any((.labels // [])[]; .name == "approved") | not) | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), ""] | map((. // "") | tostring | gsub("[\u001d-\u001f]"; "")) | join("\u001f")))>
 ---
 <search>
 <prs>
@@ -140,7 +140,7 @@ EXPECTED_CALLS_APPROX=$(cat <<'EOF'
 <--json>
 <repository,number,title,url,updatedAt>
 <--jq>
-<"\u001d\(length)", (.[] | . | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), ""] | map(. // "") | join("\u001f")))>
+<"\u001d\(length)", (.[] | . | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), ""] | map((. // "") | tostring | gsub("[\u001d-\u001f]"; "")) | join("\u001f")))>
 ---
 <search>
 <prs>
@@ -156,7 +156,7 @@ EXPECTED_CALLS_APPROX=$(cat <<'EOF'
 <--json>
 <repository,number,title,url,updatedAt>
 <--jq>
-<"\u001d\(length)", (.[] | . | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), ""] | map(. // "") | join("\u001f")))>
+<"\u001d\(length)", (.[] | . | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), ""] | map((. // "") | tostring | gsub("[\u001d-\u001f]"; "")) | join("\u001f")))>
 ---
 <search>
 <issues>
@@ -172,7 +172,7 @@ EXPECTED_CALLS_APPROX=$(cat <<'EOF'
 <--json>
 <repository,number,title,url,updatedAt,isPullRequest>
 <--jq>
-<"\u001d\(length)", (.[] | . | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), if .isPullRequest then "pr" else "issue" end] | map(. // "") | join("\u001f")))>
+<"\u001d\(length)", (.[] | . | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), if .isPullRequest then "pr" else "issue" end] | map((. // "") | tostring | gsub("[\u001d-\u001f]"; "")) | join("\u001f")))>
 ---
 EOF
 )
@@ -190,7 +190,7 @@ EXPECTED_CALLS_EXACT=$(cat <<'EOF'
 <--json>
 <repository,number,title,url,updatedAt,labels>
 <--jq>
-<"\u001d\(length)", (.[] | select(any((.labels // [])[]; .name == "needs-decision") | not) | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), ""] | map(. // "") | join("\u001f")))>
+<"\u001d\(length)", (.[] | select(any((.labels // [])[]; .name == "needs-decision") | not) | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), ""] | map((. // "") | tostring | gsub("[\u001d-\u001f]"; "")) | join("\u001f")))>
 ---
 <search>
 <prs>
@@ -206,7 +206,7 @@ EXPECTED_CALLS_EXACT=$(cat <<'EOF'
 <--json>
 <repository,number,title,url,updatedAt,author,labels>
 <--jq>
-<"\u001d\(length)", (.[] | select(.author.login | test("dependabot") | not) | select(any((.labels // [])[]; .name == "approved") | not) | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), ""] | map(. // "") | join("\u001f")))>
+<"\u001d\(length)", (.[] | select(.author.login | test("dependabot") | not) | select(any((.labels // [])[]; .name == "approved") | not) | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), ""] | map((. // "") | tostring | gsub("[\u001d-\u001f]"; "")) | join("\u001f")))>
 ---
 <search>
 <prs>
@@ -221,7 +221,7 @@ EXPECTED_CALLS_EXACT=$(cat <<'EOF'
 <--json>
 <repository,number,title,url,updatedAt>
 <--jq>
-<"\u001d\(length)", (.[] | . | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), ""] | map(. // "") | join("\u001f")))>
+<"\u001d\(length)", (.[] | . | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), ""] | map((. // "") | tostring | gsub("[\u001d-\u001f]"; "")) | join("\u001f")))>
 ---
 <search>
 <prs>
@@ -237,7 +237,7 @@ EXPECTED_CALLS_EXACT=$(cat <<'EOF'
 <--json>
 <repository,number,title,url,updatedAt>
 <--jq>
-<"\u001d\(length)", (.[] | . | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), ""] | map(. // "") | join("\u001f")))>
+<"\u001d\(length)", (.[] | . | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), ""] | map((. // "") | tostring | gsub("[\u001d-\u001f]"; "")) | join("\u001f")))>
 ---
 <search>
 <issues>
@@ -253,7 +253,7 @@ EXPECTED_CALLS_EXACT=$(cat <<'EOF'
 <--json>
 <repository,number,title,url,updatedAt,isPullRequest>
 <--jq>
-<"\u001d\(length)", (.[] | . | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), if .isPullRequest then "pr" else "issue" end] | map(. // "") | join("\u001f")))>
+<"\u001d\(length)", (.[] | . | "\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), if .isPullRequest then "pr" else "issue" end] | map((. // "") | tostring | gsub("[\u001d-\u001f]"; "")) | join("\u001f")))>
 ---
 EOF
 )
@@ -343,6 +343,8 @@ for bad in 2026-09-22 2026-09-22T08:00:00+02:00 2026-09-22T08:00:00-05:00 2026-0
   check "--since '$bad' asks gh nothing" "" "$(cat "$GH_CALLS")"
 done
 contains "the refusal says what it expects" "is not an ISO-8601 UTC time" "$out"
+out=$(run status someowner --json --since 2026-02-30T00:00:00Z 2>&1)
+contains "the refusal names the value it refused" "--since '2026-02-30T00:00:00Z' is not" "$out"
 
 echo "tender status: usage errors"
 out=$(run status someowner --json --since 2>&1); check "--since without a value exits 2" "2" "$?"
@@ -385,8 +387,11 @@ contains "text: could not ask, saying what came back" "could not ask: unexpected
 lacks "text: it is not shown as a row" "$(printf 'ready to pick up:\n  demo#1')" "$out"
 export GH_RAW=""
 json=$(run status someowner --json); rc=$?
-check "empty output: exits 0" "0" "$rc"
-check "empty output: ok, no items" '{"ok":true,"truncated":false,"items":[]}' "$(jqc .ready "$json")"
+check "empty output: exits 1 — the program always prints a size" "1" "$rc"
+check "empty output: not ok" '{"ok":false,"error":"unexpected gh output: nothing at all"}' "$(jqc .ready "$json")"
+export GH_RAW=$'\x1d3\n<html>'
+json=$(run status someowner --json)
+check "3 announced, none sent: not ok" "false" "$(jqc .approved.ok "$json")"
 unset GH_RAW
 
 echo "tender status: a section at the limit says it may be cut"
@@ -406,6 +411,9 @@ json=$(run status someowner --json)
 check "at 99: not truncated" "false" "$(jqc .ready.truncated "$json")"
 out=$(run status someowner 2>&1)
 lacks "text at 99: no truncation line" "showing the first" "$out"
+GH_DATA=$(jq -nc '[range(100) | {repository:{name:"acme"}, number:(.+1), title:"t", url:"u", updatedAt:"d", labels:[{name:"needs-decision"}]}]')
+out=$(run status someowner 2>&1)
+contains "text: all 100 filtered out still says it may be cut" "$(printf 'ready to pick up:\n  (none among the first 100 — there may be more)')" "$out"
 unset GH_DATA
 
 echo "tender status --json: titles that JSON has to escape"
@@ -416,6 +424,9 @@ check "exits 0" "0" "$rc"
 check "parses" '"object"' "$(jqc type "$json")"
 check "the title comes back exactly: quotes, backslash, newline, tab" \
   "$(printf 'say "hi" \\ or\nnot\tnow')" "$(printf '%s' "$json" | jq -r '.ready.items[0].title')"
+GH_DATA=$(jq -nc '[{repository:{name:"acme"}, number:11, title:"x\u001fy\u001ez", url:"u", updatedAt:"d", labels:[]}]')
+json=$(run status someowner --json)
+check "separator characters in a title are dropped, one item stays one" '["xyz"]' "$(jqc '[.ready.items[].title]' "$json")"
 unset GH_DATA
 export GH_WARN=1
 json=$(run status someowner --json)

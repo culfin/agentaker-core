@@ -21,8 +21,11 @@ each PR once; and "waiting for review" no longer lists a label-cleared PR,
 which the `--review none` approximation used to count as unreviewed. Every
 search asks for up to 100 results instead of gh's default 30, and a section
 that came back with exactly 100 says `(showing the first 100 — there may be
-more)` (JSON: `"truncated": true`). A gh answer that is not in the expected
-shape is now "could not ask: unexpected gh output: …", never a row. The
+more)` (JSON: `"truncated": true`) — or, when none of those 100 is left after
+the local filters, `(none among the first 100 — there may be more)`. A gh answer
+that is not in the expected shape — empty output included, or a count the
+records do not match — is now "could not ask: unexpected gh output: …", never a
+row or an empty section. Separator control characters in a title are dropped. The
 board's questions and the engine that asks them moved from `bin/tender` to
 `lib/status.sh`.
 

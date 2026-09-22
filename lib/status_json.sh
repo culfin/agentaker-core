@@ -87,8 +87,10 @@ status_dispatch() {
   owner=${owner:-${TENDER_OWNER:-}}
   [ -n "$owner" ] || die "give an owner: tender status <owner> --json  (or set TENDER_OWNER)"
   if [ "$have_since" -eq 1 ]; then
-    since=$(status_json_normal_time "$since") \
+    local normal
+    normal=$(status_json_normal_time "$since") \
       || die "--since '$since' is not an ISO-8601 UTC time (e.g. 2026-09-22T08:00:00Z)" 2
+    since=$normal
   fi
   status_json "$owner" "$since"
 }

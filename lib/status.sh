@@ -95,7 +95,7 @@ status_q_merged() {
 status_cmd() {
   local IFS=$'\x1f' fields=repository,number,title,url,updatedAt prog
   [ -z "$STATUS_F" ] || fields="$fields,$STATUS_F"
-  prog=$(printf '"\\u001d\\(length)", (.[] | %s | "\\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), %s] | map(. // "") | join("\\u001f")))' \
+  prog=$(printf '"\\u001d\\(length)", (.[] | %s | "\\u001e" + ([.repository.name, (.number | tostring), .title, (.url // ""), (.updatedAt // ""), %s] | map((. // "") | tostring | gsub("[\\u001d-\\u001f]"; "")) | join("\\u001f")))' \
     "$STATUS_FILTER" "$STATUS_X")
   printf '%s' "${STATUS_Q[*]}${*:+$IFS$*}${IFS}--limit${IFS}$STATUS_LIMIT${IFS}--json${IFS}$fields${IFS}--jq${IFS}$prog"
 }
@@ -127,7 +127,7 @@ status_section() {
 # throttle_count(): a gh warning is not a record, and gh's first stderr line
 # is the reason a failed call gives.
 status_collect() {
-  local out rc errfile rec size repo number title url updated extra
+  local out rc errfile rec size="" records repo number title url updated extra
   if ! command -v gh >/dev/null 2>&1; then STATUS_SEC_ERROR="gh is not installed"; return 1; fi
   errfile=$(mktemp) || { STATUS_SEC_ERROR="cannot create a temporary file"; return 1; }
   out=$(gh "$@" 2>"$errfile")
@@ -142,7 +142,7 @@ status_collect() {
   # Output the program above cannot have printed is not an empty section and
   # not an item either: it is an answer this cannot read.
   case $out in
-    "") return 0 ;;
+    "") STATUS_SEC_ERROR="unexpected gh output: nothing at all"; return 1 ;;
     *$'\x1d'*|*$'\x1e'*) ;;
     *) STATUS_SEC_ERROR="unexpected gh output: $(printf '%s\n' "$out" | head -1)"; return 1 ;;
   esac
@@ -152,6 +152,15 @@ status_collect() {
       size=${size%%[!0-9]*}
       [ -n "$size" ] && [ "$size" -ge "$STATUS_LIMIT" ] && STATUS_SEC_TRUNCATED=1 ;;
   esac
+  # Without a filter the program prints one record per result, so a size the
+  # records do not match is output this cannot trust, not a shorter section.
+  if [ "$STATUS_FILTER" = "." ]; then
+    records=${out//[!$'\x1e']/}
+    if [ "${size:-x}" != "${#records}" ]; then
+      STATUS_SEC_ERROR="unexpected gh output: ${size:-no} result(s) announced, ${#records} record(s) sent"
+      return 1
+    fi
+  fi
   case $out in *$'\x1e'*) ;; *) return 0 ;; esac
   out=${out#*$'\x1e'}
   # shellcheck disable=SC2034  # URL, UPDATED and EXTRA are read by lib/status_json.sh
@@ -188,7 +197,11 @@ status_text() {
     return 0
   fi
   if [ "$STATUS_SEC_COUNT" -eq 0 ]; then
-    printf '  (none)\n'
+    if [ "$STATUS_SEC_TRUNCATED" -eq 1 ]; then
+      printf '  (none among the first %s — there may be more)\n' "$STATUS_LIMIT"
+    else
+      printf '  (none)\n'
+    fi
     return 0
   fi
   while [ "$i" -lt "$STATUS_SEC_COUNT" ]; do
