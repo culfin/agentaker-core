@@ -27,6 +27,7 @@ case "$*" in
     echo "a warning on stderr that must not be counted" >&2
     cat "$STUB_DIR/prs-$name" 2>/dev/null
     ;;
+  "search "*) printf '\0350\n' ;;  # an empty board section, as the status --jq program prints it
 esac
 exit 0
 STUBEOF

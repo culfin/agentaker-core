@@ -63,7 +63,7 @@ cat > "$STUB/gh" <<'STUBEOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$GH_CALLS"
 case "$*" in
-  *"--label ready"*) ;;  # no rows — an empty "ready to pick up" section
+  *"--label ready"*) printf '\0350\n' ;;  # no rows — an empty "ready to pick up" section, as gh answers it
   *) printf '\0351\n\036demo\0371\037a fake row\037\037\037\n' ;;
 esac
 STUBEOF
