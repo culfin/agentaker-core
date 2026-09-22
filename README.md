@@ -1,3 +1,5 @@
+> **Archived (2026-09-22).** Development continues in a private repository, where this CLI becomes part of the agentaker app and is being rewritten in Rust. This repository stays readable under its MIT licence; it receives no further changes.
+
 # agentaker
 
 Give each AI coding session a fixed role and its own git worktree.
