@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+`tender doctor` says who can close each gap, and how (issue #9). Every problem
+is now a `human:` (or, once there is a `--fix`, `fixable:`) line followed by an
+`action:` line with the exact next step, naming the tool. A tool that gives no
+answer in time reads as "could not confirm automatically", not as a failure.
+See `docs/tools.md`, "How it reports a gap".
+
 The reviewer token no longer passes through `tmux`'s argv (issue #10). It used
 to be handed over as `tmux … -e "GH_TOKEN=<token>"`, readable by `ps` while
 that `tmux` client ran; it now takes the route named credentials do — `tender`

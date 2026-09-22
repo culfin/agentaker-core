@@ -109,9 +109,21 @@ accepts a system prompt from a file — not that it acts on an instruction in
 that file *before* anything else. A tool that only speaks after a first
 interactive message will report "no response" under `doctor` even though it
 works fine by hand in a real tmux window, because `doctor` has no way to
-send that first message without becoming tool-specific. Read a "no response"
-result as "couldn't confirm automatically," not as "doesn't work" — the same
-honesty this table already asks for, just from the tool's side this time.
+send that first message without becoming tool-specific. So `doctor` itself
+says "could not confirm automatically", not "doesn't work" — the same honesty
+this table already asks for, just from the tool's side this time.
+
+**How it reports a gap.** Every problem comes as two lines: who can close it,
+then how.
+
+    hangtool:
+      human: could not confirm automatically — no response in 15s
+      action: start it in a real session (TENDER_TOOL=hangtool tender <repo> <role>) and check it names its role; or allow more time: TENDER_DOCTOR_TIMEOUT=60 tender doctor hangtool
+
+`human:` means only a person at this machine can close it; `fixable:` is
+reserved for gaps `tender` could close itself — none today, since there is no
+`--fix`. An `action:` line always follows. The test suite checks that shape
+over a full run, so a new check cannot leave its gap without a next step.
 
 ## Status, honestly
 

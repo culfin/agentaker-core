@@ -13,6 +13,16 @@
 
 DOCTOR_MARKER='TENDER-DOCTOR-OK'
 
+# Every gap doctor reports says who can close it and how (issue #9): a
+# `fixable:` line when tender can close it itself, `human:` when only a person
+# at this machine can — then always an `action:` line naming the exact next
+# step. One helper, so no path can print the one without the other. Nothing
+# is `fixable:` yet: there is no `--fix`, and nothing doctor finds is
+# something tender could safely repair on its own.
+doctor_gap() {
+  printf '  %s: %s\n  action: %s\n' "$1" "$2" "$3"
+}
+
 # Runs $3.. with stdin closed and its combined output captured to $2, for at
 # most $1 seconds. Whole-second polling — the same style wait_for_handoff()
 # in lib/manage.sh uses, where the timeout is a safety margin, not a
@@ -52,7 +62,11 @@ run_with_timeout() {
 doctor_probe() {
   local tool=$1 timeout=${TENDER_DOCTOR_TIMEOUT:-15}
   local tmp
-  tmp=$(mktemp -d) || { printf '  could not create a scratch directory\n'; return 1; }
+  tmp=$(mktemp -d) || {
+    doctor_gap human "could not create a scratch directory" \
+      "check that ${TMPDIR:-/tmp} exists and is writable, then run: tender doctor $tool"
+    return 1
+  }
   # shellcheck disable=SC2064  # $tmp is fixed now, on purpose — not
   # re-evaluated at trap time, when it would no longer be in scope.
   trap "rm -rf '$tmp'" RETURN
@@ -76,16 +90,22 @@ EOF
   # stale value from a previous doctor_probe() call in this same loop from
   # ever being visible if that ever changed.
   TOOL_STATUS=verified
-  local known=0
+  local known=0 from_file=0
+  # Whether the tools file has a line for it — decides where the fix goes if
+  # the role never arrives. A subshell, so the lookup's own LAUNCH_CMD and
+  # messages stay out of this one.
+  ( tools_file_lookup "$tool" "$ctx" ) >/dev/null 2>&1 && from_file=1
   launch_command "$ctx" && known=1
   TOOL=$prior_tool
   if [ "$known" -eq 0 ]; then
-    printf '  no launch command known for this tool\n'
+    doctor_gap human "no launch command known for this tool" \
+      "add a line for $tool to your tools file (${TENDER_TOOLS_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/treetender/tools}) — see docs/tools.md"
     return 1
   fi
 
   command -v "${LAUNCH_CMD[0]}" >/dev/null 2>&1 || {
-    printf '  not installed (%s not on PATH)\n' "${LAUNCH_CMD[0]}"
+    doctor_gap human "not installed (${LAUNCH_CMD[0]} not on PATH)" \
+      "install ${LAUNCH_CMD[0]}, or put its directory on PATH, then run: tender doctor $tool"
     return 1
   }
 
@@ -94,14 +114,21 @@ EOF
   rc=$?
 
   if [ "$rc" -eq 124 ]; then
-    printf '  no response in %ss\n' "$timeout"
+    # Neither a pass nor a failure: a tool that only speaks after a first
+    # message looks exactly like this (see the header above).
+    doctor_gap human "could not confirm automatically — no response in ${timeout}s" \
+      "start it in a real session (TENDER_TOOL=$tool tender <repo> <role>) and check it names its role; or allow more time: TENDER_DOCTOR_TIMEOUT=60 tender doctor $tool"
     return 1
   fi
   if grep -qF "$DOCTOR_MARKER" "$out" 2>/dev/null; then
     printf '  role arrived\n'
     return 0
   fi
-  printf '  started (exit %s) but the role never arrived — see docs/tools.md\n' "$rc"
+  local where="$tool's line in your tools file"
+  [ "$from_file" -eq 1 ] \
+    || where="$tool's built-in launch line in lib/tools.sh — or override it with a line in your tools file"
+  doctor_gap human "started (exit $rc) but the role never arrived" \
+    "check $where: {context} must reach the option that takes a system prompt from a file — see docs/tools.md"
   return 1
 }
 
