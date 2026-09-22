@@ -190,8 +190,8 @@ blocked even on a shared one.
 
    `tender` reads it back with `security find-generic-password -s
    treetender-reviewer -w` (or the `secret-tool lookup` equivalent) — the
-   exact commands are in `read_reviewer_token()` in `bin/tender`, if you want to
-   check by hand.
+   exact commands are in `reviewer_token_export()` in `lib/credential.sh`, if
+   you want to check by hand.
 
 5. Put that account's login in each project's `AGENTS.md`:
 
@@ -202,11 +202,24 @@ blocked even on a shared one.
    mode otherwise — leave it blank, or matching your own login, to stay on
    single-account mode.
 
-`tender <repo> reviewer` reads the token and sets `GH_TOKEN` for that session
-only. If it is missing, `tender` says so and starts anyway — you find out at the
-first approval, not at session start:
+`tender <repo> reviewer` sets `GH_TOKEN` for that session only, and the token
+never appears in any process's argv — not `tender`'s, not `tmux`'s, not the
+agent's. `tender` itself only asks whether the entry exists (`security` without
+`-w`, which prints attributes, never the password; on Linux `secret-tool
+lookup` with its output discarded unread). The value is read inside the new
+window, right before the agent starts, by `lib/credential.sh --reviewer-token`
+— the same mechanism as the named credentials in section 8, and proven the
+same way, in `tests/test_reviewer_token.sh`. `tender restart` does the same.
+
+If the token is missing, `tender` says so and starts anyway — you find out at
+the first approval, not at session start:
 
     tender: no reviewer token found — approvals will fail. See docs/setup.md
+
+The same line appears inside the window if the entry existed when `tender`
+checked but could not be read from there (the window's lookup runs in the tmux
+server's environment, which can differ from yours); the agent starts anyway,
+without `GH_TOKEN`.
 
 ## 8. Named credentials for an agent
 
@@ -219,10 +232,10 @@ this project) has stored an API key under a label in the OS keychain,
 picks that entry, puts it into the started agent's *environment*, and never
 lets it touch a process's argv — not `tender`'s own, not `tmux`'s, not the
 agent's. `tmux new-window`/`new-session` inherit the environment of the tmux
-*server*, not of the caller, which is why the reviewer token above is passed
-via `-e "GH_TOKEN=$token"` instead — but `-e "KEY=value"` puts the secret
-into `tmux`'s own argv, visible to `ps` for as long as that process runs.
-`TENDER_CREDENTIAL` avoids that: only the label travels through `tender`'s own argv
+*server*, not of the caller, and the obvious way around that, `-e "KEY=value"`,
+puts the secret into `tmux`'s own argv, visible to `ps` for as long as that
+process runs (the reviewer token was passed that way until issue #10; it now
+takes the route described here). `TENDER_CREDENTIAL` avoids that: only the label travels through `tender`'s own argv
 and `tmux`'s; the value is fetched from inside the new pane's own process,
 right before the agent starts, by `lib/credential.sh` run directly rather
 than sourced (see its own header). `tests/test_credential.sh` proves this
@@ -258,6 +271,10 @@ read it — answer "Always Allow", or the start waits on that dialog.
 
 Unlike the reviewer token, a missing or unreadable credential is not a soft
 warning: `tender` refuses to start the session at all.
+
+Both at once — `TENDER_CREDENTIAL=work tender myproject reviewer` — works: the
+reviewer token is exported first and the named credential inside it, so if the
+named entry's account is itself `GH_TOKEN`, the named credential wins.
 
     tender: no readable credential named 'work' in the keychain — refusing to start without it. See docs/setup.md
 

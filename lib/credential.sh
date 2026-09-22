@@ -25,9 +25,10 @@
 #
 # Needs from bin/tender: nothing at source time.
 # Provides to it:      valid_credential_label(), credential_available(),
-#                       credential_wrapper_argv() (sets LAUNCH_CMD),
-#                       credential_record(); and to lib/manage.sh's restart,
-#                       credential_recorded()
+#                       credential_wrapper_argv() and reviewer_token_wrap()
+#                       (both set LAUNCH_CMD), credential_record(); and to
+#                       lib/manage.sh's restart, credential_recorded() and
+#                       reviewer_token_wrap()
 #
 # Storage contract (agreed in issue #5 -- the app writes what this reads):
 #   keychain service: treetender-cred-<label>
@@ -112,7 +113,7 @@ credential_account_linux() {
 # nothing printed -- no entry, no tool installed, or an account attribute
 # that doesn't pass valid_credential_account(). Tries macOS then Linux, the
 # same order and the same "try the next one even if the first tool exists
-# but the lookup itself failed" shape as read_reviewer_token() (bin/tender).
+# but the lookup itself failed" shape as reviewer_token_export() below.
 credential_find_account() {
   local service=$1 account
   if command -v security >/dev/null 2>&1; then
@@ -249,6 +250,63 @@ credential_recorded() {
   printf '%s' "$label"
 }
 
+# --- the reviewer token (issue #10) ----------------------------------------
+# The reviewer's own hosting-account token, keychain service
+# treetender-reviewer, exported as GH_TOKEN. Same route as a named credential
+# -- looked up inside the pane, never in any argv -- but *soft*: the reviewer
+# without a token still works in single-account mode (docs/setup.md, section
+# 7), so a missing token warns and starts anyway, both here and in the pane.
+REVIEWER_TOKEN_WARNING='tender: no reviewer token found — approvals will fail. See docs/setup.md'
+
+# Whether an entry exists -- never its value. macOS: without -w, `security`
+# prints attributes only. Linux: `secret-tool lookup` can only print the
+# value, so its stdout goes straight to /dev/null, never into a variable a
+# trace (`bash -x bin/tender ...`) could print.
+reviewer_token_available() {
+  if command -v security >/dev/null 2>&1; then
+    security find-generic-password -s treetender-reviewer >/dev/null 2>&1 && return 0
+  fi
+  if command -v secret-tool >/dev/null 2>&1; then
+    secret-tool lookup service treetender-reviewer >/dev/null 2>&1 && return 0
+  fi
+  return 1
+}
+
+# For cmd_start() and restart_window(): wraps LAUNCH_CMD ($2..) in this file's
+# direct mode with --reviewer-token when an entry exists; otherwise warns and
+# leaves it unwrapped. Called after credential_wrapper_argv(), so a named
+# credential's own export runs later, inside, and wins over GH_TOKEN.
+reviewer_token_wrap() {
+  local tender_home=$1
+  shift
+  if reviewer_token_available; then
+    # shellcheck disable=SC2034  # global, read by the caller -- see above
+    LAUNCH_CMD=(bash "$tender_home/lib/credential.sh" --reviewer-token "$@")
+  else
+    printf '%s\n' "$REVIEWER_TOKEN_WARNING" >&2
+  fi
+}
+
+# Direct mode only, inside the pane: the two lookups tender itself used to
+# make, now in the pane's own process. Exports GH_TOKEN when non-empty; says
+# the warning into the pane otherwise and returns 0 either way -- the caller
+# execs the agent regardless.
+reviewer_token_export() {
+  local value=""
+  if command -v security >/dev/null 2>&1; then
+    value=$(security find-generic-password -s treetender-reviewer -w 2>/dev/null) || value=""
+  fi
+  if [ -z "$value" ] && command -v secret-tool >/dev/null 2>&1; then
+    value=$(secret-tool lookup service treetender-reviewer 2>/dev/null) || value=""
+  fi
+  if [ -n "$value" ]; then
+    export GH_TOKEN="$value"
+  else
+    printf '%s\n' "$REVIEWER_TOKEN_WARNING" >&2
+  fi
+  value=""
+}
+
 # The export-and-exec that only runs when this file is executed directly
 # (see the guard below), never when it is sourced. $1 is the label; $2.. is
 # the agent's own launch command, already fully resolved by cmd_start().
@@ -291,9 +349,10 @@ credential_export_or_die() {
 
 # Tells the two modes apart: sourced (bin/tender, and this file's own tests,
 # want only the functions above) versus executed directly (the pane wrapper
-# cmd_start() builds via credential_wrapper_argv()). Standard bash idiom --
-# BASH_SOURCE[0] is this file's own path either way; $0 only matches it when
-# this file itself was the thing bash was told to run.
+# cmd_start() builds via credential_wrapper_argv(), or with --reviewer-token
+# via reviewer_token_wrap() -- never a label, which cannot start with -).
+# Standard bash idiom -- BASH_SOURCE[0] is this file's own path either way;
+# $0 only matches it when this file itself was the thing bash was told to run.
 #
 # Executed directly, this is the pane's own process: tracing is switched off
 # first (an inherited `set -x` would print the value), and a refusal keeps
@@ -304,6 +363,11 @@ credential_export_or_die() {
 if [ "${BASH_SOURCE[0]:-}" = "$0" ]; then
   { set +x; } 2>/dev/null
   set -uo pipefail
+  if [ "${1:-}" = --reviewer-token ]; then
+    shift
+    reviewer_token_export
+    exec "$@"
+  fi
   credential_label=${1:-}
   shift || true
   if ! credential_export_or_die "$credential_label"; then

@@ -82,7 +82,12 @@ fi
 echo "tender: legible tab titles"
 out=$("$TENDER" demo developer 2>&1)
 contains "developer tags DEV" "demo · DEV" "$out"
-out=$("$TENDER" demo reviewer 2>&1)
+# A reviewer start asks the keychain whether a token exists — a stub keychain
+# with none, never the real one.
+NOKEY=$(mktemp -d); trap 'rm -rf "$SANDBOX" "$NOKEY"' EXIT
+printf '#!/bin/sh\nexit 44\n' > "$NOKEY/security"; cp "$NOKEY/security" "$NOKEY/secret-tool"
+chmod +x "$NOKEY/security" "$NOKEY/secret-tool"
+out=$(PATH="$NOKEY:$PATH" "$TENDER" demo reviewer 2>&1)
 contains "reviewer tags REV" "demo · REV" "$out"
 out=$("$TENDER" demo maintainer 2>&1)
 contains "maintainer tags MNT" "demo · MNT" "$out"

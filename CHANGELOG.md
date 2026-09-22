@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+The reviewer token no longer passes through `tmux`'s argv (issue #10). It used
+to be handed over as `tmux … -e "GH_TOKEN=<token>"`, readable by `ps` while
+that `tmux` client ran; it now takes the route named credentials do — `tender`
+only checks that the keychain entry exists, and `lib/credential.sh
+--reviewer-token`, inside the new window, reads it and exports `GH_TOKEN`.
+Still soft: a missing token warns and starts anyway, now also on `tender
+restart` and inside the window. With `TENDER_CREDENTIAL` also set, a named
+credential whose account is `GH_TOKEN` wins. See `docs/setup.md`, sections 7
+and 8.
+
 The tool table is now a config file (issue #2): a line in
 `~/.config/treetender/tools` (or `$TENDER_TOOLS_FILE`) adds or overrides a coding
 agent without editing `bin/tender` or waiting for a release — see

@@ -8,8 +8,8 @@
 #
 # Needs from bin/tender: die(), usage(), role_tag(), session_name(),
 #   build_context(), launch_command(), wrap_launch_command(),
-#   read_reviewer_token(), PROJECTS_DIR, ROLES_DIR, TOOL, TENDER_HOME, and
-#   credential_recorded()/credential_wrapper_argv() from lib/credential.sh
+#   PROJECTS_DIR, ROLES_DIR, TOOL, TENDER_HOME, and credential_recorded()/
+#   credential_wrapper_argv()/reviewer_token_wrap() from lib/credential.sh
 # Needs from lib/state.sh: collect_state() — bin/tender sources it alongside
 #   this file, only in the `restart` branch of its dispatch.
 # Provides to it:     nothing — cmd_list()/cmd_drop()/cmd_restart() are the
@@ -309,18 +309,13 @@ restart_window() {
   fi
   [ -n "$cred" ] && credential_wrapper_argv "$TENDER_HOME" "$cred" "${LAUNCH_CMD[@]}"
 
-  local token=""
-  [ "$role" = "reviewer" ] && { token=$(read_reviewer_token) || token=""; }
+  # Same order and same soft check as cmd_start() (issue #10).
+  if [ "$role" = "reviewer" ]; then reviewer_token_wrap "$TENDER_HOME" "${LAUNCH_CMD[@]}"; fi
 
   wrap_launch_command "$role" "${LAUNCH_CMD[@]}"
   local respawn_rc
-  if [ -n "$token" ]; then
-    tmux respawn-pane -k -t "$target" -c "$wt" -e "GH_TOKEN=$token" "${LAUNCH_CMD[@]}"
-    respawn_rc=$?
-  else
-    tmux respawn-pane -k -t "$target" -c "$wt" "${LAUNCH_CMD[@]}"
-    respawn_rc=$?
-  fi
+  tmux respawn-pane -k -t "$target" -c "$wt" "${LAUNCH_CMD[@]}"
+  respawn_rc=$?
   tmux set-window-option -t "$target" remain-on-exit off 2>/dev/null
 
   if [ "$respawn_rc" -ne 0 ]; then

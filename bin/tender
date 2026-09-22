@@ -150,16 +150,6 @@ exclude_agents_dir() {
 
 session_name() { printf 'tender-%s' "$1"; }
 
-read_reviewer_token() {
-  if command -v security >/dev/null 2>&1; then
-    security find-generic-password -s treetender-reviewer -w 2>/dev/null && return 0
-  fi
-  if command -v secret-tool >/dev/null 2>&1; then
-    secret-tool lookup service treetender-reviewer 2>/dev/null && return 0
-  fi
-  return 1
-}
-
 # After tmux accepted the window, never before and never on a dry run — see
 # credential_record() in lib/credential.sh. A record that cannot be written
 # is said out loud: the session runs, but a later restart would not know
@@ -226,15 +216,10 @@ cmd_start() {
     credential_wrapper_argv "$TENDER_HOME" "$CREDENTIAL" "${LAUNCH_CMD[@]}"
   fi
 
-  # The reviewer runs under its own hosting account. Its token lives in the OS
-  # keychain, never in a settings file, and is set for this session only.
-  local token=""
-  if [ "$role" = "reviewer" ]; then
-    if ! token=$(read_reviewer_token); then
-      token=""
-      printf 'tender: no reviewer token found — approvals will fail. See docs/setup.md\n' >&2
-    fi
-  fi
+  # The reviewer runs under its own hosting account (issue #10). Wrapped
+  # outside a named credential, so that one's export wins; soft, unlike it —
+  # see reviewer_token_wrap() in lib/credential.sh.
+  if [ "$role" = "reviewer" ]; then reviewer_token_wrap "$TENDER_HOME" "${LAUNCH_CMD[@]}"; fi
 
   local session
   session=$(session_name "$repo")
@@ -267,15 +252,9 @@ cmd_start() {
   # itself, and why it exists as a shared function at all.
   wrap_launch_command "$role" "${LAUNCH_CMD[@]}"
 
-  # Two explicit branches rather than expanding a possibly-empty array:
-  # "${arr[@]}" on an empty array is an unbound-variable error under `set -u`
-  # in bash 3.2.
   if tmux has-session -t "$session" 2>/dev/null; then
-    if [ -n "$token" ]; then
-      tmux new-window -t "$session" -c "$wt" -n "$window_label" -e "GH_TOKEN=$token" "${LAUNCH_CMD[@]}"
-    else
-      tmux new-window -t "$session" -c "$wt" -n "$window_label" "${LAUNCH_CMD[@]}"
-    fi && remember_credential "$wt"
+    tmux new-window -t "$session" -c "$wt" -n "$window_label" "${LAUNCH_CMD[@]}" \
+      && remember_credential "$wt"
     tmux set-option -t "$session" set-titles on
     tmux set-option -t "$session" set-titles-string '#{s/^tender-//:#S} · #W'
     attach_if_terminal "$session" "$repo"
@@ -283,11 +262,8 @@ cmd_start() {
     # Detached first, not the direct attach new-session offers without -d: the
     # title has to be set session-scoped before anyone looks at the tab, and
     # that needs the session to already exist as a target.
-    if [ -n "$token" ]; then
-      tmux new-session -d -s "$session" -c "$wt" -n "$window_label" -e "GH_TOKEN=$token" "${LAUNCH_CMD[@]}"
-    else
-      tmux new-session -d -s "$session" -c "$wt" -n "$window_label" "${LAUNCH_CMD[@]}"
-    fi && remember_credential "$wt"
+    tmux new-session -d -s "$session" -c "$wt" -n "$window_label" "${LAUNCH_CMD[@]}" \
+      && remember_credential "$wt"
     tmux set-option -t "$session" set-titles on
     tmux set-option -t "$session" set-titles-string '#{s/^tender-//:#S} · #W'
     attach_if_terminal "$session" "$repo"
