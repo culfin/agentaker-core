@@ -35,13 +35,66 @@ gives two worktrees, `dateye-developer` and `dateye-developer-a11y`, each with
 its own branch, each addressable independently. Use this for parallel,
 unrelated work — not for two sessions on the same issue.
 
-**And nothing caps how many.** Renovate solved the equivalent problem in 2019
-with `prConcurrentLimit`: unbounded automation does not overwhelm the machine,
-it overwhelms the human who has to read the results. `treetender` has no such
-knob, deliberately — with three roles and one session each there is nothing to
-cap, and an option with no effect still has to be documented, tested and
-explained. The reasoning, the triggers that would make it real, and what to
-check before building it are in issue #1.
+**Nothing caps how many sessions** — but a project can cap how many agent
+PRs it lets pile up, which is the thing that actually overwhelms someone.
+See the next section.
+
+## `max-open-prs` caps agent PRs — per project, and only where it asks
+
+Renovate solved the equivalent problem in 2019 with `prConcurrentLimit`:
+unbounded automation does not overwhelm the machine, it overwhelms the human
+who has to read the results. `tender status` measures it: for every project
+under `TENDER_PROJECTS_DIR` that has an `AGENTS.md`, one line when agent PRs
+are open —
+
+    agent PRs open:
+      acme: 3 agent PRs open, oldest waiting 2d (cap 3 — full)
+
+An **agent PR** is an open pull request whose branch is `<repo>-developer` or
+`<repo>-developer-<suffix>` — the branches `tender <repo> developer [suffix]`
+creates. Drafts count: in single-account mode a draft is exactly what is
+waiting for you. It is one `gh pr list` call per project, run on demand like
+the rest of the board (see "No polling"); when it cannot be asked — `gh`
+missing, offline, no remote — the line says `could not ask`, the board exits
+1, and it never reads as zero.
+
+A project that wants a ceiling sets one in its `AGENTS.md`:
+
+    max-open-prs: 3
+
+**What it does.** A developer session about to open a PR counts first
+(`roles/developer.md`, "Working", step 2). At the cap it opens nothing,
+keeps its branch pushed, says so, claims no new issue, and works on review
+feedback instead. And `tender <repo> developer [suffix]` refuses to start
+another developer session — exit 1, naming the cap and the count — when the
+count is at or above the cap *and* another developer session of that repo
+already has a running window.
+
+**What it does not do.**
+
+- **It never stops the first developer session.** That session is the one
+  that works off review feedback; refusing it would leave a full queue with
+  nobody to empty it.
+- **It binds the project, not the tool.** There is no global limit and no
+  default: without `max-open-prs`, nothing anywhere behaves differently.
+  Each project decides its own number, because only the project knows how
+  fast its reviews go.
+- **It is not enforced against a session that ignores its role.** The start
+  refusal is real; the check before `gh pr create` is an instruction, like
+  every other role boundary (see "Role boundaries are not enforced").
+- **A failed count does not stall work.** Could not ask means start, or open
+  the PR, with a one-line warning — never a silent wait on a number nobody
+  has.
+- **It does not count other PRs.** A human's branch, a dependency update, a
+  reviewer's or maintainer's branch are not agent PRs.
+- **An invalid value is no cap, never 0.** `max-open-prs: 0`, `three` or `-1`
+  is reported by `tender status` (and by `bin/tender-lint` in an example) and
+  otherwise ignored — a typo must not stop every developer.
+- **A waiting branch still holds its claim, and the claim still ages.** Past
+  `claim-timeout-days` another session may take the issue over; step 1 of
+  "Working" is what notices, when the count drops and the session comes back.
+- **It counts up to 200.** That is the `--limit` of the one call; a project
+  with more open agent PRs than that has a different problem.
 
 ## Disk: a Rust/Tauri worktree is large, and it's `target/`
 
@@ -170,7 +223,8 @@ irreversible action an agent can take. That is why it is the only one with a loc
 Nothing runs while you're not looking. `tender status` answers "where is work
 waiting" on demand — it costs four `gh search` calls per owner (ready issues,
 the review queue, approved PRs, decisions waiting on you — `cmd_status()` in
-`bin/tender`), not a background loop — but it doesn't notify you on its own, and no session
+`bin/tender`) plus one `gh pr list` per set-up local project (the agent PR
+count, `lib/throttle.sh`), not a background loop — but it doesn't notify you on its own, and no session
 advances work it wasn't asked to advance. If you want to know whether
 something moved, you ask; the tool never wakes anyone up by itself. This is a
 deliberate omission (see `docs/concept.md`), not a missing feature — it keeps

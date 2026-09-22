@@ -5,7 +5,7 @@
 ```bash
 bash tests/run.sh      # every tests/test_*.sh file, no framework — prints "passed: N failed: N" per file
 bin/tender-lint .          # checks the repository stays internally consistent
-shellcheck -S warning bin/tender lib/init.sh lib/init_flags.sh lib/init_propose.sh lib/json.sh lib/manage.sh lib/tabs.sh lib/state.sh lib/tools.sh lib/doctor.sh lib/claims.sh lib/credential.sh bin/tender-lint hooks/load_role.sh
+shellcheck -S warning bin/tender lib/init.sh lib/init_flags.sh lib/init_propose.sh lib/json.sh lib/manage.sh lib/tabs.sh lib/state.sh lib/tools.sh lib/doctor.sh lib/claims.sh lib/credential.sh lib/throttle.sh bin/tender-lint hooks/load_role.sh
 ```
 
 (The assertion count isn't stated here on purpose — it only ever goes stale by
@@ -93,7 +93,9 @@ on every run), and also, deliberately, the one file in this list that is
 sometimes run directly by `bash` rather than sourced: see its own header for
 why sourced-versus-executed is a single dual-purpose file here rather than
 two; `lib/doctor.sh` holds `tender doctor`,
-sourced on demand like `lib/init.sh`. `bin/tender-lint` checks all of them —
+sourced on demand like `lib/init.sh`; `lib/throttle.sh` holds the agent PR
+count and the `max-open-prs` cap (issue #1), sourced unconditionally because
+both `status` and every developer start ask it. `bin/tender-lint` checks all of them —
 see the loop near the end of `bin/tender-lint` for the current list, which is
 also what to extend when a new file joins them. The ceiling guards
 readability, not a budget: when a file approaches it, ask which block has

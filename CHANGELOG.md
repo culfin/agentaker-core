@@ -28,6 +28,19 @@ Without either flag `init` behaves as before. `tender claims --json` now
 escapes every control character instead of flattening newlines to spaces
 (the escaper is shared, `lib/json.sh`).
 
+Agent PRs are measured, and a project can cap them (issue #1). `tender
+status` gains one line per set-up local project with agent PRs open — open
+PRs on `<repo>-developer[-<suffix>]` branches, drafts included — with the
+age of the oldest; a count that could not be asked says so and fails the
+board, never reads as zero. `max-open-prs: N` in `AGENTS.md` (optional; the
+template ships it commented out) sets a cap: the developer role checks it
+before `gh pr create` and, at the cap, keeps its branch pushed and works on
+review feedback instead of opening or claiming more; `tender <repo>
+developer` refuses an additional developer session when the cap is reached
+and one is already running — never the first. Without the field nothing
+changes; an invalid value is reported and treated as no cap, never as 0.
+See `docs/limits.md`.
+
 ## 0.1.0 — 2026-09-20
 
 First version. Three roles (`developer`, `reviewer`, `maintainer`), the `tender`

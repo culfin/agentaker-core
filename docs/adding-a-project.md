@@ -60,6 +60,7 @@ Proposed AGENTS.md:
 trunk: main
 reviewer:            # GitHub login of the account that reviews here — see docs/setup.md
 claim-timeout-days: 2  # days before an unreleased claim counts as orphaned and may be taken over — see docs/limits.md
+# max-open-prs: 3  # cap on open agent PRs — see docs/limits.md
 
 ## Test commands
 
@@ -225,6 +226,12 @@ it if this project's issues routinely take longer than that to work through
 without a PR appearing; lower it only with the eviction risk in mind —
 `docs/limits.md`, "The claim ref locks task selection, not the work after
 it", has the full trade-off.
+
+`max-open-prs:` is optional and ships commented out: uncomment it with a
+number to cap how many agent PRs this project lets pile up before its
+developers stop opening new ones and work off review feedback instead —
+`docs/limits.md`, "`max-open-prs` caps agent PRs", says what it does and does
+not do.
 
 **2. Commit it.**
 

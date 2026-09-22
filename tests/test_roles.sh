@@ -178,4 +178,24 @@ for ex in examples/*.AGENTS.md; do
   contains "$ex ships claim-timeout-days" "claim-timeout-days: 2" "$(cat "$ex")"
 done
 
+echo "AGENTS.md: max-open-prs ships as a commented hint only (issue #1)"
+contains "lib/init.sh carries the hint next to claim-timeout-days" \
+  "# max-open-prs: 3  # cap on open agent PRs — see docs/limits.md" "$INIT"
+check "no uncommented max-open-prs line in the template — default stays no cap" "0" \
+  "$(grep -c '^max-open-prs:' lib/init.sh)"
+
+echo "roles: the developer checks max-open-prs before opening a PR"
+contains "reads max-open-prs from AGENTS.md" "grep -m1 '^max-open-prs:' AGENTS.md" "$DEV"
+contains "counts only this repo's developer branches" 'startswith(\"$repo-developer-\")' "$DEV"
+contains "at the cap: keeps the branch pushed" "git push -u origin HEAD   # at the cap" "$DEV"
+contains "at the cap: no new claim" "Claim no new issue until the" "$DEV"
+contains "at the cap: review feedback continues" "Review feedback on the" "$DEV"
+contains "could not ask: proceeds and says so" "going ahead without the max-open-prs check" "$DEV"
+contains "finding work runs the cap check before claiming" "before claiming: at the cap, claim nothing" "$DEV"
+check "the cap check comes before gh pr create" "yes" \
+  "$([ "$(grep -n "grep -m1 '^max-open-prs:'" roles/developer.md | head -1 | cut -d: -f1)" -lt "$(grep -n 'gh pr create --draft' roles/developer.md | head -1 | cut -d: -f1)" ] && echo yes || echo no)"
+contains "limits says the cap binds the project, not the tool" "It binds the project, not the tool" "$LIMITS"
+contains "limits says the first developer session is never refused" "never stops the first developer session" "$LIMITS"
+lacks "limits no longer says there is no such knob" "has no such" "$LIMITS"
+
 summary

@@ -20,6 +20,9 @@ dependency natively, the same reasoning `docs/flow.md` gives for having no
 
 Take exactly **one**. If none carries `ready` and is unassigned, say so and
 stop — do not invent work, and never label an issue yourself.
+If this project sets `max-open-prs` in `AGENTS.md`, run the cap check from
+"Working", step 2, before claiming: at the cap, claim nothing and work on
+review feedback instead.
 The human applies `ready`; it is the one signal no agent may give itself.
 
 Claim it before anything else — before the draft PR, before any code. A git
@@ -155,19 +158,53 @@ A PR stays in that state until you re-request review, so this is your inbox.
    This belongs to the same step as opening the PR, not a separate check run
    sometime earlier — the longer the gap between the check and the `gh pr
    create` below, the less it proves.
-2. Open the PR **immediately, as a draft**, so the work is visible:
+2. **If this project caps open agent PRs, check the cap first.** `max-open-prs`
+   in `AGENTS.md` is optional; absent means no cap and this step does nothing.
+   An agent PR is an open PR whose branch is `<repo>-developer` or
+   `<repo>-developer-<suffix>` — drafts included, because in single-account
+   mode a draft is exactly what is waiting for a human:
+   ```bash
+   cap=$(grep -m1 '^max-open-prs:' AGENTS.md \
+         | sed 's/^max-open-prs://; s/#.*//; s/^[[:space:]]*//; s/[[:space:]]*$//')
+   case $cap in
+     '') ;;   # no cap — nothing to check
+     0*|*[!0-9]*) echo "max-open-prs '$cap' is not a positive integer — treated as no cap"; cap= ;;
+   esac
+   if [ -n "$cap" ]; then
+     repo=$(cd "$(git rev-parse --git-common-dir)/.." && basename "$PWD")
+     if open=$(gh pr list --state open --json headRefName --limit 200 \
+          --jq "[.[] | select(.headRefName == \"$repo-developer\" or (.headRefName | startswith(\"$repo-developer-\")))] | length"); then
+       if [ "$open" -ge "$cap" ]; then
+         git push -u origin HEAD   # at the cap: keep the work, open nothing
+       fi
+     else
+       echo "could not count open agent PRs — going ahead without the max-open-prs check"
+     fi
+   fi
+   ```
+   **At the cap:** do not open the PR. The branch stays pushed, so nothing is
+   lost; say plainly in the session that the project is at its cap
+   (`$open` of `$cap`) and that the PR waits. Claim no new issue until the
+   count drops — run this check again before claiming. Review feedback on the
+   PRs already open is still yours to work on: emptying that queue is what
+   the cap is for. When the count drops, start again from step 1 — the claim
+   may have aged out meanwhile.
+   **Could not ask** (offline, no remote, `gh` missing) is not zero and not
+   the cap: go ahead and say so — a failed count must never stall work
+   silently. `docs/limits.md` has what the cap does and does not do.
+3. Open the PR **immediately, as a draft**, so the work is visible:
    ```bash
    gh pr create --draft --title "…" --body "Closes #<N>
 
    Opened by: developer"
    ```
-3. Implement test-first. The test commands are in this project's `AGENTS.md`.
+4. Implement test-first. The test commands are in this project's `AGENTS.md`.
    Fixing a bug: show the new test failing against the old code before you
    fix it — a reviewer who can't see that has no way to know the bug was
    ever real, or that it's actually gone (`roles/reviewer.md` checks for
    this).
-4. Run them. Show the output. Only then say it works.
-5. Mark it ready and ask for review. Which command depends on the mode
+5. Run them. Show the output. Only then say it works.
+6. Mark it ready and ask for review. Which command depends on the mode
    (`roles/reviewer.md`):
 
    **Single-account mode:**

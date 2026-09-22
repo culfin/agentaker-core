@@ -102,6 +102,7 @@ BOUND
 trunk: $trunk
 $reviewer_line
 claim-timeout-days: 2  # days before an unreleased claim counts as orphaned and may be taken over — see docs/limits.md
+# max-open-prs: 3  # cap on open agent PRs — see docs/limits.md
 
 ## Test commands
 

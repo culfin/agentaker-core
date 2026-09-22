@@ -29,6 +29,14 @@ printf 'trunk: main\n\n## Subagents\nghost-agent\n\n## Production boundary\nnone
 out=$("$LINT" "$TMP" 2>&1); check "unknown subagent fails" "1" "$?"
 contains "names the unknown subagent" "ghost-agent" "$out"
 
+echo "lint: an example's max-open-prs must be a positive integer"
+printf 'trunk: main\nreviewer: x\nmax-open-prs: 0\n\n## Test commands\nx\n\n## Production boundary\nnone\n' > "$TMP/examples/a.AGENTS.md"
+out=$("$LINT" "$TMP" 2>&1); check "max-open-prs: 0 fails" "1" "$?"
+contains "names the bad value" "max-open-prs '0' is not a positive integer" "$out"
+printf 'trunk: main\nreviewer: x\nmax-open-prs: 3  # small\n\n## Test commands\nx\n\n## Production boundary\nnone\n' > "$TMP/examples/a.AGENTS.md"
+out=$("$LINT" "$TMP" 2>&1)
+lacks "max-open-prs: 3 with a comment passes" "max-open-prs" "$out"
+
 echo "lint: vendor names in roles are caught"
 printf 'trunk: main\n\n## Production boundary\nnone\n' > "$TMP/examples/a.AGENTS.md"
 printf 'Use Claude for this.\n' > "$TMP/roles/developer.md"
@@ -59,6 +67,10 @@ printf 'x\n' > "$TMP2/lib/init.sh"
 yes '# padding' | head -451 >> "$TMP2/lib/init.sh"
 out=$("$LINT" "$TMP2" 2>&1); check "oversized lib/init.sh fails" "1" "$?"
 contains "names lib/init.sh, not just bin/tender" "lib/init.sh is" "$out"
+rm -f "$TMP2/lib/init.sh"
+yes '# padding' | head -451 > "$TMP2/lib/throttle.sh"
+out=$("$LINT" "$TMP2" 2>&1); check "oversized lib/throttle.sh fails" "1" "$?"
+contains "names lib/throttle.sh" "lib/throttle.sh is" "$out"
 
 echo "lint: single-account mode documentation is required in each role file"
 printf 'trunk: main\n\nreviewer: example-reviewer\n\n## Test commands\nx\n\n## Production boundary\nnone\n' > "$TMP/examples/a.AGENTS.md"

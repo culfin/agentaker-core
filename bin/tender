@@ -54,6 +54,9 @@ die() { printf 'tender: %s\n' "$1" >&2; exit "${2:-1}"; }
 # shellcheck source=lib/credential.sh
 . "$TENDER_HOME/lib/credential.sh" || die "cannot load $TENDER_HOME/lib/credential.sh"
 
+# shellcheck source=lib/throttle.sh
+. "$TENDER_HOME/lib/throttle.sh" || die "cannot load $TENDER_HOME/lib/throttle.sh"
+
 usage() {
   cat <<'EOF'
 Usage:
@@ -187,6 +190,7 @@ cmd_start() {
   [ -e "$repo_dir/.git" ] || die "$repo_dir is not a git repository"
   valid_role_name "$role" || die "'$role' is not a role name (lowercase letters, digits, - and _)"
   [ -s "$ROLES_DIR/$role.md" ] || die "no role file for '$role' — see $ROLES_DIR"
+  if [ "$role" = developer ]; then throttle_start_check "$repo" "$suffix" || exit 1; fi
 
   if [ ! -d "$wt" ]; then
     git -C "$repo_dir" worktree add "$wt" -b "$name" >/dev/null 2>&1 \
@@ -357,6 +361,8 @@ cmd_status() {
     search issues --owner "$owner" --state open --label needs-decision \
     --json repository,number,title \
     --jq '.[] | "  \(.repository.name)#\(.number)  \(.title)"'
+
+  throttle_status_section   # per local project — lib/throttle.sh
 
   if [ "$STATUS_FAILED" -ne 0 ]; then
     printf '\nSome questions could not be asked — this board is incomplete.\n' >&2

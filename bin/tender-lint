@@ -34,6 +34,18 @@ for ex in "$ROOT"/examples/*.AGENTS.md; do
   grep -qiE '^##[[:space:]]+Production boundary' "$ex" || problem "$name: no '## Production boundary' section"
   grep -qiE '^##[[:space:]]+Test commands' "$ex" || problem "$name: no '## Test commands' section"
 
+  # max-open-prs is optional, but a present one must be a positive integer:
+  # lib/throttle.sh treats anything else as no cap, and an example is exactly
+  # what people copy. Same reading as throttle_cap() — first line, comment
+  # allowed.
+  cap_line=$(grep -m1 '^max-open-prs:' "$ex" || true)
+  if [ -n "$cap_line" ]; then
+    cap=$(printf '%s' "${cap_line#max-open-prs:}" | sed 's/#.*//; s/^[[:space:]]*//; s/[[:space:]]*$//')
+    case $cap in
+      ''|0*|*[!0-9]*) problem "$name: max-open-prs '$cap' is not a positive integer — it would be ignored as no cap" ;;
+    esac
+  fi
+
   for role in $(section "$ex" "Roles"); do
     [ -f "$ROOT/roles/$role.md" ] || problem "$name: names role '$role', which does not exist in roles/"
   done
@@ -94,7 +106,7 @@ done
 # budget — if a file approaches it, the question is which block has become its
 # own concern, the way `init` did (lib/init.sh) and tab/colour handling did
 # (lib/tabs.sh).
-for script in bin/tender lib/init.sh lib/init_flags.sh lib/init_propose.sh lib/json.sh lib/manage.sh lib/tabs.sh lib/state.sh lib/tools.sh lib/doctor.sh lib/claims.sh lib/credential.sh; do
+for script in bin/tender lib/init.sh lib/init_flags.sh lib/init_propose.sh lib/json.sh lib/manage.sh lib/tabs.sh lib/state.sh lib/tools.sh lib/doctor.sh lib/claims.sh lib/credential.sh lib/throttle.sh; do
   if [ -f "$ROOT/$script" ]; then
     lines=$(wc -l < "$ROOT/$script")
     [ "$lines" -le 450 ] || problem "$script is $lines lines — split it or raise the ceiling deliberately"
