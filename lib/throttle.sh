@@ -140,7 +140,15 @@ throttle_age() {
 throttle_other_developer_running() {
   local repo=$1 own=$2 paths wt
   command -v tmux >/dev/null 2>&1 || return 1
-  paths=$(tmux list-panes -s -t "=$(session_name "$repo")" -F '#{pane_start_path}' 2>/dev/null) || return 1
+  # Each line carries a leading "x", so a pane whose path tmux cannot tell
+  # (tmux < 3.3 has no pane_start_path) shows up as a bare "x" instead of
+  # vanishing into an empty string that looks like "no panes at all".
+  paths=$(tmux list-panes -s -t "=$(session_name "$repo")" -F 'x#{pane_start_path}' 2>/dev/null) || return 1
+  if [ -n "$paths" ] && ! printf '%s\n' "$paths" | grep -q '^x.'; then
+    printf 'tender: this tmux cannot tell which session runs in which worktree (pane_start_path needs tmux 3.3) — max-open-prs not checked for this start\n' >&2
+    return 1
+  fi
+  paths=$(printf '%s\n' "$paths" | sed 's/^x//')
   for wt in "$PROJECTS_DIR/$repo/.worktrees/$repo-developer" \
             "$PROJECTS_DIR/$repo/.worktrees/$repo-developer-"*; do
     [ -d "$wt" ] || continue

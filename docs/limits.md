@@ -102,6 +102,11 @@ it was started in), not the window name, which a `devops` session shares.
   `TENDER_PROJECTS_DIR`. Two clones of the same remote — on two machines, or
   side by side — share one queue on GitHub and still check it separately,
   each against its own `AGENTS.md` and its own tmux session.
+- **The start refusal needs tmux 3.3 or newer.** It recognises a running
+  developer session by the worktree its window was started in
+  (`pane_start_path`, added in tmux 3.3). An older tmux cannot say, so
+  `tender` says that instead and starts without the check — the developer's
+  own count in `roles/developer.md` still applies.
 - **It reads at most 200 open PRs.** That is the `--limit` of the one call,
   and it applies to *all* open PRs of the repository, not just agent PRs: a
   repository with 200 or more open PRs of any kind returns only part of them.

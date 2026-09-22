@@ -264,6 +264,24 @@ check "a running suffixed developer makes the unsuffixed start an additional one
 tmux rename-window -t "=tender-demo:DEV·a11y" "whatever"
 out=$("$TENDER" demo developer 2>&1)
 check "a renamed window is still found by its path" "1" "$?"
+# A tmux older than 3.3 prints pane_start_path as nothing. Played by a thin
+# wrapper around the real (private-socket) tmux that blanks that one field:
+# the start must go ahead and say why, not refuse or stay silent.
+OLDTMUX=$(mktemp -d)
+REAL_TMUX=$(command -v tmux)
+cat > "$OLDTMUX/tmux" <<EOF
+#!/usr/bin/env bash
+if [ "\$1" = list-panes ]; then
+  "$REAL_TMUX" "\$@" | sed 's|^x.*|x|'
+else
+  exec "$REAL_TMUX" "\$@"
+fi
+EOF
+chmod +x "$OLDTMUX/tmux"
+out=$(PATH="$OLDTMUX:$PATH" "$TENDER" demo developer 2>&1)
+check "tmux < 3.3: starts, it cannot tell the sessions apart" "0" "$?"
+contains "tmux < 3.3: says so instead of staying silent" "pane_start_path needs tmux 3.3" "$out"
+rm -rf "$OLDTMUX"
 stop_panes demo
 # Another repo's session whose name only starts with this one's does not count.
 set_up de "max-open-prs: 1"
@@ -373,6 +391,19 @@ STUBEOF
   contains "lookalike branches are not counted (2 of 5 listed, cap 3)" "RESULT full=no open=2" "$(runsnip)"
   printf 'max-open-prs: 2  # small\n' > "$SWT/AGENTS.md"
   contains "at the cap: full=yes" "RESULT full=yes open=2" "$(runsnip)"
+  # The branch moves on with every issue, and is detached mid-rebase; the
+  # count must not: it reads the repo off the worktree's directory name.
+  git -C "$SWT" checkout -q -b feature-42
+  contains "on another branch: still counts this repo's agent PRs" "RESULT full=yes open=2" "$(runsnip)"
+  git -C "$SWT" checkout -q --detach
+  contains "on a detached HEAD: still counts" "RESULT full=yes open=2" "$(runsnip)"
+  git -C "$SWT" checkout -q snip-developer-x
+  OTHER_WT="$SANDBOX/snip/.worktrees/scratch"
+  git -C "$SANDBOX/snip" worktree add -q "$OTHER_WT" -b scratch
+  printf 'max-open-prs: 2\n' > "$OTHER_WT/AGENTS.md"
+  out=$(cd "$OTHER_WT" && PATH="$JQSTUB:$PATH" bash "$SNIP" 2>&1)
+  contains "a worktree not named <repo>-developer: full=unknown, never a silent zero" "RESULT full=unknown" "$out"
+  contains "... and says why" "cannot tell which PRs are agent PRs" "$out"
   printf 'trunk: main\n' > "$SWT/AGENTS.md"
   contains "no cap: full=no, gh not needed" "RESULT full=no open=" "$(runsnip)"
   printf 'max-open-prs: 1234567890\n' > "$SWT/AGENTS.md"

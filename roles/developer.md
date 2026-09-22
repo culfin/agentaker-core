@@ -172,11 +172,19 @@ A PR stays in that state until you re-request review, so this is your inbox.
      0*|*[!0-9]*|??????????*) echo "max-open-prs '$cap' is not a positive integer — treated as no cap"; cap= ;;
    esac
    full=no
+   repo=
    if [ -n "$cap" ]; then
-     # This worktree's branch is <repo>-developer[-<suffix>], the name tender
-     # gave it — so the repo name is whatever precedes -developer.
-     branch=$(git rev-parse --abbrev-ref HEAD)
-     repo=${branch%-developer*}
+     # The worktree's directory is <repo>-developer[-<suffix>]: tender named
+     # it once and it never changes — unlike the branch, which moves on with
+     # every issue and is detached mid-rebase.
+     wt_name=$(basename "$(git rev-parse --show-toplevel)")
+     case $wt_name in
+       *-developer|*-developer-*) repo=${wt_name%-developer*} ;;
+       *) full=unknown
+          echo "this worktree is not named <repo>-developer[-<suffix>] — cannot tell which PRs are agent PRs; going ahead without the max-open-prs check" ;;
+     esac
+   fi
+   if [ -n "$repo" ]; then
      if counts=$(gh pr list --state open --json headRefName --limit 200 \
           --jq "\"\(length) \([.[] | select(.headRefName == \"$repo-developer\" or (.headRefName | startswith(\"$repo-developer-\")))] | length)\""); then
        listed=${counts% *}
